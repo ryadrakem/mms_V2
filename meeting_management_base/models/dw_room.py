@@ -1,5 +1,7 @@
 from smartdz import models, fields, api
 from datetime import datetime, timedelta
+import pytz
+from pytz import timezone
 
 
 class DwRoom(models.Model):
@@ -19,7 +21,7 @@ class DwRoom(models.Model):
         ('maintenance', 'Maintenance')
     ], string='Status', default='free', compute='_compute_status', store=False)
 
-    current_reservation_id = fields.Many2one('dw.meeting', string='Current Meeting',
+    current_reservation_id = fields.Many2one('dw.planification.meeting', string='Current Meeting',
                                              compute='_compute_current_meeting')
 
     @api.depends('capacity_number')
@@ -29,30 +31,30 @@ class DwRoom(models.Model):
             room.capacity = room.capacity_number
 
     def _compute_current_meeting(self):
-        """Find current active meeting for the room"""
+        """Find current active planification meeting for the room"""
         now = datetime.now()
 
         for room in self:
-            meeting = self.env['dw.meeting'].search([
+            meeting = self.env['dw.planification.meeting'].search([
                 ('room_id', '=', room.id),
                 ('planned_start_datetime', '<=', now),
                 ('planned_end_time', '>=', now),
-                ('state', 'not in', ['cancelled', 'done'])
+                ('state', 'not in', ['cancelled', 'done', 'draft'])
             ], limit=1)
             room.current_reservation_id = meeting.id if meeting else False
 
     @api.depends('current_reservation_id')
     def _compute_status(self):
-        """Compute room status based on current meetings"""
+        """Compute room status based on current planification meetings"""
         now = datetime.now()
 
         for room in self:
             # Check if there's an active meeting
-            active_meeting = self.env['dw.meeting'].search([
+            active_meeting = self.env['dw.planification.meeting'].search([
                 ('room_id', '=', room.id),
                 ('planned_start_datetime', '<=', now),
                 ('planned_end_time', '>=', now),
-                ('state', 'not in', ['cancelled', 'done'])
+                ('state', 'not in', ['cancelled', 'done', 'draft'])
             ], limit=1)
 
             if active_meeting:
@@ -64,41 +66,51 @@ class DwRoom(models.Model):
     def get_rooms_availability(self):
         """Get room availability status for dashboard"""
         rooms = self.search([])
-        now = datetime.now()
+        now = fields.Datetime.now()  # Use Odoo's timezone-aware now
+
+        # Get user's timezone
+        user_tz = self.env.user.tz or 'UTC'
+        user_timezone = timezone(user_tz)
 
         result = []
         for room in rooms:
             # Check current status
-            current_meeting = self.env['dw.meeting'].search([
+            current_meeting = self.env['dw.planification.meeting'].search([
                 ('room_id', '=', room.id),
                 ('planned_start_datetime', '<=', now),
                 ('planned_end_time', '>=', now),
-                ('state', 'not in', ['cancelled', 'done'])
+                ('state', 'not in', ['cancelled', 'done', 'draft'])
             ], limit=1)
 
             is_free = not current_meeting
 
             # Get next meeting
-            next_meeting = self.env['dw.meeting'].search([
+            next_meeting = self.env['dw.planification.meeting'].search([
                 ('room_id', '=', room.id),
                 ('planned_start_datetime', '>', now),
                 ('state', 'not in', ['cancelled', 'done'])
             ], limit=1, order='planned_start_datetime asc')
 
-            # Format times
+            # Format times in user's timezone
+            free_until = None
+            busy_until = None
+            current_meeting_name = None
+
             if is_free:
-                if next_meeting:
-                    free_until = next_meeting.planned_start_datetime.isoformat()
-                else:
-                    free_until = None
-                busy_until = None
-                current_meeting_name = None
+                if next_meeting and next_meeting.planned_start_datetime:
+                    # Convert UTC to user timezone
+                    utc_dt = pytz.UTC.localize(next_meeting.planned_start_datetime.replace(tzinfo=None))
+                    local_dt = utc_dt.astimezone(user_timezone)
+                    free_until = local_dt.strftime('%I:%M %p')  # e.g., "09:01 PM"
             else:
-                free_until = None
-                busy_until = current_meeting.planned_end_time.isoformat()
+                if current_meeting.planned_end_time:
+                    # Convert UTC to user timezone
+                    utc_dt = pytz.UTC.localize(current_meeting.planned_end_time.replace(tzinfo=None))
+                    local_dt = utc_dt.astimezone(user_timezone)
+                    busy_until = local_dt.strftime('%I:%M %p')
                 current_meeting_name = current_meeting.name or 'Occupied'
 
-            # Get amenities (equipment names)
+            # Get (equipment names)
             amenities = [eq.name for eq in room.equipments[:3]]
 
             result.append({
@@ -116,16 +128,16 @@ class DwRoom(models.Model):
         return result
 
     def action_book_now(self):
-        """Quick book this room for 1 hour"""
+        """Quick book this room for 1 hour - creates planification meeting"""
         now = datetime.now()
         planned_end_time = now + timedelta(hours=1)
 
         # Check if room is available
-        overlapping = self.env['dw.meeting'].search([
+        overlapping = self.env['dw.planification.meeting'].search([
             ('room_id', '=', self.id),
             ('planned_start_datetime', '<=', now),
             ('planned_end_time', '>', now),
-            ('state', 'not in', ['cancelled', 'done'])
+            ('state', 'not in', ['cancelled', 'done', 'draft'])
         ], limit=1)
 
         if overlapping:
@@ -140,19 +152,18 @@ class DwRoom(models.Model):
                 }
             }
 
-        # Create quick booking
-        meeting = self.env['dw.meeting'].create({
+        # Create quick booking as planification meeting
+        meeting = self.env['dw.planification.meeting'].create({
             'name': f'Quick Booking - {self.name}',
             'planned_start_datetime': now,
-            'planned_end_time': planned_end_time,
             'duration': 1.0,
             'room_id': self.id,
-            'state': 'confirmed',
+            'state': 'draft',
         })
 
         return {
             'type': 'ir.actions.act_window',
-            'res_model': 'dw.meeting',
+            'res_model': 'dw.planification.meeting',
             'res_id': meeting.id,
             'views': [[False, 'form']],
             'target': 'current',

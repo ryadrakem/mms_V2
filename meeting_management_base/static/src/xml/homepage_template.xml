@@ -222,7 +222,6 @@
                     </div>
                 </aside>
 
-                <!-- Center Column -->
                 <main class="dw-center">
                     <div class="carousel-container">
                         <button class="carousel-btn prev"
@@ -231,7 +230,7 @@
                             <i class="fa fa-chevron-left" aria-hidden="true"></i>
                         </button>
 
-                        <!-- Upcoming Meetings -->
+                        <!-- Slide 1: Upcoming Meetings -->
                         <div class="carousel-slide" t-att-class="state.currentSlide === 0 ? 'active' : ''">
                             <div class="card">
                                 <div class="card-head">
@@ -316,13 +315,6 @@
                                                     </div>
                                                 </div>
                                                 <div class="meeting-right">
-                                                    <div class="meeting-actions">
-                                                        <button class="btn-icon"
-                                                                t-on-click.stop="(e) => toggleMeetingMenu(m.id, e)"
-                                                                title="More actions">
-                                                            <i class="fa fa-ellipsis-v" aria-hidden="true"></i>
-                                                        </button>
-                                                    </div>
                                                     <span class="chip" t-att-class="m.state || 'unknown'">
                                                         <span class="chip-dot"></span>
                                                         <t t-esc="(m.state || 'Unknown').charAt(0).toUpperCase() + (m.state || '').slice(1)"/>
@@ -344,57 +336,8 @@
                             </div>
                         </div>
 
-                        <!-- Recent Minutes -->
+                        <!-- Slide 2: Activity Feed -->
                         <div class="carousel-slide" t-att-class="state.currentSlide === 1 ? 'active' : ''">
-                            <div class="card">
-                                <div class="card-head">
-                                    <div class="card-head-content">
-                                        <strong>Recent Minutes</strong>
-                                        <span class="muted">Last 5 documented meetings</span>
-                                    </div>
-                                </div>
-                                <div class="card-body minutes-list">
-                                    <t t-foreach="state.recent_minutes" t-as="min" t-key="min.id">
-                                        <div class="minute-row" t-on-click="() => openMinutes(min.id)">
-                                            <div class="minute-content">
-                                                <div class="minute-title">
-                                                    <i class="fa fa-file-text-o minute-icon" aria-hidden="true"></i>
-                                                    <t t-esc="min.title"/>
-                                                </div>
-                                                <div class="minute-meta">
-                                                    <div class="minute-avatar">
-                                                        <span class="avatar-letters">
-                                                            <t t-esc="(min.author || 'U').slice(0,1).toUpperCase()"/>
-                                                        </span>
-                                                    </div>
-                                                    <div class="minute-info">
-                                                        <span class="minute-author">
-                                                            <t t-esc="min.author"/>
-                                                        </span>
-                                                        <span class="minute-date muted">
-                                                            <t t-esc="min.created_at"/>
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <i class="fa fa-chevron-right arrow-icon" aria-hidden="true"></i>
-                                        </div>
-                                    </t>
-                                    <t t-if="state.recent_minutes.length === 0">
-                                        <div class="empty-state">
-                                            <div class="empty-icon">
-                                                <i class="fa fa-file-text-o" aria-hidden="true"></i>
-                                            </div>
-                                            <h3>No minutes recorded</h3>
-                                            <p>Minutes will appear here after meetings</p>
-                                        </div>
-                                    </t>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Activity Feed -->
-                        <div class="carousel-slide" t-att-class="state.currentSlide === 2 ? 'active' : ''">
                             <div class="card">
                                 <div class="card-head">
                                     <div class="card-head-content">
@@ -452,7 +395,7 @@
 
                         <button class="carousel-btn next"
                                 t-on-click="nextSlide"
-                                t-att-disabled="state.currentSlide === 2">
+                                t-att-disabled="state.currentSlide === 1">
                             <i class="fa fa-chevron-right" aria-hidden="true"></i>
                         </button>
                     </div>
@@ -465,15 +408,11 @@
                         <button class="indicator"
                                 t-att-class="state.currentSlide === 1 ? 'active' : ''"
                                 t-on-click="() => goToSlide(1)"
-                                aria-label="View recent minutes"></button>
-                        <button class="indicator"
-                                t-att-class="state.currentSlide === 2 ? 'active' : ''"
-                                t-on-click="() => goToSlide(2)"
                                 aria-label="View activity feed"></button>
                     </div>
                 </main>
 
-                <!-- Right Column -->
+                <!-- Right Column: Rooms -->
                 <aside class="dw-right">
                     <div class="card card-rooms">
                         <div class="card-head">
@@ -508,7 +447,7 @@
                                                     <t t-esc="r.is_free ? 'Free until' : 'Busy until'"/>
                                                 </small>
                                                 <div class="room-next-time">
-                                                    <t t-esc="r.is_free ? (r.free_until ? new Date(r.free_until).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—') : (r.busy_until ? new Date(r.busy_until).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—')"/>
+                                                    <t t-esc="r.display_free_until || r.free_until_local || r.free_until || '—'"/>
                                                 </div>
                                             </div>
                                             <div class="room-capacity" t-if="r.capacity">
@@ -582,7 +521,6 @@
                                         <t t-set="totalPages" t-value="state.roomPagination.totalPages"/>
                                         <t t-set="currentPage" t-value="state.roomPagination.currentPage"/>
 
-                                        <!-- show first page -->
                                         <button class="pagination-number"
                                                 t-att-class="currentPage === 1 ? 'active' : ''"
                                                 t-on-click="() => goToRoomPage(1)">
@@ -603,7 +541,6 @@
                                                 </button>
                                             </t>
                                         </t>
-
 
                                         <t t-if="currentPage &lt; totalPages - 2">
                                             <span class="pagination-ellipsis">...</span>
