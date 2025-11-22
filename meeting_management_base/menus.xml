@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<smartdz>
+    <!-- Menu principal -->
+    <menuitem id="menu_meeting_management"
+              name="Meeting Management"
+              sequence="1"
+    />
+
+    <!-- Menu Master Data -->
+    <menuitem id="menu_meeting_settings"
+              name="Settings"
+              parent="menu_meeting_management"
+              sequence="200"/>
+
+    <menuitem id="menu_meeting_types"
+              name="Meeting Types"
+              parent="menu_meeting_settings"
+              action="dw_meeting_type_action"/>
+
+    <menuitem id="menu_reservations"
+              name="Reservations"
+              parent="menu_meeting_settings"
+              action="dw_reservations_action"/>
+
+    <menuitem id="menu_locations"
+              name="Locations"
+              parent="menu_meeting_settings"
+              action="dw_location_action"/>
+
+    <menuitem id="menu_rooms"
+              name="Rooms"
+              parent="menu_meeting_settings"
+              action="dw_room_action"/>
+
+    <menuitem id="menu_equipments"
+              name="Equipments"
+              parent="menu_meeting_settings"
+              action="dw_equipment_action"/>
+
+    <menuitem id="menu_equipment_types"
+              name="Equipment Types"
+              parent="menu_meeting_settings"
+              action="dw_equipment_type_action"/>
+
+    <menuitem id="menu_participant_roles"
+              name="Participant Roles"
+              parent="menu_meeting_settings"
+              action="dw_participant_role_action"/>
+
+    <!--  Meetings -->
+    <menuitem id="menu_planification_meetings"
+              name="Planification Meetings"
+              parent="menu_meeting_management"
+              action="dw_planification_meeting_action"
+              sequence="9"/>
+
+    <menuitem id="menu_actual_meetings"
+              name="Meetings"
+              parent="menu_meeting_management"
+              action="dw_meeting_action"
+              sequence="10"
+    />
+
+<!--    <menuitem id="menu_dw_meeting_session"-->
+<!--              name="Meeting Sessions"-->
+<!--              parent="menu_meeting_management"-->
+<!--              action="dw_meeting_session_action"-->
+<!--              sequence="40"/>-->
+
+<!--    <menuitem id="menu_participants"-->
+<!--              name="Participants"-->
+<!--              parent="menu_meeting_settings"-->
+<!--              action="dw_participant_action"-->
+<!--    />-->
+
+    <menuitem id="menu_actions"
+              name="Actions"
+              parent="menu_meeting_management"
+              action="dw_actions_action"/>
+
+    <menuitem id="menu_requirements"
+              name="Requirements"
+              parent="menu_meeting_management"
+              action="dw_requirements_action"/>
+
+    <!--    <record id="action_meeting_home_dashboard" model="ir.actions.client">-->
+    <!--        <field name="name">Meeting Home Dashboard</field>-->
+    <!--        <field name="tag">meeting_management_base.meeting_home_dashboard_action</field>-->
+    <!--    </record>-->
+
+    <!--    <menuitem id="menu_meeting_home_dashboard"-->
+    <!--              name="Home Page"-->
+    <!--              parent="menu_meeting_management"-->
+    <!--              action="action_meeting_home_dashboard"-->
+    <!--              sequence="0"/>-->
+
+    <record id="action_dw_meeting_home" model="ir.actions.client">
+        <field name="name">Meetings Home</field>
+        <field name="tag">dw_meeting.home</field>
+        <field name="target">current</field>
+    </record>
+    <!--    analytics dashboard-->
+    <menuitem id="menu_dw_meeting_dashboard" name="Dashboard" parent="menu_meeting_management"
+              action="action_dw_meeting_home" sequence="1"/>
+
+    <menuitem id="menu_calendar_all_meetings"
+              name="Calendar View"
+              parent="menu_meeting_management"
+              action="action_calendar_all_meetings"
+              sequence="5"/>
+    <menuitem id="menu_meeting_summary"
+              name="Meeting Summaries"
+              parent="menu_meeting_management"
+              action="action_meeting_summary"
+              sequence="50"/>
+</smartdz>

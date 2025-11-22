@@ -1,0 +1,86 @@
+from smartdz import models, fields, api, _
+from smartdz.exceptions import ValidationError
+from datetime import timedelta
+import logging
+
+class DwMeetingSession(models.Model):
+    _name = 'dw.meeting.session'
+    _description = 'User Meeting Session'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
+
+    # from planification meeting
+    name = fields.Char(string="Session Name", required=True)
+    objet = fields.Char(related="meeting_id.objet", readonly=True, store=True)
+    meeting_type_id = fields.Many2one('dw.meeting.type', related="meeting_id.meeting_type_id", readonly=True,store=True)
+    # subject_order = fields.Html(readonly=True, store=True)
+    subject_order = fields.One2many('dw.agenda', 'session_id', string='Agenda')
+    planned_start_datetime = fields.Datetime(related="meeting_id.planned_start_datetime", readonly=True, store=True)
+    planned_end_time = fields.Datetime(related="meeting_id.planned_end_time", readonly=True, store=True)
+    participant_ids = fields.One2many('dw.participant',
+                                      'session_id',
+                                      related="meeting_id.participant_ids",
+                                      readonly=True, store=True)
+
+    duration = fields.Float(string="Duration (hours)", related="planification_id.duration", store=True)
+    meeting_id = fields.Many2one("dw.meeting", string="Meeting", required=True, ondelete="cascade")
+
+    # from session
+    actual_start_datetime = fields.Datetime(string='Actual Start Date & Time', tracking=True)
+    actual_end_datetime = fields.Datetime(string='Actual End Date & Time', tracking=True)
+    actual_duration = fields.Float(string='Duration (hours)', default=1.0, tracking=True)
+    user_id = fields.Many2one("res.users", string="User", required=True)
+    participant_id = fields.Many2one("dw.participant", string="Linked Participant")
+    personal_actions_ids = fields.One2many("dw.actions", "session_id", string="Personal Actions")
+    personal_notes = fields.Text(string="My Notes / MoM")
+    requirements = fields.Html(string="My Requirements")
+
+    # specific to session
+    is_connected = fields.Boolean(string="Currently Connected", default=False)
+    is_host = fields.Boolean(string="Host User", related="participant_id.is_host", store=True)
+    is_pv = fields.Boolean(string="Rédacteur PV", related="participant_id.is_pv", store=True)
+    can_edit_agenda = fields.Boolean(string="Can Edit Agenda")
+    can_edit_summary = fields.Boolean(string="Can Edit Summary")
+    display_camera = fields.Boolean(string='Display the cameras in the meeting')
+    planification_id = fields.Many2one("dw.planification.meeting", string="Origin Planification")
+    leave_datetime = fields.Datetime(string="Leave Time")
+    join_datetime = fields.Datetime(string="Join Time")
+    view_state = fields.Json(string="User View State")
+
+    state = fields.Selection([
+        ('in_progress', 'In Progress'),
+        ('done', 'Done'),
+        ('cancelled', 'Cancelled'),
+    ], string='Status', default='in_progress', tracking=True)
+
+
+
+
+
+
+
+
+
+
+    # @api.depends("join_datetime", "leave_datetime")
+    # def _compute_duration(self):
+    #     for rec in self:
+    #         if rec.join_datetime and rec.leave_datetime:
+    #             delta = rec.leave_datetime - rec.join_datetime
+    #             rec.duration = delta.total_seconds() / 3600
+    #         else:
+    #             rec.duration = 0
+
+    # modified19/11
+    # def action_open_session_view(self):
+    #     """Open the meeting session view (Jitsi integration)"""
+    #     self.ensure_one()
+    #
+    #     return {
+    #         'type': 'ir.actions.client',
+    #         'tag': 'meeting_session_view_action',
+    #         'name': f'Meeting: {self.meeting_id.name}',
+    #         'context': {
+    #             'active_id': self.id,
+    #             'default_session_id': self.id,
+    #         },
+    #     }

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="meeting_management_base.MeetingHomeDashboard" owl="1">
+        <div class="o_meeting_home_dashboard">
+            <!-- Header Section -->
+            <section class="dashboard-header">
+                <div class="header-content">
+                    <h1>
+                        <i class="fa fa-handshake"></i>
+                        Meeting Management Hub
+                    </h1>
+                    <p>Plan, track, and improve your meetings in one integrated space.</p>
+                </div>
+            </section>
+
+            <!-- Stats Overview -->
+            <section class="dashboard-stats">
+                <div class="stat-card blue">
+                    <i class="fa fa-calendar"></i>
+                    <div>
+                        <h3>Planned Meetings</h3>
+                        <span t-esc="state.planned_count">0</span>
+                    </div>
+                </div>
+                <div class="stat-card green">
+                    <i class="fa fa-play-circle"></i>
+                    <div>
+                        <h3>Ongoing Meetings</h3>
+                        <span t-esc="state.in_progress_count">0</span>
+                    </div>
+                </div>
+                <div class="stat-card orange">
+                    <i class="fa fa-tasks"></i>
+                    <div>
+                        <h3>Open Actions</h3>
+                        <span t-esc="state.action_todo_count">0</span>
+                    </div>
+                </div>
+                <div class="stat-card red">
+                    <i class="fa fa-users"></i>
+                    <div>
+                        <h3>Active Participants</h3>
+                        <span>23</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Main Menu Sections -->
+            <section class="dashboard-menus">
+                <div class="menu-grid">
+                    <div class="menu-card"
+                         t-on-click="() => this.openMenuAction('meeting_management_base.dw_meeting_action')">
+                        <i class="fa fa-users"></i>
+                        <h3>Meetings</h3>
+                        <p>Manage your ongoing meetings.</p>
+                    </div>
+
+                    <div class="menu-card"
+                         t-on-click="() => this.openMenuAction('meeting_management_base.dw_planification_meeting_action')">
+                        <i class="fa fa-calendar"></i>
+                        <h3>Planning</h3>
+                        <p>Organize upcoming meetings.</p>
+                    </div>
+
+                    <div class="menu-card"
+                         t-on-click="() => this.openMenuAction('meeting_management_base.dw_actions_action')">
+                        <i class="fa fa-clipboard"></i>
+                        <h3>Actions</h3>
+                        <p>Track tasks associated with meetings.</p>
+                    </div>
+
+                    <div class="menu-card"
+                         t-on-click="() => this.openMenuAction('meeting_management_base.action_dw_meeting_home')">
+                        <i class="fa fa-line-chart"></i>
+                        <h3>Dashboard</h3>
+                        <p>View statistics and analytics.</p>
+                    </div>
+
+                    <!-- Settings Card -->
+                    <div class="menu-card settings-card">
+                        <i class="fa fa-gears"></i>
+                        <h3>Settings</h3>
+                        <p>System configuration</p>
+                        <!-- Dropdown Menu -->
+                        <div class="settings-dropdown">
+                            <div class="dropdown-item"
+                                 t-on-click="(ev) => this.openMenuAction('meeting_management_base.dw_meeting_type_action', ev)">
+                                <span>Meeting Types</span>
+                            </div>
+                            <div class="dropdown-item"
+                                 t-on-click="(ev) => this.openMenuAction('meeting_management_base.dw_location_action', ev)">
+                                <span>Locations</span>
+                            </div>
+                            <div class="dropdown-item"
+                                 t-on-click="(ev) => this.openMenuAction('meeting_management_base.dw_room_action', ev)">
+                                <span>Rooms</span>
+                            </div>
+                            <div class="dropdown-item"
+                                 t-on-click="(ev) => this.openMenuAction('meeting_management_base.dw_equipment_action', ev)">
+                                <span>Equipments</span>
+                            </div>
+                            <div class="dropdown-item"
+                                 t-on-click="(ev) => this.openMenuAction('meeting_management_base.dw_equipment_type_action', ev)">
+                                <span>Equipment Types</span>
+                            </div>
+                            <div class="dropdown-item"
+                                 t-on-click="(ev) => this.openMenuAction('meeting_management_base.dw_participant_role_action', ev)">
+                                <span>Participant Roles</span>
+                            </div>
+                            <div class="dropdown-item"
+                                 t-on-click="(ev) => this.openMenuAction('meeting_management_base.dw_reservations_action', ev)">
+                                <span>Reservations</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </t>
+</templates>

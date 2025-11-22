@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<smartdz>
+    <!-- Action / Menu / Vue pour Planification Meeting -->
+
+    <!-- Form View -->
+    <record id="view_dw_planification_meeting_form" model="ir.ui.view">
+        <field name="name">dw.planification.meeting.form</field>
+        <field name="model">dw.planification.meeting</field>
+        <field name="arch" type="xml">
+            <form string="Planification Meeting">
+                <header>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,confirmed,planned,started,done"/>
+                    <!-- Boutons d'action selon l'état -->
+                    <button name="action_view_calendar_event"
+                            string="View in Calendar"
+                            type="object"
+                            icon="fa-calendar"
+                            invisible="not calendar_event_id"
+                            class="btn-primary"/>
+                    <button name="action_reset_to_draft" string="Set to Draft"
+                            type="object"
+                            invisible="state in ('cancelled','planned','done','draft','started')"
+                            class="btn-secondary"/>
+                    <button name="action_confirm" string="Confirm"
+                            type="object"
+                            invisible="state in ('cancelled','planned','done','confirmed','started')"
+                            class="btn-primary"/>
+                    <button name="action_plan" string="Planify" type="object"
+                            invisible="state in ('planned','draft','started','cancelled','done')"
+                            class="btn-primary"/>
+                    <button name="create_meeting_and_sessions" string="Start" type="object"
+                            invisible="state != 'planned' or not is_current_user_host"
+                            class="btn-success"/>
+                    <button name="action_join" string="Join" type="object"
+                            invisible="state != 'started'"
+                            class="btn-primary"/>
+                    <button name="action_done" string="Done" type="object"
+                            invisible="state in ('done','draft','confirmed','cancelled','planned','started')"
+                            class="btn-success"/>
+                    <button name="open_meeting" string="Meeting" type="object"
+                            invisible="state in ('draft','confirmed','cancelled','planned','started')"
+                            class="btn-success"/>
+                    <button name="action_cancel" string="Cancel" type="object"
+                            invisible="state in ('cancelled','done', 'started')"
+                            class="btn-danger"/>
+
+                </header>
+
+                <sheet>
+                    <!-- En-tête stylé -->
+                    <widget name="web_ribbon" title="Synced with Calendar" bg_color="text-bg-success"
+                            invisible="not calendar_event_id"/>
+                    <widget name="web_ribbon" title="Cancelled" bg_color="text-bg-danger"
+                            invisible="state != 'cancelled'"/>
+                    <div style="padding:15px; background:#f5f7fa; border-radius:10px; margin-bottom:20px;">
+                        <!-- Titre -->
+                        <h1 style="font-size:32px; font-weight:bold; color:#1a1a1a; margin-bottom:10px; width:100%;">
+                            <field name="name" placeholder="e.g. Réunion Projet ALPHA" readonly="state != 'draft'"/>
+                        </h1>
+                        <!-- Cartes d'information -->
+                        <div style="display:flex; gap:20px; flex-wrap:wrap;">
+                            <div invisible="not is_external"
+                                 style="background:#e1f5fe; padding:10px 15px; border-radius:8px; flex:1; min-width:180px;">
+                                <strong style="font-size:14px; color:#0277bd;">Client(s):</strong>
+                                <div>
+                                    <field name="client_ids" widget="many2many_tags" readonly="state != 'draft'"/>
+                                </div>
+                            </div>
+                            <div style="background:#fff3e0; padding:10px 15px; border-radius:8px; flex:1; min-width:180px;">
+                                <strong style="font-size:14px; color:#f57c00;">Type de réunion:</strong>
+                                <div>
+                                    <field name="meeting_type_id" readonly="state != 'draft'"/>
+                                </div>
+                            </div>
+                            <div style="background:#e8f5e9; padding:10px 15px; border-radius:8px; flex:1; min-width:180px;">
+                                <strong style="font-size:14px; color:#388e3c;">Durée:</strong>
+                                <div>
+                                    <field name="duration" widget="float_time" readonly="1"/>
+                                    h
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Informations principales -->
+                    <group>
+                        <group>
+                            <group>
+                                <field name="use_the_chat_room" readonly="state != 'draft'"/>
+                                <field name="sync_with_calendar" invisible="1"/>
+                            </group>
+                            <group>
+                                <field name="is_off_site" readonly="state != 'draft'"/>
+                                <field name="calendar_event_id" invisible="1"/>
+                            </group>
+                        </group>
+                        <group>
+                            <group>
+                                <field name="is_external" readonly="state != 'draft'"/>
+                            </group>
+                            <group>
+                                <field name="has_pv" readonly="state != 'draft'"/>
+                            </group>
+                        </group>
+
+                    </group>
+                    <group>
+                        <group>
+                            <field name="objet" readonly="state != 'draft'"/>
+                            <field name="planned_start_datetime" readonly="state != 'draft'"/>
+                            <field name="duration" widget="float_time" readonly="state != 'draft'"/>
+                            <field name="planned_end_time"/>
+                        </group>
+                        <group>
+                            <field name="location_id" invisible="is_off_site" domain="[('is_in_site', '=', True)]"
+                                   readonly="state != 'draft'"/>
+                            <field name="location_id" invisible="not is_off_site"
+                                   domain="[('is_in_site', '=', False)]" readonly="state != 'draft'"/>
+                            <field name="room_id" domain="[('location_id', '=', location_id)]"
+                                   readonly="state != 'draft'"/>
+                            <field name="equipment_ids" widget="many2many_tags" readonly="state != 'draft'"/>
+                        </group>
+                    </group>
+
+                    <!-- Notebook -->
+                    <notebook>
+                        <page string="Participants">
+                            <field name="participant_ids" readonly="state != 'draft'"/>
+                        </page>
+                        <page string="Agenda">
+                            <field name="subject_order" nolabel="1" readonly="state != 'draft'">
+                                <list editable="bottom">
+                                    <field name="name"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Meeting Outcome">
+                            <group>
+                                <group>
+                                    <field name="actual_start_datetime"/>
+                                    <field name="actual_end_datetime"/>
+                                </group>
+                                <group>
+                                    <field name="actual_duration" widget="float_time"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!--    <record id="view_dw_planification_meeting_list" model="ir.ui.view">-->
+    <!--        <field name="name">dw.planification.meeting.list</field>-->
+    <!--        <field name="model">dw.planification.meeting</field>-->
+    <!--        <field name="arch" type="xml">-->
+    <!--            <list string="Planification Meetings">-->
+    <!--                <field name="name"/>-->
+    <!--                <field name="meeting_type_id"/>-->
+    <!--&lt;!&ndash;                <field name="reservation_date"/>&ndash;&gt;-->
+    <!--&lt;!&ndash;                <field name="start_datetime"/>&ndash;&gt;-->
+    <!--                <field name="end_time"/>-->
+    <!--                <field name="duration"/>-->
+    <!--                <field name="state"/>-->
+    <!--            </list>-->
+    <!--        </field>-->
+    <!--    </record>-->
+
+    <!--    &lt;!&ndash; Kanban View &ndash;&gt;-->
+    <!--    <record id="view_dw_planification_meeting_kanban" model="ir.ui.view">-->
+    <!--        <field name="name">dw.planification.meeting.kanban</field>-->
+    <!--        <field name="model">dw.planification.meeting</field>-->
+    <!--        <field name="arch" type="xml">-->
+    <!--            <kanban class="o_kanban_small_column">-->
+    <!--                <field name="name"/>-->
+    <!--                <field name="meeting_type_id"/>-->
+    <!--&lt;!&ndash;                <field name="start_datetime"/>&ndash;&gt;-->
+    <!--&lt;!&ndash;                <field name="start_datetime"/>&ndash;&gt;-->
+    <!--                <field name="end_time"/>-->
+    <!--                <field name="room_id"/>-->
+    <!--                <field name="participant_ids"/>-->
+    <!--                <field name="state"/>-->
+
+    <!--                <templates>-->
+    <!--                    <t t-name="kanban-box">-->
+    <!--                        <div t-attf-class="oe_kanban_global_click o_kanban_record o_state_#{record.state.raw_value}"-->
+    <!--                             style="border-radius:10px; padding:12px; margin-bottom:12px;-->
+    <!--                                box-shadow:0 4px 12px rgba(0,0,0,0.1);-->
+    <!--                                background-color:white; transition:0.3s;">-->
+
+    <!--                            &lt;!&ndash; HEADER &ndash;&gt;-->
+    <!--                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">-->
+    <!--                                <strong style="font-size:16px; color:#222;">-->
+    <!--                                    <field name="name"/>-->
+    <!--                                </strong>-->
+    <!--                                <span t-att-class="{-->
+    <!--                                            'badge': True,-->
+    <!--                                            'badge-pill': True,-->
+    <!--                                            'bg-warning': record.state.raw_value == 'draft',-->
+    <!--                                            'bg-info': record.state.raw_value == 'planned',-->
+    <!--                                            'bg-primary': record.state.raw_value == 'started',-->
+    <!--                                            'bg-success': record.state.raw_value == 'done',-->
+    <!--                                            'bg-danger': record.state.raw_value == 'cancelled'-->
+    <!--                                        }"-->
+    <!--                                      style="padding:4px 10px; font-size:12px; color:white;">-->
+    <!--                                    <t t-esc="record.state.value"/>-->
+    <!--                                </span>-->
+    <!--                            </div>-->
+
+    <!--                            &lt;!&ndash; BODY &ndash;&gt;-->
+    <!--                            <div style="font-size:13px; color:#444;">-->
+    <!--                                <div>-->
+    <!--                                    <i class="fa fa-calendar"></i>-->
+    <!--&lt;!&ndash;                                    <field name="start_datetime"/>&ndash;&gt;-->
+    <!--                                </div>-->
+    <!--                                <div>-->
+    <!--                                    <i class="fa fa-clock"></i>-->
+    <!--&lt;!&ndash;                                    <field name="start_datetime"/>&ndash;&gt;-->
+    <!--                                    →-->
+    <!--                                    <field name="end_time"/>-->
+    <!--                                </div>-->
+    <!--                                <div>-->
+    <!--                                    <i class="fa fa-door-open"></i>-->
+    <!--                                    <field name="room_id"/>-->
+    <!--                                </div>-->
+    <!--                                <div>-->
+    <!--                                    <i class="fa fa-users"></i>-->
+    <!--                                    <field name="participant_ids" widget="many2many_tags"/>-->
+    <!--                                </div>-->
+    <!--                                <div>-->
+    <!--                                    <i class="fa fa-tag"></i>-->
+    <!--                                    <field name="meeting_type_id"/>-->
+    <!--                                </div>-->
+    <!--                            </div>-->
+
+    <!--                            &lt;!&ndash; FOOTER &ndash;&gt;-->
+    <!--                            <div style="margin-top:8px; font-size:12px; color:#777;">-->
+    <!--                                <strong>Durée:</strong>-->
+    <!--                                <field name="duration"/>-->
+    <!--                                h-->
+    <!--                            </div>-->
+    <!--                        </div>-->
+    <!--                    </t>-->
+    <!--                </templates>-->
+    <!--            </kanban>-->
+    <!--        </field>-->
+    <!--    </record>-->
+
+    <!-- list View -->
+    <record id="view_dw_planification_meeting_list" model="ir.ui.view">
+        <field name="name">dw.planification.meeting.list</field>
+        <field name="model">dw.planification.meeting</field>
+        <field name="arch" type="xml">
+            <list string="Planification Meetings" default_order="planned_start_datetime desc">
+                <field name="name"/>
+                <field name="meeting_type_id"/>
+                <field name="planned_start_datetime"/>
+                <field name="planned_end_time"/>
+                <field name="duration" widget="float_time"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Kanban View -->
+    <record id="view_dw_planification_meeting_kanban" model="ir.ui.view">
+        <field name="name">dw.planification.meeting.kanban</field>
+        <field name="model">dw.planification.meeting</field>
+        <field name="arch" type="xml">
+            <kanban class="o_kanban_small_column">
+                <field name="name"/>
+                <field name="meeting_type_id"/>
+                <field name="planned_start_datetime"/>
+                <field name="planned_end_time"/>
+                <field name="room_id"/>
+                <field name="participant_ids"/>
+                <field name="state"/>
+
+                <templates>
+                    <t t-name="kanban-box">
+                        <div t-attf-class="oe_kanban_global_click o_kanban_record o_state_#{record.state.raw_value}"
+                             style="border-radius:10px; padding:12px; margin-bottom:12px;
+                                box-shadow:0 4px 12px rgba(0,0,0,0.1);
+                                background-color:white; transition:0.3s;">
+
+                            <!-- HEADER -->
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                <strong style="font-size:16px; color:#222;">
+                                    <field name="name"/>
+                                </strong>
+                                <span t-att-class="{
+                                            'badge': True,
+                                            'badge-pill': True,
+                                            'bg-warning': record.state.raw_value == 'draft',
+                                            'bg-info': record.state.raw_value == 'planned',
+                                            'bg-primary': record.state.raw_value == 'started',
+                                            'bg-success': record.state.raw_value == 'done',
+                                            'bg-danger': record.state.raw_value == 'cancelled'
+                                        }"
+                                      style="padding:4px 10px; font-size:12px; color:white;">
+                                    <t t-esc="record.state.value"/>
+                                </span>
+                            </div>
+
+                            <!-- BODY -->
+                            <div style="font-size:13px; color:#444;">
+                                <div>
+                                    <i class="fa fa-calendar"></i>
+                                    <field name="planned_start_datetime"/>
+                                </div>
+                                <div>
+                                    <i class="fa fa-clock"></i>
+                                    →
+                                    <field name="planned_end_time"/>
+                                </div>
+                                <div>
+                                    <i class="fa fa-door-open"></i>
+                                    <field name="room_id"/>
+                                </div>
+                                <div>
+                                    <i class="fa fa-users"></i>
+                                    <field name="participant_ids" widget="many2many_tags"/>
+                                </div>
+                                <div>
+                                    <i class="fa fa-tag"></i>
+                                    <field name="meeting_type_id"/>
+                                </div>
+                            </div>
+
+                            <!-- FOOTER -->
+                            <div style="margin-top:8px; font-size:12px; color:#777;">
+                                <strong>Durée:</strong>
+                                <field name="duration" widget="float_time"/>
+                                h
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- Vue Calendrier -->
+    <record id="view_dw_planification_meeting_calendar" model="ir.ui.view">
+        <field name="name">dw.planification.meeting.calendar</field>
+        <field name="model">dw.planification.meeting</field>
+        <field name="arch" type="xml">
+            <calendar string="Meeting Calendar"
+                      date_start="planned_start_datetime"
+                      date_stop="planned_end_time"
+                      color="meeting_type_id"
+                      mode="month"
+                      quick_create="0">
+                <field name="name"/>
+                <field name="objet"/>
+                <field name="participant_ids"/>
+                <field name="room_id"/>
+                <field name="location_id"/>
+                <field name="state"/>
+            </calendar>
+        </field>
+    </record>
+    <!-- Action -->
+    <record id="dw_planification_meeting_action" model="ir.actions.act_window">
+        <field name="name">Planification Meetings</field>
+        <field name="res_model">dw.planification.meeting</field>
+        <field name="view_mode">list,calendar,kanban,form</field>
+        <field name="help" type="html">
+            <p>Créez et suivez vos réunions planifiées ici.</p>
+        </field>
+    </record>
+
+    <record id="action_calendar_all_meetings" model="ir.actions.act_window">
+        <field name="name">All Calendar Events</field>
+        <field name="res_model">calendar.event</field>
+        <field name="view_mode">list,calendar,form</field>
+        <field name="domain">[]</field>
+        <field name="context">{'search_default_mymeetings': 1}</field>
+    </record>
+
+
+</smartdz>

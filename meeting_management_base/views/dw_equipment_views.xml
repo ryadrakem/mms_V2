@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<smartdz>
+    <record id="dw_equipment_view_list" model="ir.ui.view">
+        <field name="name">dw.equipment.view.list</field>
+        <field name="model">dw.equipment</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="equipment_type_id"/>
+                <field name="description"/>
+                <field name="serial_number"/>
+                <field name="status"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="dw_equipment_view_form" model="ir.ui.view">
+        <field name="name">dw.equipment.view.form</field>
+        <field name="model">dw.equipment</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name" placeholder="e.g PC Dell Inspiron"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <field name="equipment_type_id"/>
+                        <field name="description"/>
+                        <field name="serial_number"/>
+                        <field name="status"/>
+                    </group>
+                    <group>
+                        <field name="reservation_ids">
+                            <list>
+                                <field name="start_time"/>
+                                <field name="planned_end_time"/>
+                            </list>
+                        </field>
+
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="dw_equipment_view_search" model="ir.ui.view">
+        <field name="name">dw.equipment.view.search</field>
+        <field name="model">dw.equipment</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="equipment_type_id"/>
+                <field name="description"/>
+                <field name="serial_number"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="dw_equipment_action" model="ir.actions.act_window">
+        <field name="name">Equipment</field>
+        <field name="res_model">dw.equipment</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</smartdz>

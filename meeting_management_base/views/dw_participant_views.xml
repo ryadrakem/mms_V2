@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<smartdz>
+    <record id="dw_participant_view_list" model="ir.ui.view">
+        <field name="name">dw.participant.view.list</field>
+        <field name="model">dw.participant</field>
+        <field name="arch" type="xml">
+            <list duplicate="false">
+                <field name="name"/>
+                <field name="is_external" widget="boolean_toggle"/>
+                <field name="is_remote"/>
+                <field name="department"/>
+                <field name="job"/>
+                <field name="role_id"/>
+                <field name="attachments"/>
+                <field name="invitation_status" decoration-info="invitation_status == 'pending'" decoration-success="invitation_status == 'accepted'" decoration-danger="invitation_status == 'declined'" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="dw_participant_view_form" model="ir.ui.view">
+        <field name="name">dw.participant.view.form</field>
+        <field name="model">dw.participant</field>
+        <field name="arch" type="xml">
+            <form duplicate="false" create="false" delete="false">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="partner_id" invisible="not is_external" placeholder="select external participant"/>
+                            <field name="employee_id" invisible="is_external" placeholder="select employee"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <field name="is_external" widget="boolean_button"/>
+                        <field name="department" invisible="is_external"/>
+                        <field name="external_department" invisible="not is_external"/>
+                        <field name="job" invisible="is_external"/>
+                        <field name="external_job" invisible="not is_external"/>
+                        <field name="role_id"/>
+                        <field name="is_pv"/>
+                        <field name="is_remote"/>
+                        <field name="attachments"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="dw_participant_view_search" model="ir.ui.view">
+        <field name="name">dw.participant.view.search</field>
+        <field name="model">dw.participant</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="is_external"/>
+                <field name="role_id"/>
+                <field name="department"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="dw_participant_action" model="ir.actions.act_window">
+        <field name="name">Participant</field>
+        <field name="res_model">dw.participant</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</smartdz>

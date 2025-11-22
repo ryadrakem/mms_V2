@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates>
+  <t t-name="meeting_management_base.MeetingSummaryGenerator">
+    <div class="summary-generator-view">
+      <div class="summary-generator-container">
+        <div class="summary-card">
+
+          <!-- Header -->
+          <div class="summary-card-header">
+            <div class="summary-header-icon">
+              <i class="fa fa-magic" aria-hidden="true"/>
+            </div>
+            <h2>AI Meeting Summary</h2>
+            <p class="summary-subtitle">Powered by Advanced Language Models</p>
+          </div>
+
+          <!-- Body -->
+          <div class="summary-card-body">
+
+            <!-- Meeting Info -->
+            <div class="meeting-info-section">
+              <div class="meeting-info-icon">
+                <i class="fa fa-calendar" aria-hidden="true"/>
+              </div>
+              <div class="meeting-info-content">
+                <div class="meeting-info-label">Meeting</div>
+                <div class="meeting-info-value">
+                  <t t-esc="state.meetingName"/>
+                </div>
+              </div>
+            </div>
+
+            <!-- Initial State: Show Features -->
+            <t t-if="!state.generating and !state.summary and !state.error">
+              <div class="summary-features-section">
+                <p class="features-intro">
+                  An intelligent summary will be generated with:
+                </p>
+
+                <ul class="summary-features-list">
+                  <li class="feature-item">
+                    <div class="feature-icon">
+                      <i class="fa fa-file-text-o" aria-hidden="true"/>
+                    </div>
+                    <span class="feature-text">Executive Summary</span>
+                  </li>
+
+                  <li class="feature-item">
+                    <div class="feature-icon">
+                      <i class="fa fa-check-circle" aria-hidden="true"/>
+                    </div>
+                    <span class="feature-text">Key Decisions</span>
+                  </li>
+
+                  <li class="feature-item">
+                    <div class="feature-icon">
+                      <i class="fa fa-tasks" aria-hidden="true"/>
+                    </div>
+                    <span class="feature-text">Action Items</span>
+                  </li>
+
+                  <li class="feature-item">
+                    <div class="feature-icon">
+                      <i class="fa fa-comments" aria-hidden="true"/>
+                    </div>
+                    <span class="feature-text">Discussion Points</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="summary-actions">
+                <button class="btn-summary btn-primary-gradient"
+                        t-on-click="generateSummary">
+                  <i class="fa fa-magic" aria-hidden="true"/>
+                  <span>Generate Summary</span>
+                </button>
+                <button class="btn-summary btn-outline-gray"
+                        t-on-click="cancel">
+                  <i class="fa fa-times" aria-hidden="true"/>
+                  <span>Cancel</span>
+                </button>
+              </div>
+            </t>
+
+            <!-- Loading State -->
+            <t t-if="state.generating">
+              <div class="summary-loading-container">
+                <div class="loading-spinner-wrapper">
+                  <div class="spinner-ring"/>
+                  <i class="fa fa-magic spinner-icon" aria-hidden="true"/>
+                </div>
+                <p class="loading-text">Generating AI Summary...</p>
+                <p class="loading-subtext">
+                  Analyzing meeting notes, decisions, and action items
+                </p>
+                <div class="loading-progress">
+                  <div class="progress-bar">
+                    <div class="progress-fill"/>
+                  </div>
+                </div>
+              </div>
+            </t>
+
+            <!-- Error State -->
+            <t t-if="state.error">
+              <div class="summary-error-container">
+                <div class="error-icon-wrapper">
+                  <i class="fa fa-exclamation-triangle error-icon" aria-hidden="true"/>
+                </div>
+                <h3 class="error-title">Generation Failed</h3>
+                <p class="error-message">
+                  <t t-esc="state.error"/>
+                </p>
+                <div class="error-actions">
+                  <button class="btn-summary btn-primary-gradient"
+                          t-on-click="generateSummary">
+                    <i class="fa fa-refresh" aria-hidden="true"/>
+                    <span>Try Again</span>
+                  </button>
+                  <button class="btn-summary btn-outline-gray"
+                          t-on-click="cancel">
+                    <i class="fa fa-arrow-left" aria-hidden="true"/>
+                    <span>Go Back</span>
+                  </button>
+                </div>
+              </div>
+            </t>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </t>
+</templates>

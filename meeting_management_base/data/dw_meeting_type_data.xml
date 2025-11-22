@@ -1,0 +1,20 @@
+<smartdz>
+    <data>
+        <record id="meeting_type_conference" model="dw.meeting.type">
+            <field name="name">Conference</field>
+            <field name="description">A formal meeting for discussion.</field>
+        </record>
+        <record id="meeting_type_faq" model="dw.meeting.type">
+            <field name="name">FAQ</field>
+            <field name="description">A formal meeting for discussion.</field>
+        </record>
+        <record id="meeting_type_presentation" model="dw.meeting.type">
+            <field name="name">Presentation</field>
+            <field name="description">A formal meeting for discussion.</field>
+        </record>
+        <record id="meeting_type_negociation" model="dw.meeting.type">
+            <field name="name">Negociation</field>
+            <field name="description">A formal meeting for discussion.</field>
+        </record>
+    </data>
+</smartdz>

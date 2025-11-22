@@ -1,0 +1,736 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates>
+    <t t-name="meeting_management_base.MeetingsHome">
+        <div class="dw-dashboard" role="main">
+            <!-- Header -->
+            <header class="dw-header">
+                <div class="header-left">
+                    <div class="header-title">
+                        <h1>
+                            <i class="fa fa-calendar title-icon" aria-hidden="true"></i>
+                            Meetings Dashboard
+                        </h1>
+                        <div class="date-display">
+                            <i class="fa fa-clock-o" aria-hidden="true"></i>
+                            <t t-esc="state.currentDate"/>
+                        </div>
+                    </div>
+                    <p class="header-subtitle">Overview of upcoming meetings, rooms, and recent minutes</p>
+                </div>
+                <div class="header-actions">
+                    <div class="search-box">
+                        <i class="fa fa-search search-icon" aria-hidden="true"></i>
+                        <input type="text"
+                               placeholder="Search meetings..."
+                               t-model="state.searchQuery"
+                               t-on-input="onSearch"
+                               class="search-input"/>
+                        <t t-if="state.searchQuery">
+                            <button class="btn-clear" t-on-click="clearSearch" title="Clear search">
+                                <i class="fa fa-times" aria-hidden="true"></i>
+                            </button>
+                        </t>
+                    </div>
+
+                    <div class="view-toggle">
+                        <button t-att-class="state.currentView === 'overview' ? 'active' : ''"
+                                t-on-click="() => setView('overview')">
+                            <i class="fa fa-th-large" aria-hidden="true"></i>
+                            Overview
+                        </button>
+                        <button t-att-class="state.currentView === 'calendar' ? 'active' : ''"
+                                t-on-click="() => setView('calendar')">
+                            <i class="fa fa-calendar" aria-hidden="true"></i>
+                            Calendar
+                        </button>
+                        <button t-att-class="state.currentView === 'analytics' ? 'active' : ''"
+                                t-on-click="() => setView('analytics')">
+                            <i class="fa fa-bar-chart" aria-hidden="true"></i>
+                            Analytics
+                        </button>
+                    </div>
+
+                    <button class="btn-icon btn-refresh"
+                            t-on-click="refresh"
+                            title="Refresh dashboard"
+                            t-att-class="state.refreshing ? 'spinning' : ''">
+                        <i class="fa fa-refresh" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- KPIs -->
+            <div class="kpis">
+                <div class="kpi" t-on-click="() => filterByKpi('upcoming')">
+                    <div class="kpi-icon blue">
+                        <i class="fa fa-calendar" aria-hidden="true"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <div class="kpi-value">
+                            <t t-esc="state.kpis.upcoming"/>
+                        </div>
+                        <div class="kpi-label">Upcoming Meetings</div>
+                        <t t-if="state.kpis.upcoming_trend">
+                            <div class="kpi-trend">
+                                <i class="fa fa-arrow-up" aria-hidden="true"></i>
+                                <span><t t-esc="state.kpis.upcoming_trend"/>% vs last week
+                                </span>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+
+                <div class="kpi" t-on-click="() => filterByKpi('today')">
+                    <div class="kpi-icon green">
+                        <i class="fa fa-clock-o" aria-hidden="true"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <div class="kpi-value">
+                            <t t-esc="state.kpis.today"/>
+                        </div>
+                        <div class="kpi-label">Today's Schedule</div>
+                        <div class="kpi-meta"><t t-esc="state.kpis.today_hours || 0"/>h total duration
+                        </div>
+                    </div>
+                </div>
+
+                <div class="kpi">
+                    <div class="kpi-icon purple">
+                        <i class="fa fa-building" aria-hidden="true"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <div class="kpi-value">
+                            <t t-esc="state.kpis.rooms_free"/>
+                            /
+                            <t t-esc="state.rooms.length"/>
+                        </div>
+                        <div class="kpi-label">Available Rooms</div>
+                        <div class="kpi-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill"
+                                     t-att-style="'width: ' + ((state.kpis.rooms_free / Math.max(state.rooms.length, 1)) * 100) + '%'"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="kpi">
+                    <div class="kpi-icon orange">
+                        <i class="fa fa-users" aria-hidden="true"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <div class="kpi-value">
+                            <t t-esc="state.kpis.total_participants || 0"/>
+                        </div>
+                        <div class="kpi-label">Active Participants</div>
+                        <div class="kpi-meta">Across all meetings</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overview Content -->
+            <section t-if="state.currentView === 'overview'" class="content-grid">
+                <!-- Left Column -->
+                <aside class="dw-left">
+                    <div class="card card-gradient quick-create">
+                        <div class="card-head">
+                            <strong>
+                                <i class="fa fa-plus" aria-hidden="true"></i>
+                                Quick Create Meeting
+                            </strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="field">
+                                <label>Meeting Title
+                                    <span class="required">*</span>
+                                </label>
+                                <input type="text"
+                                       t-model="state.quickCreate.title"
+                                       placeholder="e.g., Team Sync"
+                                       maxlength="100"/>
+                            </div>
+                            <div class="field-row">
+                                <div class="field">
+                                    <label>Start Date &amp; Time
+                                        <span class="required">*</span>
+                                    </label>
+                                    <input type="datetime-local" t-model="state.quickCreate.date"/>
+                                </div>
+                                <div class="field field-narrow">
+                                    <label>Duration</label>
+                                    <select t-model="state.quickCreate.duration">
+                                        <option value="0.25">15 min</option>
+                                        <option value="0.5">30 min</option>
+                                        <option value="1" selected="selected">1 hour</option>
+                                        <option value="1.5">1.5 hours</option>
+                                        <option value="2">2 hours</option>
+                                        <option value="3">3 hours</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label>Room (Optional)</label>
+                                <select t-model="state.quickCreate.room_id">
+                                    <option value="">No room</option>
+                                    <t t-foreach="state.rooms.filter(r => r.is_free)" t-as="room" t-key="room.id">
+                                        <option t-att-value="room.id">
+                                            <t t-esc="room.name"/>
+                                            (
+                                            <t t-esc="room.capacity"/>
+                                            seats)
+                                        </option>
+                                    </t>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary btn-create"
+                                    t-on-click="quickCreate"
+                                    t-att-disabled="state.creating">
+                                <t t-if="!state.creating">
+                                    <i class="fa fa-calendar-plus-o" aria-hidden="true"></i>
+                                    Create Meeting
+                                </t>
+                                <t t-else="">
+                                    <span class="btn-spinner"></span>
+                                    Creating...
+                                </t>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card card-stats">
+                        <div class="card-head">
+                            <strong>This Week Overview</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="stat-row">
+                                <span class="stat-label">Total Meetings</span>
+                                <span class="stat-value">
+                                    <t t-esc="state.weekStats.total || 0"/>
+                                </span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Hours Scheduled</span>
+                                <span class="stat-value"><t t-esc="state.weekStats.hours || 0"/>h
+                                </span>
+                            </div>
+                            <div class="stat-row">
+                                <span class="stat-label">Avg Duration</span>
+                                <span class="stat-value"><t t-esc="state.weekStats.avg_duration || 0"/>m
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Center Column -->
+                <main class="dw-center">
+                    <div class="carousel-container">
+                        <button class="carousel-btn prev"
+                                t-on-click="previousSlide"
+                                t-att-disabled="state.currentSlide === 0">
+                            <i class="fa fa-chevron-left" aria-hidden="true"></i>
+                        </button>
+
+                        <!-- Upcoming Meetings -->
+                        <div class="carousel-slide" t-att-class="state.currentSlide === 0 ? 'active' : ''">
+                            <div class="card">
+                                <div class="card-head">
+                                    <div class="card-head-content">
+                                        <strong>Upcoming Meetings</strong>
+                                        <span class="badge">
+                                            <t t-esc="state.filteredUpcoming.length"/>
+                                            meetings
+                                        </span>
+                                    </div>
+                                    <div class="card-head-actions">
+                                        <button class="btn-text" t-on-click="openAllMeetings">
+                                            View All
+                                            <i class="fa fa-arrow-right" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body meetings-list">
+                                    <t t-if="state.loading">
+                                        <t t-foreach="[1,2,3,4,5]" t-as="i" t-key="i">
+                                            <div class="meeting-skeleton">
+                                                <div class="s-left">
+                                                    <div class="s-avatar"></div>
+                                                    <div class="s-lines">
+                                                        <span></span>
+                                                        <span></span>
+                                                    </div>
+                                                </div>
+                                                <div class="s-right">
+                                                    <span></span>
+                                                </div>
+                                            </div>
+                                        </t>
+                                    </t>
+                                    <t t-if="!state.loading and state.filteredUpcoming.length">
+                                        <t t-foreach="state.filteredUpcoming.slice(0, 6)" t-as="m" t-key="m.id">
+                                            <div class="meeting-item" t-on-click="() => openMeeting(m.id)">
+                                                <div class="meeting-left">
+                                                    <div class="meeting-avatar"
+                                                         t-att-data-priority="m.priority || 'normal'">
+                                                        <span class="avatar-letters">
+                                                            <t t-esc="(m.organizer_name || m.name || '').slice(0,2).toUpperCase()"/>
+                                                        </span>
+                                                    </div>
+                                                    <div class="meeting-main">
+                                                        <div class="meeting-name">
+                                                            <t t-esc="m.name"/>
+                                                            <t t-if="m.is_recurring" class="recurring-badge"
+                                                               title="Recurring meeting">
+                                                                <i class="fa fa-repeat" aria-hidden="true"></i>
+                                                            </t>
+                                                        </div>
+                                                        <div class="meeting-meta">
+                                                            <div class="meta-item">
+                                                                <i class="fa fa-clock-o" aria-hidden="true"></i>
+                                                                <span class="meeting-time">
+                                                                    <t t-esc="m.formatted_date"/>
+                                                                </span>
+                                                                <t t-if="m.duration">
+                                                                    <span class="duration-badge">
+                                                                        <t t-esc="m.duration"/>
+                                                                        h
+                                                                    </span>
+                                                                </t>
+                                                            </div>
+                                                            <div class="meta-item">
+                                                                <i class="fa fa-users" aria-hidden="true"></i>
+                                                                <span>
+                                                                    <t t-esc="m.participant_count || 0"/>
+                                                                    participants
+                                                                </span>
+                                                            </div>
+                                                            <t t-if="m.room_name">
+                                                                <div class="meta-item">
+                                                                    <i class="fa fa-building" aria-hidden="true"></i>
+                                                                    <span>
+                                                                        <t t-esc="m.room_name"/>
+                                                                    </span>
+                                                                </div>
+                                                            </t>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="meeting-right">
+                                                    <div class="meeting-actions">
+                                                        <button class="btn-icon"
+                                                                t-on-click.stop="(e) => toggleMeetingMenu(m.id, e)"
+                                                                title="More actions">
+                                                            <i class="fa fa-ellipsis-v" aria-hidden="true"></i>
+                                                        </button>
+                                                    </div>
+                                                    <span class="chip" t-att-class="m.state || 'unknown'">
+                                                        <span class="chip-dot"></span>
+                                                        <t t-esc="(m.state || 'Unknown').charAt(0).toUpperCase() + (m.state || '').slice(1)"/>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </t>
+                                    </t>
+                                    <t t-if="!state.loading and state.filteredUpcoming.length === 0">
+                                        <div class="empty-state">
+                                            <div class="empty-icon">
+                                                <i class="fa fa-calendar" aria-hidden="true"></i>
+                                            </div>
+                                            <h3>No upcoming meetings</h3>
+                                            <p>Create a new meeting to get started</p>
+                                        </div>
+                                    </t>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Minutes -->
+                        <div class="carousel-slide" t-att-class="state.currentSlide === 1 ? 'active' : ''">
+                            <div class="card">
+                                <div class="card-head">
+                                    <div class="card-head-content">
+                                        <strong>Recent Minutes</strong>
+                                        <span class="muted">Last 5 documented meetings</span>
+                                    </div>
+                                </div>
+                                <div class="card-body minutes-list">
+                                    <t t-foreach="state.recent_minutes" t-as="min" t-key="min.id">
+                                        <div class="minute-row" t-on-click="() => openMinutes(min.id)">
+                                            <div class="minute-content">
+                                                <div class="minute-title">
+                                                    <i class="fa fa-file-text-o minute-icon" aria-hidden="true"></i>
+                                                    <t t-esc="min.title"/>
+                                                </div>
+                                                <div class="minute-meta">
+                                                    <div class="minute-avatar">
+                                                        <span class="avatar-letters">
+                                                            <t t-esc="(min.author || 'U').slice(0,1).toUpperCase()"/>
+                                                        </span>
+                                                    </div>
+                                                    <div class="minute-info">
+                                                        <span class="minute-author">
+                                                            <t t-esc="min.author"/>
+                                                        </span>
+                                                        <span class="minute-date muted">
+                                                            <t t-esc="min.created_at"/>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <i class="fa fa-chevron-right arrow-icon" aria-hidden="true"></i>
+                                        </div>
+                                    </t>
+                                    <t t-if="state.recent_minutes.length === 0">
+                                        <div class="empty-state">
+                                            <div class="empty-icon">
+                                                <i class="fa fa-file-text-o" aria-hidden="true"></i>
+                                            </div>
+                                            <h3>No minutes recorded</h3>
+                                            <p>Minutes will appear here after meetings</p>
+                                        </div>
+                                    </t>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Activity Feed -->
+                        <div class="carousel-slide" t-att-class="state.currentSlide === 2 ? 'active' : ''">
+                            <div class="card">
+                                <div class="card-head">
+                                    <div class="card-head-content">
+                                        <strong>Recent Activity</strong>
+                                        <span class="muted">Latest updates and changes</span>
+                                    </div>
+                                </div>
+                                <div class="card-body activity-list">
+                                    <t t-foreach="state.feed" t-as="f" t-key="f.id">
+                                        <div class="activity-row" t-att-data-type="f.type || 'default'">
+                                            <div class="activity-avatar">
+                                                <span class="avatar-letters">
+                                                    <t t-esc="(f.author || 'U').slice(0,1).toUpperCase()"/>
+                                                </span>
+                                            </div>
+                                            <div class="activity-content">
+                                                <div class="activity-title">
+                                                    <t t-esc="f.title"/>
+                                                </div>
+                                                <div class="activity-meta">
+                                                    <span class="activity-author">
+                                                        <t t-esc="f.author"/>
+                                                    </span>
+                                                    <span class="activity-sep">•</span>
+                                                    <span class="activity-time muted">
+                                                        <t t-esc="f.time"/>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div class="activity-type-icon" t-if="f.type">
+                                                <t t-if="f.type === 'created'">
+                                                    <i class="fa fa-plus" aria-hidden="true"></i>
+                                                </t>
+                                                <t t-elif="f.type === 'updated'">
+                                                    <i class="fa fa-pencil" aria-hidden="true"></i>
+                                                </t>
+                                                <t t-elif="f.type === 'cancelled'">
+                                                    <i class="fa fa-times" aria-hidden="true"></i>
+                                                </t>
+                                            </div>
+                                        </div>
+                                    </t>
+                                    <t t-if="state.feed.length === 0">
+                                        <div class="empty-state">
+                                            <div class="empty-icon">
+                                                <i class="fa fa-rss" aria-hidden="true"></i>
+                                            </div>
+                                            <h3>No recent activity</h3>
+                                            <p>Activity will appear as changes happen</p>
+                                        </div>
+                                    </t>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="carousel-btn next"
+                                t-on-click="nextSlide"
+                                t-att-disabled="state.currentSlide === 2">
+                            <i class="fa fa-chevron-right" aria-hidden="true"></i>
+                        </button>
+                    </div>
+
+                    <div class="carousel-indicators">
+                        <button class="indicator"
+                                t-att-class="state.currentSlide === 0 ? 'active' : ''"
+                                t-on-click="() => goToSlide(0)"
+                                aria-label="View upcoming meetings"></button>
+                        <button class="indicator"
+                                t-att-class="state.currentSlide === 1 ? 'active' : ''"
+                                t-on-click="() => goToSlide(1)"
+                                aria-label="View recent minutes"></button>
+                        <button class="indicator"
+                                t-att-class="state.currentSlide === 2 ? 'active' : ''"
+                                t-on-click="() => goToSlide(2)"
+                                aria-label="View activity feed"></button>
+                    </div>
+                </main>
+
+                <!-- Right Column -->
+                <aside class="dw-right">
+                    <div class="card card-rooms">
+                        <div class="card-head">
+                            <div class="card-head-content">
+                                <strong>Meeting Rooms</strong>
+                                <span class="availability-badge">
+                                    <span class="badge-dot green"></span>
+                                    <t t-esc="state.kpis.rooms_free"/>
+                                    available
+                                </span>
+                            </div>
+                        </div>
+                        <div class="card-body rooms-list">
+                            <t t-foreach="getPaginatedRooms()" t-as="r" t-key="r.id">
+                                <div class="room-card" t-att-class="r.is_free ? 'free' : 'busy'">
+                                    <div class="room-head">
+                                        <div class="room-name">
+                                            <i class="fa fa-building room-icon" aria-hidden="true"></i>
+                                            <t t-esc="r.name"/>
+                                        </div>
+                                        <div class="room-status">
+                                            <span class="status-dot"></span>
+                                            <span class="status-label">
+                                                <t t-esc="r.is_free ? 'Available' : 'Occupied'"/>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div class="room-body">
+                                        <div class="room-info-grid">
+                                            <div class="room-next">
+                                                <small>
+                                                    <t t-esc="r.is_free ? 'Free until' : 'Busy until'"/>
+                                                </small>
+                                                <div class="room-next-time">
+                                                    <t t-esc="r.is_free ? (r.free_until ? new Date(r.free_until).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—') : (r.busy_until ? new Date(r.busy_until).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—')"/>
+                                                </div>
+                                            </div>
+                                            <div class="room-capacity" t-if="r.capacity">
+                                                <i class="fa fa-users" aria-hidden="true"></i>
+                                                <span>Up to
+                                                    <strong>
+                                                        <t t-esc="r.capacity"/>
+                                                    </strong>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <t t-if="r.amenities and r.amenities.length">
+                                            <div class="room-amenities">
+                                                <t t-foreach="r.amenities.slice(0, 3)" t-as="amenity"
+                                                   t-key="amenity_index">
+                                                    <span class="amenity-tag">
+                                                        <t t-esc="amenity"/>
+                                                    </span>
+                                                </t>
+                                            </div>
+                                        </t>
+                                        <button t-if="r.is_free"
+                                                class="btn btn-sm btn-primary btn-book"
+                                                t-on-click="() => quickBookRoom(r.id)">
+                                            <i class="fa fa-book" aria-hidden="true"></i>
+                                            Book Now
+                                        </button>
+                                        <div t-else="" class="room-occupied-info">
+                                            <t t-if="r.current_meeting">
+                                                <small>Current:
+                                                    <strong>
+                                                        <t t-esc="r.current_meeting"/>
+                                                    </strong>
+                                                </small>
+                                            </t>
+                                        </div>
+                                    </div>
+                                </div>
+                            </t>
+                            <t t-if="state.rooms.length === 0">
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <i class="fa fa-building" aria-hidden="true"></i>
+                                    </div>
+                                    <h3>No rooms configured</h3>
+                                    <p>Add meeting rooms to track availability</p>
+                                </div>
+                            </t>
+                        </div>
+
+                        <!-- Pagination -->
+                        <t t-if="state.rooms.length > state.roomPagination.itemsPerPage">
+                            <div class="room-pagination">
+                                <div class="pagination-info">
+                                    Page
+                                    <t t-esc="state.roomPagination.currentPage"/>
+                                    of
+                                    <t t-esc="state.roomPagination.totalPages"/>
+                                    •
+                                    <t t-esc="state.rooms.length"/>
+                                    total rooms
+                                </div>
+                                <div class="pagination-controls">
+                                    <button class="pagination-btn"
+                                            t-on-click="previousRoomPage"
+                                            t-att-disabled="state.roomPagination.currentPage === 1">
+                                        <i class="fa fa-chevron-left" aria-hidden="true"></i>
+                                    </button>
+
+                                    <div class="pagination-numbers">
+                                        <t t-set="totalPages" t-value="state.roomPagination.totalPages"/>
+                                        <t t-set="currentPage" t-value="state.roomPagination.currentPage"/>
+
+                                        <!-- show first page -->
+                                        <button class="pagination-number"
+                                                t-att-class="currentPage === 1 ? 'active' : ''"
+                                                t-on-click="() => goToRoomPage(1)">
+                                            1
+                                        </button>
+
+                                        <t t-if="currentPage &gt; 3">
+                                            <span class="pagination-ellipsis">...</span>
+                                        </t>
+
+                                        <t t-foreach="Array.from({length: totalPages}, (_, i) => i + 1)" t-as="page"
+                                           t-key="page">
+                                            <t t-if="page &gt; 1 and page &lt; totalPages and page &gt;= currentPage - 1 and page &lt;= currentPage + 1">
+                                                <button class="pagination-number"
+                                                        t-att-class="currentPage === page ? 'active' : ''"
+                                                        t-on-click="() => goToRoomPage(page)">
+                                                    <t t-esc="page"/>
+                                                </button>
+                                            </t>
+                                        </t>
+
+
+                                        <t t-if="currentPage &lt; totalPages - 2">
+                                            <span class="pagination-ellipsis">...</span>
+                                        </t>
+
+                                        <t t-if="totalPages &gt; 1">
+                                            <button class="pagination-number"
+                                                    t-att-class="currentPage === totalPages ? 'active' : ''"
+                                                    t-on-click="() => goToRoomPage(totalPages)">
+                                                <t t-esc="totalPages"/>
+                                            </button>
+                                        </t>
+                                    </div>
+
+                                    <button class="pagination-btn"
+                                            t-on-click="nextRoomPage"
+                                            t-att-disabled="state.roomPagination.currentPage === state.roomPagination.totalPages">
+                                        <i class="fa fa-chevron-right" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+                </aside>
+            </section>
+
+            <!-- Calendar View -->
+            <section t-if="state.currentView === 'calendar'" class="calendar-view">
+                <div class="card card-calendar">
+                    <div class="card-head">
+                        <div class="calendar-nav">
+                            <button class="btn-icon" t-on-click="previousMonth">
+                                <i class="fa fa-chevron-left" aria-hidden="true"></i>
+                            </button>
+                            <strong class="calendar-title">
+                                <t t-esc="state.calendarMonth"/>
+                            </strong>
+                            <button class="btn-icon" t-on-click="nextMonth">
+                                <i class="fa fa-chevron-right" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <button class="btn btn-sm btn-outline" t-on-click="goToToday">Today</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="calendar-grid">
+                            <div class="calendar-header">
+                                <div class="calendar-day-label">Sun</div>
+                                <div class="calendar-day-label">Mon</div>
+                                <div class="calendar-day-label">Tue</div>
+                                <div class="calendar-day-label">Wed</div>
+                                <div class="calendar-day-label">Thu</div>
+                                <div class="calendar-day-label">Fri</div>
+                                <div class="calendar-day-label">Sat</div>
+                            </div>
+                            <div class="calendar-days">
+                                <t t-foreach="state.calendarDays" t-as="day" t-key="day_index">
+                                    <div class="calendar-day"
+                                         t-att-class="(day.isToday ? 'today ' : '') + (day.isOtherMonth ? 'other-month ' : '') + (day.hasEvents ? 'has-events' : '')"
+                                         t-on-click="() => selectDay(day)">
+                                        <span class="day-number">
+                                            <t t-esc="day.day"/>
+                                        </span>
+                                        <t t-if="day.eventCount">
+                                            <span class="event-count">
+                                                <t t-esc="day.eventCount"/>
+                                            </span>
+                                        </t>
+                                    </div>
+                                </t>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Analytics View -->
+            <section t-if="state.currentView === 'analytics'" class="analytics-view">
+                <div class="analytics-grid">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Meetings Over Time</h3>
+                            <div class="chart-legend">
+                                <span class="legend-item"><span class="legend-dot blue"></span>Meetings
+                                </span>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="meetingsChart" class="analytics-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Duration Distribution</h3>
+                            <p class="chart-subtitle">Average meeting length by type</p>
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="durationChart" class="analytics-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Room Utilization</h3>
+                            <p class="chart-subtitle">Occupancy rate this week</p>
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="roomChart" class="analytics-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Participant Trends</h3>
+                            <p class="chart-subtitle">Average attendance over time</p>
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="participantChart" class="analytics-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Loading Overlay -->
+            <div t-if="state.loading &amp;&amp; !state.firstLoad" class="overlay-loading">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <div class="loading-text">Loading dashboard...</div>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

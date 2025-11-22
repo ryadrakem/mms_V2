@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<smartdz>
+    <data>
+        <record id="res_config_settings_view_form_inherit_jitsi" model="ir.ui.view">
+            <field name="name">res.config.settings.view.form.inherit.jitsi</field>
+            <field name="model">res.config.settings</field>
+            <field name="priority" eval="35"/>
+            <field name="inherit_id" ref="base.res_config_settings_view_form" />
+            <field name="arch" type="xml">
+                <xpath expr="//form" position="inside">
+                    <app data-string="Jitsi" string="Jitsi" name="jitsi">
+                        <block title="Jitsi as a Service (JaaS) - 8x8">
+                            <!-- Jitsi Domain -->
+                            <setting string="Jitsi Domain" help="Jitsi server domain (8x8.vc for JaaS)">
+                                <field name="jitsi_domain" placeholder="8x8.vc"/>
+                            </setting>
+
+                            <!-- App ID -->
+                            <setting string="JaaS App ID" help="Your JaaS AppID from 8x8 dashboard">
+                                <field name="jitsi_app_id" placeholder="vpaas-magic-cookie-xxxxxxxx"/>
+                            </setting>
+
+                            <!-- Key ID -->
+                            <setting string="JaaS Key ID (kid)" help="Key ID from 8x8 API Keys page">
+                                <field name="jitsi_kid" placeholder="vpaas-magic-cookie-xxx/4f4910"/>
+                            </setting>
+
+                            <!-- Private Key -->
+                            <setting string="Private Key (PEM)" help="KEEP THIS SECRET! Private key in PEM format">
+                                <field name="jitsi_private_key"
+                                       widget="textarea"
+                                       placeholder="-----BEGIN PRIVATE KEY-----"/>
+                            </setting>
+
+                            <!-- Public Key -->
+                            <setting string="Public Key (PEM)" help="Upload this public key to 8x8 dashboard">
+                                <field name="jitsi_public_key"
+                                       widget="textarea"
+                                       placeholder="-----BEGIN PUBLIC KEY-----"/>
+                            </setting>
+
+                        </block>
+                    </app>
+                </xpath>
+                <xpath expr="//form" position="inside">
+                    <app data-string="Meeting AI" string="Meeting AI" name="meeting_ai">
+                        <block title="AI-Powered Meeting Summaries (100% FREE Options)">
+
+                            <!-- AI Provider Selection -->
+                            <setting string="AI Provider" help="Choose which AI service to use for generating meeting summaries">
+                                <field name="ai_provider"/>
+                                <div class="text-muted mt-2">
+                                    All providers below offer FREE tiers with no credit card required!
+                                </div>
+                            </setting>
+
+                            <!-- Google Gemini Configuration -->
+                            <setting string="Google Gemini API Key"
+                                     help="Get free at: https://aistudio.google.com/app/apikey (RECOMMENDED - No credit card)"
+                                     invisible="ai_provider != 'gemini'">
+                                <field name="gemini_api_key"
+                                       password="True"
+                                       placeholder="AIza..."/>
+                                <div class="text-success mt-2">
+                                    ✅ <strong>RECOMMENDED:</strong> 60 requests/minute, completely free forever
+                                    <br/>
+                                    <a href="https://aistudio.google.com/app/apikey" target="_blank" class="btn btn-link">
+                                        <i class="fa fa-external-link"/> Get Free API Key
+                                    </a>
+                                </div>
+                            </setting>
+
+                            <!-- OpenRouter Configuration -->
+                            <setting string="OpenRouter API Key"
+                                     help="Get free at: https://openrouter.ai/keys (Access 50+ AI models)"
+                                     invisible="ai_provider != 'openrouter'">
+                                <field name="openrouter_api_key"
+                                       password="True"
+                                       placeholder="sk-or-v1-..."/>
+                                <div class="text-info mt-2">
+                                    🎯 Multiple free models: DeepSeek, Qwen, Mistral, and more
+                                    <br/>
+                                    <a href="https://openrouter.ai/keys" target="_blank" class="btn btn-link">
+                                        <i class="fa fa-external-link"/> Get Free API Key
+                                    </a>
+                                </div>
+                            </setting>
+
+                            <!-- Groq Configuration -->
+                            <setting string="Groq API Key"
+                                     help="Get free at: https://console.groq.com/keys (Ultra-fast inference)"
+                                     invisible="ai_provider != 'groq'">
+                                <field name="groq_api_key"
+                                       password="True"
+                                       placeholder="gsk_..."/>
+                                <div class="text-warning mt-2">
+                                    ⚡ <strong>FASTEST:</strong> Up to 500 tokens/second, 14,400 requests/day
+                                    <br/>
+                                    <a href="https://console.groq.com/keys" target="_blank" class="btn btn-link">
+                                        <i class="fa fa-external-link"/> Get Free API Key
+                                    </a>
+                                </div>
+                            </setting>
+
+                            <!-- Hugging Face Configuration -->
+                            <setting string="Hugging Face Token"
+                                     help="Get free at: https://huggingface.co/settings/tokens (Thousands of models)"
+                                     invisible="ai_provider != 'huggingface'">
+                                <field name="huggingface_api_key"
+                                       password="True"
+                                       placeholder="hf_..."/>
+                                <div class="text-primary mt-2">
+                                    🤗 Access thousands of open-source AI models
+                                    <br/>
+                                    <a href="https://huggingface.co/settings/tokens" target="_blank" class="btn btn-link">
+                                        <i class="fa fa-external-link"/> Get Free Token
+                                    </a>
+                                </div>
+                            </setting>
+
+                            <!-- Quick Setup Guide -->
+                            <setting>
+                                <div class="alert alert-info">
+                                    <h4><i class="fa fa-info-circle"/> Quick Setup Guide</h4>
+                                    <ol class="mb-0">
+                                        <li>Select an AI provider above (Google Gemini recommended for beginners)</li>
+                                        <li>Click the link to get your free API key (takes 2 minutes)</li>
+                                        <li>Paste the API key in the field above</li>
+                                        <li>Click <strong>Save</strong></li>
+                                        <li>Go to any meeting and click <strong>Generate AI Summary</strong></li>
+                                    </ol>
+                                    <div class="mt-3">
+                                        <strong>All providers are 100% FREE with no credit card required!</strong>
+                                    </div>
+                                </div>
+                            </setting>
+
+                        </block>
+                    </app>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</smartdz>

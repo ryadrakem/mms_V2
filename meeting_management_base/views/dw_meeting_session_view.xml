@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<smartdz>
+    <!-- Form View -->
+    <record id="dw_meeting_session_form_view" model="ir.ui.view">
+        <field name="name">dw.meeting.session.form</field>
+        <field name="model">dw.meeting.session</field>
+        <field name="arch" type="xml">
+            <form string="Meeting Session" create="false" duplicate="false" delete="false">
+                <header>
+<!--                    <button name="action_open_session_view"-->
+<!--                            string="Join Meeting"-->
+<!--                            type="object"-->
+<!--                            class="btn-primary"-->
+<!--                            invisible="state == 'done'"/>-->
+                </header>
+                <sheet>
+                    <!-- SESSION OWNER -->
+                    <group>
+                        <group>
+                            <field name="participant_id" readonly="1"/>
+                            <field name="meeting_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <!-- GENERAL INFO -->
+                        <page string="General Info">
+                            <group>
+                                <group string="Meeting Info">
+                                    <field name="objet" readonly="1"/>
+                                    <field name="meeting_type_id" readonly="1"/>
+                                    <field name="subject_order" readonly="1"/>
+                                </group>
+
+                                <group string="Date and Time">
+                                    <field name="planned_start_datetime" readonly="1"/>
+                                    <field name="planned_end_time" readonly="1"/>
+                                    <field name="actual_start_datetime" readonly="1"/>
+                                    <field name="actual_end_datetime" readonly="1"/>
+                                    <field name="actual_duration" widget="float_time" readonly="1"/>
+                                </group>
+                            </group>
+
+                            <group string="Participants">
+                                <field name="participant_ids" readonly="1"/>
+                            </group>
+                        </page>
+
+                        <!-- MOM, NOTES, ACTIONS FOR USER -->
+                        <page string="Summary / Notes">
+                            <group>
+                                <field name="personal_notes"/>
+                                <field name="requirements" widget="html"/>
+                            </group>
+                        </page>
+                        <page string="Actions">
+                            <field name="personal_actions_ids">
+                                <list editable="bottom">
+                                    <field name="name"/>
+                                    <field name="parent_id"/>
+                                    <field name="meeting_id"/>
+                                    <field name="dead_line"/>
+                                    <field name="task_ids"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+
+            </form>
+        </field>
+    </record>
+
+    <record id="dw_meeting_session_tree_view" model="ir.ui.view">
+        <field name="name">dw.meeting.session.tree</field>
+        <field name="model">dw.meeting.session</field>
+        <field name="arch" type="xml">
+            <list string="Meeting Sessions" duplicate="false" create="false" delete="false">
+                <field name="user_id"/>
+                <field name="participant_id"/>
+                <field name="meeting_id"/>
+                <field name="objet"/>
+                <field name="planned_start_datetime"/>
+                <field name="planned_end_time"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="dw_meeting_session_action" model="ir.actions.act_window">
+        <field name="name">Meeting Session</field>
+        <field name="res_model">dw.meeting.session</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</smartdz>
+        <!--                <header>-->
+        <!--                    <field name="meeting_id" invisible="1"/>-->
+        <!--                    <button name="action_finish_session"-->
+        <!--                            type="object"-->
+        <!--                            string="Finish"-->
+        <!--                            class="btn-primary"-->
+        <!--                            attrs="{'invisible': [('state', '=', 'done')]}"/>-->
+        <!--                    <field name="state" widget="statusbar" statusbar_visible="draft,in_progress,done"/>-->
+        <!--                </header>-->

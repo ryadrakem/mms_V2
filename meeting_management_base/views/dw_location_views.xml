@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<smartdz>
+    <record id="dw_location_view_list" model="ir.ui.view">
+        <field name="name">dw.location.view.list</field>
+        <field name="model">dw.location</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="adresse"/>
+                <field name="description"/>
+                <field name="maps"/>
+                <field name="room_ids" widget="many2many_tags"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="dw_location_view_form" model="ir.ui.view">
+        <field name="name">dw.location.view.form</field>
+        <field name="model">dw.location</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <field name="adresse"/>
+                        <field name="description"/>
+                        <field name="maps"/>
+                        <field name="is_in_site"/>
+                        <field name="room_ids" widget="many2many_tags"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="dw_location_view_search" model="ir.ui.view">
+        <field name="name">dw.location.view.search</field>
+        <field name="model">dw.location</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="adresse"/>
+                <field name="description"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="dw_location_action" model="ir.actions.act_window">
+        <field name="name">Location</field>
+        <field name="res_model">dw.location</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</smartdz>
