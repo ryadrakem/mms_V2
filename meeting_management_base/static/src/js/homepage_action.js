@@ -86,7 +86,7 @@ export class MeetingsHome extends Component {
         day: 'numeric'
       }),
 
-      currentView: 'overview',
+      currentView: 'analytics',
       currentSlide: 0,
 
       calendarMonth: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),

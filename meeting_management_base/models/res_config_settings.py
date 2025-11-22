@@ -207,10 +207,10 @@ class ResConfigSettings(models.TransientModel):
             'huggingface': 'https://huggingface.co/settings/tokens',
         }
 
-        if self.ai_provider:
-            return {
-                'warning': {
-                    'title': 'Get Your Free API Key',
-                    'message': f'Get your free {self.ai_provider.upper()} API key at:\n{provider_urls.get(self.ai_provider, "")}'
-                }
-            }
+        # if self.ai_provider:
+        #     return {
+        #         'warning': {
+        #             'title': 'Get Your Free API Key',
+        #             'message': f'Get your free {self.ai_provider.upper()} API key at:\n{provider_urls.get(self.ai_provider, "")}'
+        #         }
+        #     }

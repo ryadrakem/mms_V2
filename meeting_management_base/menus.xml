@@ -61,17 +61,17 @@
               sequence="10"
     />
 
-<!--    <menuitem id="menu_dw_meeting_session"-->
-<!--              name="Meeting Sessions"-->
-<!--              parent="menu_meeting_management"-->
-<!--              action="dw_meeting_session_action"-->
-<!--              sequence="40"/>-->
+    <!--    <menuitem id="menu_dw_meeting_session"-->
+    <!--              name="Meeting Sessions"-->
+    <!--              parent="menu_meeting_management"-->
+    <!--              action="dw_meeting_session_action"-->
+    <!--              sequence="40"/>-->
 
-<!--    <menuitem id="menu_participants"-->
-<!--              name="Participants"-->
-<!--              parent="menu_meeting_settings"-->
-<!--              action="dw_participant_action"-->
-<!--    />-->
+    <!--    <menuitem id="menu_participants"-->
+    <!--              name="Participants"-->
+    <!--              parent="menu_meeting_settings"-->
+    <!--              action="dw_participant_action"-->
+    <!--    />-->
 
     <menuitem id="menu_actions"
               name="Actions"
@@ -83,16 +83,16 @@
               parent="menu_meeting_management"
               action="dw_requirements_action"/>
 
-    <!--    <record id="action_meeting_home_dashboard" model="ir.actions.client">-->
-    <!--        <field name="name">Meeting Home Dashboard</field>-->
-    <!--        <field name="tag">meeting_management_base.meeting_home_dashboard_action</field>-->
-    <!--    </record>-->
+    <record id="action_meeting_home_dashboard" model="ir.actions.client">
+        <field name="name">Meeting Home Dashboard</field>
+        <field name="tag">meeting_management_base.meeting_home_dashboard_action</field>
+    </record>
 
-    <!--    <menuitem id="menu_meeting_home_dashboard"-->
-    <!--              name="Home Page"-->
-    <!--              parent="menu_meeting_management"-->
-    <!--              action="action_meeting_home_dashboard"-->
-    <!--              sequence="0"/>-->
+    <menuitem id="menu_meeting_home_dashboard"
+              name="Home Page"
+              parent="menu_meeting_management"
+              action="action_meeting_home_dashboard"
+              sequence="2"/>
 
     <record id="action_dw_meeting_home" model="ir.actions.client">
         <field name="name">Meetings Home</field>

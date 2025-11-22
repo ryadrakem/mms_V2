@@ -33,6 +33,11 @@
                     </div>
 
                     <div class="view-toggle">
+                        <button t-att-class="state.currentView === 'analytics' ? 'active' : ''"
+                                t-on-click="() => setView('analytics')">
+                            <i class="fa fa-bar-chart" aria-hidden="true"></i>
+                            Analytics
+                        </button>
                         <button t-att-class="state.currentView === 'overview' ? 'active' : ''"
                                 t-on-click="() => setView('overview')">
                             <i class="fa fa-th-large" aria-hidden="true"></i>
@@ -42,11 +47,6 @@
                                 t-on-click="() => setView('calendar')">
                             <i class="fa fa-calendar" aria-hidden="true"></i>
                             Calendar
-                        </button>
-                        <button t-att-class="state.currentView === 'analytics' ? 'active' : ''"
-                                t-on-click="() => setView('analytics')">
-                            <i class="fa fa-bar-chart" aria-hidden="true"></i>
-                            Analytics
                         </button>
                     </div>
 
