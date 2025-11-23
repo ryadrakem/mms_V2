@@ -13,14 +13,14 @@
               <t t-esc="state.session.name"/>
             </h1>
             <div class="meeting-meta-info">
-              <span class="meta-badge">
-                <i class="fa fa-clock-o"/>
-                <t t-esc="state.session.actual_start_datetime"/>
-              </span>
-              <span class="meta-badge">
-                <i class="fa fa-hourglass-half"/>
-                <t t-esc="state.session.duration"/>h
-              </span>
+<!--              <span class="meta-badge">-->
+<!--                <i class="fa fa-clock-o"/>-->
+<!--                <t t-esc="state.session.actual_start_datetime"/>-->
+<!--              </span>-->
+<!--              <span class="meta-badge">-->
+<!--                <i class="fa fa-hourglass-half"/>-->
+<!--                <t t-esc="state.session.duration"/>h-->
+<!--              </span>-->
               <span class="meta-badge" t-if="state.session.is_host">
                 <i class="fa fa-star"/>
                 Host
@@ -33,12 +33,12 @@
             <span class="status-dot"/>
             <t t-esc="state.session.state.charAt(0).toUpperCase() + state.session.state.slice(1).replace('_', ' ')"/>
           </span>
-          <button class="btn-action primary" t-on-click="toggleNotes" title="Notes" t-if="state.session.display_camera">
-            <i class="fa fa-pencil"/>
-          </button>
-          <button class="btn-action primary" t-on-click="toggleActions" title="Actions" t-if="state.session.display_camera">
-            <i class="fa fa-tasks"/>
-          </button>
+<!--          <button class="btn-action primary" t-on-click="toggleNotes" title="Notes" t-if="state.session.display_camera">-->
+<!--            <i class="fa fa-pencil"/>-->
+<!--          </button>-->
+<!--          <button class="btn-action primary" t-on-click="toggleActions" title="Actions" t-if="state.session.display_camera">-->
+<!--            <i class="fa fa-tasks"/>-->
+<!--          </button>-->
           <button class="btn-action danger" t-on-click="leaveMeeting" title="Leave">
             <i class="fa fa-sign-out"/>
           </button>
@@ -144,10 +144,24 @@
                   <label>Type</label>
                   <span t-esc="state.meetingTypeName"/>
                 </div>
+                <div class="info-item" t-if="state.session.planned_start_datetime">
+                  <label>Planned start</label>
+                  <span t-esc="state.session.planned_start_datetime"/>
+                </div>
+                <div class="info-item" t-if="state.session.planned_end_time">
+                  <label>Planned end</label>
+                  <span t-esc="state.session.planned_end_time"/>
+                </div>
                 <div class="info-item">
-                  <label>Duration</label>
+                  <label>Planned Duration</label>
                   <span>
                     <t t-esc="state.sessionDuration"/> hours
+                  </span>
+                </div>
+                <div class="info-item">
+                  <label>Actual start</label>
+                  <span>
+                    <t t-esc="state.session.actual_start_datetime"/>
                   </span>
                 </div>
                 <div class="info-item">
@@ -167,12 +181,12 @@
         <main class="meeting-main">
           <!-- Tab Navigation Bar -->
           <div class="main-tab-navigation">
-            <button
-              class="tab-nav-button"
-              t-att-class="{ 'active': state.activeMainTab === 'video' }"
-              t-on-click="() => this.state.activeMainTab = 'video'">
-              <i class="fa fa-video-camera"/>
-              <span>Video Conference</span>
+                          <button
+                  class="tab-nav-button"
+                  t-att-class="{ 'active': state.activeMainTab === 'agenda' }"
+                  t-on-click="() => this.state.activeMainTab = 'agenda'">
+                  <i class="fa fa-file-text-o"/>
+                  <span>Agenda</span>
             </button>
             <button
               class="tab-nav-button"
@@ -188,19 +202,20 @@
               <i class="fa fa-file-text-o"/>
               <span>My Notes</span>
             </button>
-            <button
-                  class="tab-nav-button"
-                  t-att-class="{ 'active': state.activeMainTab === 'agenda' }"
-                  t-on-click="() => this.state.activeMainTab = 'agenda'">
-                  <i class="fa fa-file-text-o"/>
-                  <span>Agenda</span>
-            </button>
               <button
                   class="tab-nav-button"
                   t-att-class="{ 'active': state.activeMainTab === 'pv' }"
                   t-on-click="() => this.state.activeMainTab = 'pv'">
                   <i class="fa fa-file-text-o"/>
                   <span>PV</span>
+            </button>
+            <button
+              class="tab-nav-button"
+              t-att-class="{ 'active': state.activeMainTab === 'video' }"
+              t-on-click="() => this.state.activeMainTab = 'video'"
+              t-if="state.session.display_camera">
+              <i class="fa fa-video-camera"/>
+              <span>Video Conference</span>
             </button>
           </div>
 

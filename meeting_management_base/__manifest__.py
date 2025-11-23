@@ -28,6 +28,7 @@
         "views/dw_meeting_summary.xml",
         # security
         "security/ir.model.access.csv",
+        "security/dw_meeting_rules.xml",
         # menus
         "menus.xml",
 

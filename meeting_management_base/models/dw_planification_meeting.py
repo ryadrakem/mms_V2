@@ -1,6 +1,6 @@
 from smartdz import models, fields, api, _
 from smartdz.exceptions import ValidationError
-from datetime import timedelta
+from datetime import timedelta, datetime
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -260,6 +260,7 @@ class DwPlanificationMeeting(models.Model):
                     'actual_start_datetime': fields.Datetime.now(),
                     'display_camera': self.display_camera,
                     'subject_order': self.subject_order,
+                    'has_remote_participants': self.has_remote_participants,
                 })
                 # Capture current user's session
                 if participant.user_id.id == self.env.user.id:
@@ -402,10 +403,6 @@ class DwPlanificationMeeting(models.Model):
             #         'current_user': self.env.user.name,  # <-- pass user name
             #     }
             # }
-
-    # @api.constrains('state')
-    # def _check_confirm_without_participants(self):
-    #     for record in self:
 
     """
     # TODO : we have to check about this create for the calendar integration suggested by claude.
@@ -625,3 +622,323 @@ class DwPlanificationMeeting(models.Model):
     def action_reset_to_draft(self):
         for rec in self:
             rec.state = 'draft'
+
+    @api.model
+    def get_dashboard_kpis(self):
+        """Get KPI data for dashboard"""
+        now = fields.Datetime.now()  # Use Odoo's timezone-aware datetime
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = today_start + timedelta(days=1)
+
+        # Upcoming meetings (future planned/confirmed/started meetings)
+        upcoming_count = self.search_count([
+            ('planned_start_datetime', '>=', now),
+            ('state', 'not in', ['cancelled', 'done', 'draft'])
+        ])
+
+        # Today's meetings
+        today_meetings = self.search([
+            ('planned_start_datetime', '>=', today_start),
+            ('planned_start_datetime', '<', today_end),
+            ('state', 'not in', ['cancelled', 'draft'])
+        ])
+        today_count = len(today_meetings)
+        today_hours = sum(today_meetings.mapped('duration'))
+
+        # Available rooms
+        all_rooms = self.env['dw.room'].search([])
+        rooms_free = sum(1 for room in all_rooms if room.status == 'free')
+
+        # Total unique participants in upcoming meetings
+        upcoming_meetings = self.search([
+            ('planned_start_datetime', '>=', now),
+            ('state', 'not in', ['cancelled', 'done', 'draft'])
+        ])
+
+        # Count unique participants across all upcoming meetings
+        unique_participants = set()
+        for meeting in upcoming_meetings:
+            for participant in meeting.participant_ids:
+                if participant.employee_id:
+                    unique_participants.add(participant.employee_id.id)
+                elif participant.partner_id:
+                    unique_participants.add(participant.partner_id.id)
+                else:
+                    unique_participants.add(participant.id)
+
+        total_participants = len(unique_participants)
+
+        # Calculate trend (compare with last week)
+        last_week_start = now - timedelta(days=7)
+        last_week_count = self.search_count([
+            ('planned_start_datetime', '>=', last_week_start),
+            ('planned_start_datetime', '<', now),
+            ('state', 'not in', ['cancelled', 'done', 'draft'])
+        ])
+
+        trend = None
+        if last_week_count > 0:
+            trend = round(((upcoming_count - last_week_count) / last_week_count) * 100, 1)
+
+        return {
+            'upcoming': upcoming_count,
+            'today': today_count,
+            'today_hours': round(today_hours, 1),
+            'rooms_free': rooms_free,
+            'total_participants': total_participants,
+            'upcoming_trend': trend
+        }
+
+    @api.model
+    def get_upcoming_meetings(self, limit=20):
+        """Get upcoming planification meetings with details"""
+        now = fields.Datetime.now()  # Use Odoo's timezone-aware datetime
+        meetings = self.search([
+            ('planned_start_datetime', '>=', now),
+            ('state', 'not in', ['cancelled', 'done', 'draft'])
+        ], limit=limit, order='planned_start_datetime asc')
+
+        result = []
+        for meeting in meetings:
+            # Get organizer (from participants or creator)
+            organizer_name = 'Unknown'
+            host_participant = meeting.participant_ids.filtered(lambda p: p.is_host)
+            if host_participant:
+                organizer_name = host_participant[0].name
+            elif meeting.create_uid:
+                organizer_name = meeting.create_uid.name
+
+            # Convert to user's timezone for display
+            # Odoo stores in UTC, so we need to convert for display
+            user_tz = self.env.user.tz or 'UTC'
+            from pytz import timezone
+            import pytz
+
+            if meeting.planned_start_datetime:
+                # Convert UTC to user timezone
+                utc_dt = pytz.UTC.localize(meeting.planned_start_datetime.replace(tzinfo=None))
+                user_dt = utc_dt.astimezone(timezone(user_tz))
+                formatted_date = user_dt.strftime('%a, %b %d, %I:%M %p')
+            else:
+                formatted_date = ''
+
+            # Determine priority based on duration and time to start
+            priority = 'normal'
+            if meeting.duration > 2:
+                priority = 'high'
+            time_to_start = (meeting.planned_start_datetime - now).total_seconds() / 3600
+            if time_to_start < 1:  # Less than 1 hour away
+                priority = 'urgent'
+
+            # Count unique participants (avoid duplicates)
+            unique_participants = set()
+            for participant in meeting.participant_ids:
+                if participant.employee_id:
+                    unique_participants.add(participant.employee_id.id)
+                elif participant.partner_id:
+                    unique_participants.add(participant.partner_id.id)
+                else:
+                    unique_participants.add(participant.id)
+
+            result.append({
+                'id': meeting.id,
+                'name': meeting.name or 'Untitled Meeting',
+                'planned_start_datetime': meeting.planned_start_datetime.isoformat() if meeting.planned_start_datetime else None,
+                'formatted_date': formatted_date,
+                'duration': meeting.duration,
+                'room_name': meeting.room_id.name if meeting.room_id else None,
+                'organizer_name': organizer_name,
+                'participant_count': len(unique_participants),  # Use unique count
+                'state': meeting.state,
+                'priority': priority,
+                'is_recurring': False,  # Add recurring logic if needed
+            })
+
+        return result
+
+    @api.model
+    def quick_create_meeting(self, payload):
+        """Quick create a planification meeting from dashboard"""
+        # Validate required fields
+        if not payload.get('name'):
+            raise ValidationError("Meeting title is required")
+
+        if not payload.get('planned_start_datetime'):
+            raise ValidationError("Start date and time is required")
+
+        # Convert string datetime to datetime object
+        start_dt = fields.Datetime.to_datetime(payload['planned_start_datetime'])
+        duration = float(payload.get('duration', 1))
+
+        # Calculate end time
+        end_dt = start_dt + timedelta(hours=duration)
+
+        # Validate room availability if room is specified
+        room_id = payload.get('room_id')
+        if room_id:
+            overlapping = self.search([
+                ('room_id', '=', room_id),
+                ('state', 'not in', ['cancelled', 'done', 'draft']),
+                '|',
+                '&', ('planned_start_datetime', '<=', start_dt),
+                ('planned_end_time', '>', start_dt),
+                '&', ('planned_start_datetime', '<', end_dt),
+                ('planned_end_time', '>=', end_dt),
+            ], limit=1)
+
+            if overlapping:
+                raise ValidationError(f"Room is already booked for this time period")
+
+        # Create planification meeting
+        meeting = self.create({
+            'name': payload['name'],
+            'planned_start_datetime': start_dt,
+            'duration': duration,
+            'room_id': room_id or False,
+            'state': 'draft',
+        })
+
+        return {'id': meeting.id, 'name': meeting.name}
+
+    @api.model
+    def get_activity_feed(self, limit=15):
+        """Get recent activity feed"""
+        # Get recent meetings with activities
+        recent_meetings = self.search([], limit=limit, order='write_date desc')
+
+        feed = []
+        for meeting in recent_meetings:
+            activity_type = 'created'
+            if meeting.state == 'cancelled':
+                activity_type = 'cancelled'
+            elif meeting.write_date and meeting.create_date and meeting.write_date != meeting.create_date:
+                activity_type = 'updated'
+
+            author = meeting.create_uid.name if meeting.create_uid else 'System'
+            time_ago = self._format_time_ago(meeting.write_date or meeting.create_date)
+
+            feed.append({
+                'id': meeting.id,
+                'title': f"{meeting.name or 'Meeting'} - {meeting.state.replace('_', ' ').title()}",
+                'author': author,
+                'time': time_ago,
+                'type': activity_type,
+            })
+
+        return feed
+
+    @api.model
+    def get_week_stats(self):
+        """Get current week statistics"""
+        now = datetime.now()
+        week_start = now - timedelta(days=now.weekday())
+        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_end = week_start + timedelta(days=7)
+
+        week_meetings = self.search([
+            ('planned_start_datetime', '>=', week_start),
+            ('planned_start_datetime', '<', week_end),
+            ('state', 'not in', ['cancelled', 'draft'])
+        ])
+
+        total = len(week_meetings)
+        hours = sum(week_meetings.mapped('duration'))
+        avg_duration = round((hours / total * 60) if total > 0 else 0, 1)
+
+        return {
+            'total': total,
+            'hours': round(hours, 1),
+            'avg_duration': avg_duration
+        }
+
+    @api.model
+    def get_analytics_data(self):
+        """Get data for analytics charts"""
+        now = datetime.now()
+        week_start = now - timedelta(days=now.weekday())
+
+        # Meetings per day (last 7 days)
+        daily_meetings = []
+        for i in range(7):
+            day_start = week_start + timedelta(days=i)
+            day_end = day_start + timedelta(days=1)
+            count = self.search_count([
+                ('planned_start_datetime', '>=', day_start),
+                ('planned_start_datetime', '<', day_end),
+                ('state', 'not in', ['cancelled', 'draft'])
+            ])
+            daily_meetings.append(count)
+
+        # Duration distribution
+        all_meetings = self.search([
+            ('planned_start_datetime', '>=', week_start),
+            ('state', 'not in', ['cancelled', 'draft'])
+        ])
+
+        duration_dist = {
+            'under_30': 0,
+            '30_to_60': 0,
+            '60_to_120': 0,
+            'over_120': 0
+        }
+
+        for meeting in all_meetings:
+            duration_minutes = meeting.duration * 60
+            if duration_minutes < 30:
+                duration_dist['under_30'] += 1
+            elif duration_minutes < 60:
+                duration_dist['30_to_60'] += 1
+            elif duration_minutes < 120:
+                duration_dist['60_to_120'] += 1
+            else:
+                duration_dist['over_120'] += 1
+
+        total = sum(duration_dist.values()) or 1
+        duration_percentages = {k: round((v / total) * 100, 1) for k, v in duration_dist.items()}
+
+        # Room utilization
+        all_rooms = self.env['dw.room'].search([])
+        total_rooms = len(all_rooms)
+        occupied_rooms = sum(1 for room in all_rooms if room.status != 'free')
+        utilization = round((occupied_rooms / total_rooms * 100) if total_rooms > 0 else 0, 1)
+
+        # Participant trends (last 7 days)
+        participant_trends = []
+        for i in range(7):
+            day_start = week_start + timedelta(days=i)
+            day_end = day_start + timedelta(days=1)
+            day_meetings = self.search([
+                ('planned_start_datetime', '>=', day_start),
+                ('planned_start_datetime', '<', day_end),
+                ('state', 'not in', ['cancelled', 'draft'])
+            ])
+            avg_participants = round(
+                sum(len(m.participant_ids) for m in day_meetings) / len(day_meetings)
+            ) if day_meetings else 0
+            participant_trends.append(avg_participants)
+
+        return {
+            'daily_meetings': daily_meetings,
+            'duration_distribution': duration_percentages,
+            'room_utilization': utilization,
+            'participant_trends': participant_trends
+        }
+
+    def _format_time_ago(self, dt):
+        """Format datetime to 'time ago' string"""
+        if not dt:
+            return 'Unknown'
+
+        now = datetime.now()
+        diff = now - dt
+
+        if diff.days > 0:
+            return f"{diff.days} day{'s' if diff.days > 1 else ''} ago"
+        elif diff.seconds >= 3600:
+            hours = diff.seconds // 3600
+            return f"{hours} hour{'s' if hours > 1 else ''} ago"
+        elif diff.seconds >= 60:
+            minutes = diff.seconds // 60
+            return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
+        else:
+            return "Just now"

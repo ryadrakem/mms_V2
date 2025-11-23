@@ -1131,7 +1131,7 @@
     transition: var(--trans);
   }
 
-  .chip {
+.chip {
     padding: 5px 10px;
     border-radius: 14px;
     font-size: 0.688rem;
@@ -1141,30 +1141,80 @@
     gap: 5px;
     white-space: nowrap;
 
+    /* Draft state */
     &.draft {
-      background: var(--warning-light);
+      background: #fef3c7;
       color: #92400e;
+      border: 1px solid #fde68a;
 
       .chip-dot {
         background: #92400e;
       }
     }
 
+    /* Confirmed state */
     &.confirmed {
-      background: var(--success-light);
+      background: #dbeafe;
+      color: #1e40af;
+      border: 1px solid #93c5fd;
+
+      .chip-dot {
+        background: #1e40af;
+      }
+    }
+
+    /* Planned state */
+    &.planned {
+      background: #d1fae5;
       color: #065f46;
+      border: 1px solid #a7f3d0;
 
       .chip-dot {
         background: #065f46;
       }
     }
 
+    /* Started state */
+    &.started {
+      background: #e0e7ff;
+      color: #4338ca;
+      border: 1px solid #c7d2fe;
+
+      .chip-dot {
+        background: #4338ca;
+      }
+    }
+
+    /* Done state */
+    &.done {
+      background: #f3f4f6;
+      color: #374151;
+      border: 1px solid #d1d5db;
+
+      .chip-dot {
+        background: #374151;
+      }
+    }
+
+    /* Cancelled state */
     &.cancelled {
-      background: var(--danger-light);
+      background: #fee2e2;
       color: #991b1b;
+      border: 1px solid #fecaca;
 
       .chip-dot {
         background: #991b1b;
+      }
+    }
+
+    /* Unknown/default state */
+    &.unknown {
+      background: #f3f4f6;
+      color: #6b7280;
+      border: 1px solid #e5e7eb;
+
+      .chip-dot {
+        background: #6b7280;
       }
     }
   }
@@ -1174,6 +1224,16 @@
     height: 5px;
     border-radius: 50%;
     flex-shrink: 0;
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
   }
 
   /* ========== MEETING SKELETON ========== */

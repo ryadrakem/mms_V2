@@ -12,16 +12,36 @@ function debounce(fn, wait) {
   };
 }
 
-function formatDate(dateStr) {
-  if (!dateStr) return 'Not scheduled';
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+function parseOdooDatetimeToLocal(dt) {
+  if (!dt) return null;
+  try {
+    if (typeof dt !== 'string') return null;
+
+
+    const humanTimeRegex = /([APap][Mm])|[A-Za-z]{3,}/;
+    if (humanTimeRegex.test(dt) && !dt.includes('T') && !dt.includes('+') && !dt.endsWith('Z')) {
+      return null;
+    }
+
+    if (dt.includes('T') || dt.endsWith('Z') || dt.includes('+')) {
+      return new Date(dt);
+    }
+    const clean = dt.replace(/\.\d+/, '').replace(' ', 'T') + 'Z';
+    return new Date(clean);
+  } catch (e) {
+    console.warn('Failed to parse datetime:', dt, e);
+    return null;
+  }
+}
+
+
+function formatTimeLocal(dateObj, options = { hour: '2-digit', minute: '2-digit', hour12: true }) {
+  if (!dateObj) return null;
+  try {
+    return dateObj.toLocaleTimeString('en-US', options);
+  } catch (e) {
+    return null;
+  }
 }
 
 export class MeetingsHome extends Component {
@@ -39,54 +59,24 @@ export class MeetingsHome extends Component {
       refreshing: false,
       searchQuery: '',
 
-      kpis: {
-        upcoming: 0,
-        today: 0,
-        today_hours: 0,
-        rooms_free: 0,
-        total_participants: 0,
-        upcoming_trend: null
-      },
+      kpis: { upcoming: 0, today: 0, today_hours: 0, rooms_free: 0, total_participants: 0, upcoming_trend: null },
 
       upcoming: [],
       filteredUpcoming: [],
-      recent_minutes: [],
       rooms: [],
       feed: [],
 
-      quickCreate: {
-        title: '',
-        date: '',
-        duration: 1,
-        room_id: ''
-      },
+      quickCreate: { title: '', date: '', duration: 1, room_id: '' },
 
-      weekStats: {
-        total: 0,
-        hours: 0,
-        avg_duration: 0
-      },
+      weekStats: { total: 0, hours: 0, avg_duration: 0 },
 
-      analyticsData: {
-        daily_meetings: [],
-        duration_distribution: {},
-        room_utilization: 0,
-        participant_trends: []
-      },
-      roomPagination: {
-        currentPage: 1,
-        itemsPerPage: 3,
-        totalPages: 1
-      },
+      analyticsData: { daily_meetings: [], duration_distribution: {}, room_utilization: 0, participant_trends: [] },
 
-      currentDate: new Date().toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      }),
+      roomPagination: { currentPage: 1, itemsPerPage: 3, totalPages: 1 },
 
-      currentView: 'analytics',
+      currentDate: new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+
+      currentView: 'overview',
       currentSlide: 0,
 
       calendarMonth: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
@@ -95,15 +85,9 @@ export class MeetingsHome extends Component {
 
       openMenuId: null,
       chartJsLoaded: false,
-
     });
 
-    this.charts = {
-      meetings: null,
-      duration: null,
-      room: null,
-      participants: null
-    };
+    this.charts = { meetings: null, duration: null, room: null, participants: null };
 
     this.refreshInterval = null;
     this.carouselInterval = null;
@@ -125,7 +109,6 @@ export class MeetingsHome extends Component {
     this.quickBookRoom = this.quickBookRoom.bind(this);
     this.toggleMeetingMenu = this.toggleMeetingMenu.bind(this);
     this.openMeeting = this.openMeeting.bind(this);
-    this.openMinutes = this.openMinutes.bind(this);
     this.openAllMeetings = this.openAllMeetings.bind(this);
     this.generateCalendar = this.generateCalendar.bind(this);
     this.previousMonth = this.previousMonth.bind(this);
@@ -216,33 +199,49 @@ export class MeetingsHome extends Component {
     }
 
     try {
-      let minutes = [];
-      try {
-        minutes = await this.orm.call('dw.meeting.minutes', 'get_recent_minutes', [5]);
-      } catch (err) {
-        console.warn('Meeting minutes model not available:', err);
-        minutes = [];
-      }
-
       const [kpiRes, upcoming, rooms, feed, weekStats, analyticsData] = await Promise.all([
-        this.orm.call('dw.meeting', 'get_dashboard_kpis', []),
-        this.orm.call('dw.meeting', 'get_upcoming_meetings', [20]),
+        this.orm.call('dw.planification.meeting', 'get_dashboard_kpis', []),
+        this.orm.call('dw.planification.meeting', 'get_upcoming_meetings', [20]),
         this.orm.call('dw.room', 'get_rooms_availability', []),
-        this.orm.call('dw.meeting', 'get_activity_feed', [15]),
-        this.orm.call('dw.meeting', 'get_week_stats', []),
-        this.orm.call('dw.meeting', 'get_analytics_data', [])
+        this.orm.call('dw.planification.meeting', 'get_activity_feed', [15]),
+        this.orm.call('dw.planification.meeting', 'get_week_stats', []),
+        this.orm.call('dw.planification.meeting', 'get_analytics_data', [])
       ]);
 
       this.state.kpis = kpiRes || this.state.kpis;
       this.state.upcoming = upcoming || [];
       this.state.filteredUpcoming = upcoming || [];
-      this.state.recent_minutes = minutes || [];
-      this.state.rooms = rooms || [];
       this.state.feed = feed || [];
       this.state.weekStats = weekStats || this.state.weekStats;
       this.state.analyticsData = analyticsData || this.state.analyticsData;
 
-      // Update pagination AFTER rooms are loaded
+      this.state.rooms = (rooms || []).map(r => {
+        const dtString = r.free_until || r.free_till || r.free_until_datetime || r.available_until || r.free_until_time || null;
+
+        const looksHuman = typeof dtString === 'string' && (/([APap][Mm])|[A-Za-z]{3,}/).test(dtString) && !dtString.includes('T') && !dtString.includes('+') && !dtString.endsWith('Z');
+
+        let freeUntilDate = null;
+        let computedLocal = null;
+
+        if (!looksHuman) {
+          freeUntilDate = parseOdooDatetimeToLocal(dtString);
+          computedLocal = freeUntilDate ? formatTimeLocal(freeUntilDate) : null;
+        }
+
+        const display_free_until = looksHuman ? dtString : (computedLocal || dtString || null);
+
+        return {
+          ...r,
+          free_until_date: freeUntilDate,
+          free_until_local: computedLocal,
+          display_free_until,
+        };
+      });
+
+      if (window && window.console) {
+        console.debug('Loaded rooms (post-normalize):', this.state.rooms);
+      }
+
       this.updateRoomPagination();
 
       if (this.state.currentView === 'analytics' && this.state.chartJsLoaded) {
@@ -310,7 +309,6 @@ export class MeetingsHome extends Component {
   }
 
   filterByKpi(type) {
-    // Switch to overview and filter meetings based on KPI type
     this.state.currentView = 'overview';
     this.state.currentSlide = 0;
 
@@ -333,11 +331,11 @@ export class MeetingsHome extends Component {
   }
 
   nextSlide() {
-    this.state.currentSlide = (this.state.currentSlide + 1) % 3;
+    this.state.currentSlide = (this.state.currentSlide + 1) % 2; // Only 2 slides now
   }
 
   previousSlide() {
-    this.state.currentSlide = (this.state.currentSlide - 1 + 3) % 3;
+    this.state.currentSlide = (this.state.currentSlide - 1 + 2) % 2;
   }
 
   goToSlide(index) {
@@ -371,8 +369,16 @@ export class MeetingsHome extends Component {
       return;
     }
 
-    // Convert datetime-local format (2025-11-09T21:00) to Odoo format (2025-11-09 21:00:00)
-    const formattedDate = date.replace('T', ' ') + ':00';
+    const localDate = new Date(date);
+
+    const utcDate = new Date(localDate.getTime() - (localDate.getTimezoneOffset() * 60000));
+
+    const year = utcDate.getUTCFullYear();
+    const month = String(utcDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(utcDate.getUTCDate()).padStart(2, '0');
+    const hours = String(utcDate.getUTCHours()).padStart(2, '0');
+    const minutes = String(utcDate.getUTCMinutes()).padStart(2, '0');
+    const formattedDate = `${year}-${month}-${day} ${hours}:${minutes}:00`;
 
     const payload = {
       name: title.trim(),
@@ -384,7 +390,7 @@ export class MeetingsHome extends Component {
     this.state.creating = true;
 
     try {
-      const result = await this.orm.call('dw.meeting', 'quick_create_meeting', [payload]);
+      const result = await this.orm.call('dw.planification.meeting', 'quick_create_meeting', [payload]);
 
       this.notification.add(`Meeting "${title}" created successfully`, {
         type: 'success',
@@ -435,13 +441,18 @@ export class MeetingsHome extends Component {
         type: 'info'
       });
 
+      // Get current time in user's local timezone
       const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
+
+      // Convert to UTC by subtracting timezone offset
+      const utcNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
+
+      const year = utcNow.getUTCFullYear();
+      const month = String(utcNow.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(utcNow.getUTCDate()).padStart(2, '0');
+      const hours = String(utcNow.getUTCHours()).padStart(2, '0');
+      const minutes = String(utcNow.getUTCMinutes()).padStart(2, '0');
+      const seconds = String(utcNow.getUTCSeconds()).padStart(2, '0');
       const odooDateTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
       const payload = {
@@ -451,7 +462,7 @@ export class MeetingsHome extends Component {
         room_id: roomId
       };
 
-      const result = await this.orm.call('dw.meeting', 'quick_create_meeting', [payload]);
+      const result = await this.orm.call('dw.planification.meeting', 'quick_create_meeting', [payload]);
 
       this.notification.add(`${room?.name || 'Room'} booked successfully for 1 hour`, {
         type: 'success',
@@ -487,7 +498,7 @@ export class MeetingsHome extends Component {
     try {
       await this.action.doAction({
         type: 'ir.actions.act_window',
-        res_model: 'dw.meeting',
+        res_model: 'dw.planification.meeting',
         res_id: id,
         views: [[false, 'form']],
         target: 'current'
@@ -498,26 +509,11 @@ export class MeetingsHome extends Component {
     }
   }
 
-  async openMinutes(id) {
-    try {
-      await this.action.doAction({
-        type: 'ir.actions.act_window',
-        res_model: 'dw.meeting.minutes',
-        res_id: id,
-        views: [[false, 'form']],
-        target: 'current'
-      });
-    } catch (err) {
-      console.error('Failed to open minutes:', err);
-      this.notification.add('Failed to open minutes', { type: 'danger' });
-    }
-  }
-
   async openAllMeetings() {
     try {
       await this.action.doAction({
         type: 'ir.actions.act_window',
-        res_model: 'dw.meeting',
+        res_model: 'dw.planification.meeting',
         views: [[false, 'list'], [false, 'form']],
         target: 'current',
         domain: []
@@ -670,7 +666,6 @@ export class MeetingsHome extends Component {
   }
 
   selectDay(day) {
-    // Filter meetings for selected day
     const selectedDate = new Date(day.date);
 
     this.state.filteredUpcoming = this.state.upcoming.filter(m => {
@@ -681,7 +676,6 @@ export class MeetingsHome extends Component {
              mDate.getDate() === selectedDate.getDate();
     });
 
-    // Switch to overview to show filtered meetings
     this.state.currentView = 'overview';
     this.state.currentSlide = 0;
 
@@ -712,7 +706,7 @@ export class MeetingsHome extends Component {
       this.charts.meetings.destroy();
     }
 
-    const data = this.state.analyticsData.daily_meetings || [5, 8, 6, 12, 9, 7, 10];
+    const data = this.state.analyticsData.daily_meetings || [0, 0, 0, 0, 0, 0, 0];
 
     this.charts.meetings = new Chart(canvas, {
       type: 'bar',
@@ -840,7 +834,7 @@ export class MeetingsHome extends Component {
       this.charts.room.destroy();
     }
 
-    const utilized = this.state.analyticsData.room_utilization || 75;
+    const utilized = this.state.analyticsData.room_utilization || 0;
     const available = 100 - utilized;
 
     this.charts.room = new Chart(canvas, {
@@ -898,7 +892,7 @@ export class MeetingsHome extends Component {
       this.charts.participants.destroy();
     }
 
-    const data = this.state.analyticsData.participant_trends || [8, 12, 10, 15, 14, 11, 13];
+    const data = this.state.analyticsData.participant_trends || [0, 0, 0, 0, 0, 0, 0];
 
     this.charts.participants = new Chart(canvas, {
       type: 'line',

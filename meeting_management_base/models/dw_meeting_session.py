@@ -33,7 +33,7 @@ class DwMeetingSession(models.Model):
     personal_actions_ids = fields.One2many("dw.actions", "session_id", string="Personal Actions")
     personal_notes = fields.Text(string="My Notes / MoM")
     requirements = fields.Html(string="My Requirements")
-
+    has_remote_participants = fields.Boolean(string='Has Remote Participants',store=True)
     # specific to session
     is_connected = fields.Boolean(string="Currently Connected", default=False)
     is_host = fields.Boolean(string="Host User", related="participant_id.is_host", store=True)
@@ -51,36 +51,3 @@ class DwMeetingSession(models.Model):
         ('done', 'Done'),
         ('cancelled', 'Cancelled'),
     ], string='Status', default='in_progress', tracking=True)
-
-
-
-
-
-
-
-
-
-
-    # @api.depends("join_datetime", "leave_datetime")
-    # def _compute_duration(self):
-    #     for rec in self:
-    #         if rec.join_datetime and rec.leave_datetime:
-    #             delta = rec.leave_datetime - rec.join_datetime
-    #             rec.duration = delta.total_seconds() / 3600
-    #         else:
-    #             rec.duration = 0
-
-    # modified19/11
-    # def action_open_session_view(self):
-    #     """Open the meeting session view (Jitsi integration)"""
-    #     self.ensure_one()
-    #
-    #     return {
-    #         'type': 'ir.actions.client',
-    #         'tag': 'meeting_session_view_action',
-    #         'name': f'Meeting: {self.meeting_id.name}',
-    #         'context': {
-    #             'active_id': self.id,
-    #             'default_session_id': self.id,
-    #         },
-    #     }

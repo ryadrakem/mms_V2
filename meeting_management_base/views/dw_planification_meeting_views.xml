@@ -138,11 +138,11 @@
                         <page string="Meeting Outcome">
                             <group>
                                 <group>
-                                    <field name="actual_start_datetime"/>
-                                    <field name="actual_end_datetime"/>
+                                    <field name="actual_start_datetime" readonly="1"/>
+                                    <field name="actual_end_datetime" readonly="1"/>
                                 </group>
                                 <group>
-                                    <field name="actual_duration" widget="float_time"/>
+                                    <field name="actual_duration" widget="float_time" readonly="1"/>
                                 </group>
                             </group>
                         </page>
