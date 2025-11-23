@@ -57,13 +57,14 @@ export class MeetingSessionView extends Component {
         actual_start_datetime: null,
         display_camera: false,
         actual_duration: false,
+        has_remote_participants: false,
       },
 
       localParticipantId: null,
       activeParticipants: 0,
       waitingParticipants: [],
       meetingDuration: "00:00:00",
-      activeMainTab: 'video',
+      activeMainTab: 'agenda',
       notes: "",
       actions: [],
       availableAssignees: [],
@@ -203,6 +204,7 @@ export class MeetingSessionView extends Component {
           "actual_start_datetime",
           "display_camera",
           "actual_duration",
+          "has_remote_participants",
         ]
       );
       console.log("Loaded session data:", sessions);
@@ -256,7 +258,10 @@ export class MeetingSessionView extends Component {
         actual_start_datetime: sessionData.actual_start_datetime || null,
         display_camera: sessionData.display_camera || false,
         actual_duration: sessionData.actual_duration || null,
+        has_remote_participants: sessionData.has_remote_participants || false,
       };
+
+      this.state.session.display_camera = this.state.session.has_remote_participants ? true : this.state.session.display_camera;
 
       if (sessionData.participant_ids && sessionData.participant_ids.length > 0) {
         const participantRecords = await this.orm.read(

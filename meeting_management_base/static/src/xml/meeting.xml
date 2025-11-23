@@ -1,272 +1,282 @@
 <?xml version="1.0" encoding="utf-8"?>
 <templates>
-  <t t-name="meeting_management_base.MeetingView">
-    <div class="dw-meeting-view" role="main">
-      <!-- Header -->
-      <header class="meeting-header">
-        <div class="meeting-header-left">
-          <button class="btn-back" t-on-click="goBack" title="Back">
-            <i class="fa fa-arrow-left"/>
-          </button>
-          <div class="meeting-title-section">
-            <h1 class="meeting-title">
-              <t t-esc="state.meeting.name"/>
-            </h1>
-            <div class="meeting-meta-info">
-              <span class="meta-badge">
-                <i class="fa fa-clock-o"/>
-                <t t-esc="state.meeting.actual_start_datetime"/>
-              </span>
-              <span class="meta-badge">
-                <i class="fa fa-hourglass-half"/>Planned Duration:
-                <t t-esc="state.meeting.duration"/>
-              </span>
-            </div>
-          </div>
-        </div>
-        <div class="meeting-header-right">
-          <span class="status-chip" t-att-class="state.meeting.state">
-            <span class="status-dot"/>
-            <t t-esc="state.meeting.state.charAt(0).toUpperCase() + state.meeting.state.slice(1).replace('_', ' ')"/>
-          </span>
-        </div>
-      </header>
-
-      <!-- Content Grid -->
-      <div class="meeting-content-grid">
-        <!-- Left Sidebar: Participants -->
-        <aside class="meeting-sidebar">
-          <div class="sidebar-card">
-            <div class="card-header">
-              <h3>
-                <i class="fa fa-users"/>
-                Participants (<t t-esc="state.meeting.participants?.length"/>)
-              </h3>
-            </div>
-            <div class="card-body">
-              <div class="participants-list">
-                <t t-if="state.meeting.participants?.length">
-                  <t t-foreach="state.meeting.participants" t-as="p" t-key="p_index">
-                    <div class="participant-item">
-                      <div class="participant-avatar">
-                        <t t-esc="p.name.slice(0, 2).toUpperCase()"/>
-                      </div>
-                      <div class="participant-info">
-                        <div class="participant-name">
-                          <t t-esc="p.name"/>
+    <t t-name="meeting_management_base.MeetingView">
+        <div class="dw-meeting-view" role="main">
+            <!-- Header -->
+            <header class="meeting-header">
+                <div class="meeting-header-left">
+                    <button class="btn-back" t-on-click="goBack" title="Back">
+                        <i class="fa fa-arrow-left"/>
+                    </button>
+                    <div class="meeting-title-section">
+                        <h1 class="meeting-title">
+                            <t t-esc="state.meeting.name"/>
+                        </h1>
+                        <div class="meeting-meta-info">
+                            <span class="meta-badge">
+                                <i class="fa fa-clock-o"/>
+                                <t t-esc="state.meeting.actual_start_datetime"/>
+                            </span>
+                            <span class="meta-badge">
+                                <i class="fa fa-hourglass-half"/>Planned Duration:
+                                <t t-esc="state.meeting.duration"/>
+                            </span>
                         </div>
-                      </div>
                     </div>
-                  </t>
-                </t>
-                <t t-else="">
-                  <div class="empty-participants">
-                    <i class="fa fa-users"/>
-                    <p>No participants</p>
-                  </div>
-                </t>
-              </div>
-            </div>
-          </div>
-
-          <!-- Meeting Info -->
-          <div class="sidebar-card">
-            <div class="card-header">
-              <h3>
-                <i class="fa fa-info-circle"/>
-                Details
-              </h3>
-            </div>
-            <div class="card-body">
-              <div class="info-list">
-                <div class="info-item" t-if="state.meeting.objet">
-                  <label>Subject</label>
-                  <span t-esc="state.meeting.objet"/>
                 </div>
-                <div class="info-item" t-if="state.meeting.meeting_type_id">
-                  <label>Type</label>
-                  <span t-esc="state.meeting.meeting_type_id"/>
-                </div>
-                <div class="info-item">
-                  <label>Planned Duration</label>
-                  <span>
-                    <t t-esc="state.meeting.duration"/> hours
-                  </span>
-                </div>
-                <div class="info-item">
-                  <label>Actual duration</label>
-                  <span t-esc="state.formattedDuration"/>
-                </div>
-              </div>
-            </div>
-          </div>
-        </aside>
-
-          <!-- Main: Tabbed Content with Navigation -->
-        <main class="meeting-main">
-          <!-- Tab Navigation Bar -->
-          <div class="main-tab-navigation">
-            <button
-                  class="tab-nav-button"
-                  t-att-class="{ 'active': state.activeMainTab === 'agenda' }"
-                  t-on-click="() => this.state.activeMainTab = 'agenda'">
-                  <i class="fa fa-file-text-o"/>
-                  <span>Agenda</span>
-            </button>
-              <button
-                class="tab-nav-button"
-                t-att-class="{ 'active': state.activeMainTab === 'details' }"
-                t-on-click="() => this.state.activeMainTab = 'details'">
-                <i class="fa fa-info-circle"/>
-                <span>Details</span>
-            </button>
-            <button
-                  class="tab-nav-button"
-                  t-att-class="{ 'active': state.activeMainTab === 'pv' }"
-                  t-on-click="() => this.state.activeMainTab = 'pv'">
-                  <i class="fa fa-file-text-o"/>
-                  <span>PV</span>
-            </button>
-          </div>
-
-            <!--agenda section-->
-            <div class="main-tab-content" t-if="state.activeMainTab === 'agenda'">
-              <div class="meeting-actions-section">
-                <div class="actions-header">
-                  <h3>
-                    <i class="fa fa-list"/>
-                    Agenda Items
-                  </h3>
-                </div>
-                <div class="agenda-body">
-                  <t t-if="state.meeting.subject_order?.length">
-                    <t t-foreach="state.meeting.subject_order" t-as="item" t-key="item.id">
-                      <div class="agenda-item">
-                        <div class="agenda-title">
-                          <t t-esc="item.name"/>
-                        </div>
-                        <div class="agenda-description" t-if="item.description">
-                          <t t-esc="item.description"/>
-                        </div>
-                      </div>
-                    </t>
-                  </t>
-                  <t t-else="">
-                    <div class="empty-agenda">
-                      <p>No agenda items</p>
-                    </div>
-                  </t>
-                </div>
-              </div>
-            </div>
-            <!-- details section -->
-            <div class="main-tab-content" t-if="state.activeMainTab === 'details'">
-              <div class="meeting-actions-section">
-
-                <div class="actions-header">
-                  <h3>
-                    <i class="fa fa-info-circle"/>
-                    Meeting Details
-                  </h3>
-                </div>
-
-                <div class="actions-body">
-
-                  <!-- Actual End -->
-                  <div class="info-row" t-if="state.meeting.actual_end_datetime">
-                    <label>Actual End</label>
-                    <span t-esc="state.meeting.actual_end_datetime"/>
-                  </div>
-
-                  <!-- Duration -->
-                  <div class="info-row" t-if="state.meeting.duration">
-                    <label>Planned Duration</label>
-                    <span><t t-esc="state.meeting.duration"/> hours</span>
-                  </div>
-
-                  <!-- Planning -->
-                  <div class="info-row" t-if="state.meeting.planification_id">
-                    <label>Planning</label>
-                    <span t-esc="state.meeting.planification_id.display_name"/>
-                  </div>
-
-                  <!-- Subject -->
-                  <div class="info-row" t-if="state.meeting.objet">
-                    <label>Subject</label>
-                    <span t-esc="state.meeting.objet"/>
-                  </div>
-
-                  <!-- Meeting Type -->
-                  <div class="info-row" t-if="state.meeting.meeting_type_id">
-                    <label>Type</label>
-                    <span t-esc="state.meeting.meeting_type_id.display_name"/>
-                  </div>
-
-                  <!-- Planned Start -->
-                  <div class="info-row" t-if="state.meeting.planned_start_datetime">
-                    <label>Planned Start</label>
-                    <span t-esc="state.meeting.planned_start_datetime"/>
-                  </div>
-
-                  <!-- Planned End -->
-                  <div class="info-row" t-if="state.meeting.planned_end_time">
-                    <label>Planned End</label>
-                    <span t-esc="state.meeting.planned_end_time"/>
-                  </div>
-
-                  <!-- Actual Start -->
-                  <div class="info-row" t-if="state.meeting.actual_start_datetime">
-                    <label>Actual Start</label>
-                    <span t-esc="state.meeting.actual_start_datetime"/>
-                  </div>
-
-                  <!-- Actual Duration -->
-                  <div class="info-row" t-if="state.meeting.actual_duration">
-                    <label>Actual Duration</label>
-                    <span t-esc="state.formattedDuration"/>
-                  </div>
-
-                  <!-- Clients -->
-                  <div class="info-row" t-if="state.meeting.client_ids?.length">
-                    <label>Clients</label>
-                    <span>
-                      <t t-foreach="state.meeting.client_ids" t-as="c" t-key="c.id">
-                        <t t-esc="c.name"/><t t-if="!loop.last">, </t>
-                      </t>
+                <button
+                        class="btn btn-primary"
+                        t-on-click="openMySession">
+                    Open My Session
+                </button>
+                <div class="meeting-header-right">
+                    <span class="status-chip" t-att-class="state.meeting.state">
+                        <span class="status-dot"/>
+                        <t t-esc="state.meeting.state.charAt(0).toUpperCase() + state.meeting.state.slice(1).replace('_', ' ')"/>
                     </span>
-                  </div>
-
-                  <!-- Location -->
-                  <div class="info-row" t-if="state.meeting.location_id">
-                    <label>Location</label>
-                    <span t-esc="state.meeting.location_id.display_name"/>
-                  </div>
-
-                  <!-- Room -->
-                  <div class="info-row" t-if="state.meeting.room_id">
-                    <label>Room</label>
-                    <span t-esc="state.meeting.room_id.display_name"/>
-                  </div>
-
                 </div>
-              </div>
+            </header>
+
+            <!-- Content Grid -->
+            <div class="meeting-content-grid">
+                <!-- Left Sidebar: Participants -->
+                <aside class="meeting-sidebar">
+                    <div class="sidebar-card">
+                        <div class="card-header">
+                            <h3>
+                                <i class="fa fa-users"/>
+                                Participants (<t t-esc="state.meeting.participants?.length"/>)
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="participants-list">
+                                <t t-if="state.meeting.participants?.length">
+                                    <t t-foreach="state.meeting.participants" t-as="p" t-key="p_index">
+                                        <div class="participant-item">
+                                            <div class="participant-avatar">
+                                                <t t-esc="p.name.slice(0, 2).toUpperCase()"/>
+                                            </div>
+                                            <div class="participant-info">
+                                                <div class="participant-name">
+                                                    <t t-esc="p.name"/>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </t>
+                                </t>
+                                <t t-else="">
+                                    <div class="empty-participants">
+                                        <i class="fa fa-users"/>
+                                        <p>No participants</p>
+                                    </div>
+                                </t>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Meeting Info -->
+                    <div class="sidebar-card">
+                        <div class="card-header">
+                            <h3>
+                                <i class="fa fa-info-circle"/>
+                                Details
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-list">
+                                <div class="info-item" t-if="state.meeting.objet">
+                                    <label>Subject</label>
+                                    <span t-esc="state.meeting.objet"/>
+                                </div>
+                                <div class="info-item" t-if="state.meeting.meeting_type_id">
+                                    <label>Type</label>
+                                    <span t-esc="state.meeting.meeting_type_id"/>
+                                </div>
+                                <div class="info-item">
+                                    <label>Planned Duration</label>
+                                    <span>
+                                        <t t-esc="state.meeting.duration"/>
+                                        hours
+                                    </span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Actual duration</label>
+                                    <span t-esc="state.formattedDuration"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Main: Tabbed Content with Navigation -->
+                <main class="meeting-main">
+                    <!-- Tab Navigation Bar -->
+                    <div class="main-tab-navigation">
+                        <button
+                                class="tab-nav-button"
+                                t-att-class="{ 'active': state.activeMainTab === 'agenda' }"
+                                t-on-click="() => this.state.activeMainTab = 'agenda'">
+                            <i class="fa fa-file-text-o"/>
+                            <span>Agenda</span>
+                        </button>
+                        <button
+                                class="tab-nav-button"
+                                t-att-class="{ 'active': state.activeMainTab === 'details' }"
+                                t-on-click="() => this.state.activeMainTab = 'details'">
+                            <i class="fa fa-info-circle"/>
+                            <span>Details</span>
+                        </button>
+                        <button
+                                class="tab-nav-button"
+                                t-att-class="{ 'active': state.activeMainTab === 'pv' }"
+                                t-on-click="() => this.state.activeMainTab = 'pv'">
+                            <i class="fa fa-file-text-o"/>
+                            <span>PV</span>
+                        </button>
+                    </div>
+
+                    <!--agenda section-->
+                    <div class="main-tab-content" t-if="state.activeMainTab === 'agenda'">
+                        <div class="meeting-actions-section">
+                            <div class="actions-header">
+                                <h3>
+                                    <i class="fa fa-list"/>
+                                    Agenda Items
+                                </h3>
+                            </div>
+                            <div class="agenda-body">
+                                <t t-if="state.meeting.subject_order?.length">
+                                    <t t-foreach="state.meeting.subject_order" t-as="item" t-key="item.id">
+                                        <div class="agenda-item">
+                                            <div class="agenda-title">
+                                                <t t-esc="item.name"/>
+                                            </div>
+                                            <div class="agenda-description" t-if="item.description">
+                                                <t t-esc="item.description"/>
+                                            </div>
+                                        </div>
+                                    </t>
+                                </t>
+                                <t t-else="">
+                                    <div class="empty-agenda">
+                                        <p>No agenda items</p>
+                                    </div>
+                                </t>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- details section -->
+                    <div class="main-tab-content" t-if="state.activeMainTab === 'details'">
+                        <div class="meeting-actions-section">
+
+                            <div class="actions-header">
+                                <h3>
+                                    <i class="fa fa-info-circle"/>
+                                    Meeting Details
+                                </h3>
+                            </div>
+
+                            <div class="actions-body">
+
+                                <!-- Actual End -->
+                                <div class="info-row" t-if="state.meeting.actual_end_datetime">
+                                    <label>Actual End</label>
+                                    <span t-esc="state.meeting.actual_end_datetime"/>
+                                </div>
+
+                                <!-- Duration -->
+                                <div class="info-row" t-if="state.meeting.duration">
+                                    <label>Planned Duration</label>
+                                    <span>
+                                        <t t-esc="state.meeting.duration"/>
+                                        hours
+                                    </span>
+                                </div>
+
+                                <!-- Planning -->
+                                <div class="info-row" t-if="state.meeting.planification_id">
+                                    <label>Planning</label>
+                                    <span t-esc="state.meeting.planification_id.display_name"/>
+                                </div>
+
+                                <!-- Subject -->
+                                <div class="info-row" t-if="state.meeting.objet">
+                                    <label>Subject</label>
+                                    <span t-esc="state.meeting.objet"/>
+                                </div>
+
+                                <!-- Meeting Type -->
+                                <div class="info-row" t-if="state.meeting.meeting_type_id">
+                                    <label>Type</label>
+                                    <span t-esc="state.meeting.meeting_type_id.display_name"/>
+                                </div>
+
+                                <!-- Planned Start -->
+                                <div class="info-row" t-if="state.meeting.planned_start_datetime">
+                                    <label>Planned Start</label>
+                                    <span t-esc="state.meeting.planned_start_datetime"/>
+                                </div>
+
+                                <!-- Planned End -->
+                                <div class="info-row" t-if="state.meeting.planned_end_time">
+                                    <label>Planned End</label>
+                                    <span t-esc="state.meeting.planned_end_time"/>
+                                </div>
+
+                                <!-- Actual Start -->
+                                <div class="info-row" t-if="state.meeting.actual_start_datetime">
+                                    <label>Actual Start</label>
+                                    <span t-esc="state.meeting.actual_start_datetime"/>
+                                </div>
+
+                                <!-- Actual Duration -->
+                                <div class="info-row" t-if="state.meeting.actual_duration">
+                                    <label>Actual Duration</label>
+                                    <span t-esc="state.formattedDuration"/>
+                                </div>
+
+                                <!-- Clients -->
+                                <div class="info-row" t-if="state.meeting.client_ids?.length">
+                                    <label>Clients</label>
+                                    <span>
+                                        <t t-foreach="state.meeting.client_ids" t-as="c" t-key="c.id">
+                                            <t t-esc="c.name"/>
+                                            <t t-if="!loop.last">,</t>
+                                        </t>
+                                    </span>
+                                </div>
+
+                                <!-- Location -->
+                                <div class="info-row" t-if="state.meeting.location_id">
+                                    <label>Location</label>
+                                    <span t-esc="state.meeting.location_id.display_name"/>
+                                </div>
+
+                                <!-- Room -->
+                                <div class="info-row" t-if="state.meeting.room_id">
+                                    <label>Room</label>
+                                    <span t-esc="state.meeting.room_id.display_name"/>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                    <!-- PV section-->
+                    <div class="main-tab-content" t-if="state.activeMainTab === 'pv'">
+                        <div class="meeting-notes-section">
+                            <div class="notes-header">
+                                <h3>
+                                    <i class="fa fa-file-text-o"/>
+                                    PV
+                                </h3>
+                            </div>
+                            <div class="notes-editor">
+                                <span t-esc="state.meeting.pv"/>
+                            </div>
+                        </div>
+                    </div>
+                </main>
             </div>
-            <!-- PV section-->
-            <div class="main-tab-content" t-if="state.activeMainTab === 'pv'">
-            <div class="meeting-notes-section">
-              <div class="notes-header">
-                <h3>
-                  <i class="fa fa-file-text-o"/>
-                  PV
-                </h3>
-              </div>
-              <div class="notes-editor">
-                  <span t-esc="state.meeting.pv"/>
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
-    </div>
-  </t>
+        </div>
+    </t>
 </templates>

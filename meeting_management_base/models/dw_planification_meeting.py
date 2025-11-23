@@ -260,6 +260,7 @@ class DwPlanificationMeeting(models.Model):
                     'actual_start_datetime': fields.Datetime.now(),
                     'display_camera': self.display_camera,
                     'subject_order': self.subject_order,
+                    'has_remote_participants': self.has_remote_participants,
                 })
                 # Capture current user's session
                 if participant.user_id.id == self.env.user.id:
@@ -402,10 +403,6 @@ class DwPlanificationMeeting(models.Model):
             #         'current_user': self.env.user.name,  # <-- pass user name
             #     }
             # }
-
-    # @api.constrains('state')
-    # def _check_confirm_without_participants(self):
-    #     for record in self:
 
     """
     # TODO : we have to check about this create for the calendar integration suggested by claude.

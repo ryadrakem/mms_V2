@@ -2,6 +2,7 @@
 import { registry } from "@web/core/registry";
 import { Component, useState, onWillStart, onMounted, onWillUnmount } from "@smartdz/owl";
 import { loadJS } from "@web/core/assets";
+import { useService } from "@web/core/utils/hooks";
 
 export class MeetingView extends Component {
   static template = "meeting_management_base.MeetingView";
@@ -19,7 +20,6 @@ export class MeetingView extends Component {
     this.orm = this.env.services.orm;
     this.actionService = this.env.services.action;
     this.notification = this.env.services.notification;
-
     this.state = useState({
       loading: true,
       error: null,
@@ -49,13 +49,17 @@ export class MeetingView extends Component {
 
       activeMainTab: 'agenda',
       formattedDuration: '00:00',
+      currentUserSessionId: null,
+      isCurrentUserParticipant: false,
     });
 
     this.planificationId = null;
     this.meetingId = null;
+    this.userId = null;
 
     // Bind methods
     this.goBack = this.goBack.bind(this);
+    this.openMySession = this.openMySession.bind(this);
     this.toggleNotes = this.toggleNotes.bind(this);
     this.toggleActions = this.toggleActions.bind(this);
     this.toggleAgenda = this.toggleAgenda.bind(this);
@@ -65,6 +69,7 @@ export class MeetingView extends Component {
       const context = this.props.action?.context || {};
       this.meetingId = context.active_id;
       this.planificationId = context.default_planification_id;
+      this.userId = context.uid;
 
       if (!this.meetingId) {
         this.state.error = "No Meeting ID provided";
@@ -79,6 +84,7 @@ export class MeetingView extends Component {
 
   async loadMeetingData() {
     try {
+
       const meetings = await this.orm.read(
         "dw.meeting",
         [this.meetingId],
@@ -145,10 +151,33 @@ export class MeetingView extends Component {
         const participantRecords = await this.orm.read(
           'dw.participant',
           meetingData.participant_ids,
-          ['id', 'name']
+          ['id', 'name', 'user_id']
         );
         this.state.meeting.participants = participantRecords;
         this.state.meeting.participant_ids = participantRecords.map(p => p.id);
+
+        const currentUserId = this.userId || null;
+        console.log("Current user ID:", currentUserId);
+        const currentUserParticipant = participantRecords.find(p => {
+          const userId = Array.isArray(p.user_id) ? p.user_id[0] : p.user_id;
+          return userId === currentUserId;
+        });
+        console.log("Current user participant record:", currentUserParticipant);
+        if (currentUserParticipant) {
+          this.state.isCurrentUserParticipant = true;
+
+          // Search for the user's session
+          const sessions = await this.orm.searchRead(
+            'dw.meeting.session',
+            [['participant_id', '=', currentUserParticipant.id]],
+            ['id'],
+          );
+          console.log("Current user sessions found:", sessions);
+
+          if (sessions && sessions.length > 0) {
+            this.state.currentUserSessionId = sessions[0].id;
+          }
+        }
       }
 
       if (meetingData.subject_order && meetingData.subject_order.length > 0) {
@@ -160,15 +189,15 @@ export class MeetingView extends Component {
         this.state.meeting.subject_order = subject_orderRecords;
         this.state.meeting.subject_order_names = subject_orderRecords.map(p => p.id);
       }
-      const d = this.state.meeting.actual_duration;
-if (d != null) {
-    const h = Math.floor(d);
-    const m = Math.round((d - h) * 60);
+        const d = this.state.meeting.actual_duration;
+        if (d != null) {
+            const h = Math.floor(d);
+            const m = Math.round((d - h) * 60);
 
-    this.state.formattedDuration = `${h.toString().padStart(2, '0')}:${m
-        .toString()
-        .padStart(2, '0')}`;
-}
+            this.state.formattedDuration = `${h.toString().padStart(2, '0')}:${m
+                .toString()
+                .padStart(2, '0')}`;
+        }
 
 
       this.state.loading = false;
@@ -193,6 +222,56 @@ if (d != null) {
     toggleAgenda() {
     this.state.activeMainTab = this.state.activeMainTab === 'actions' ? 'video' : 'actions';
     }
+
+    async openMySession() {
+      console.log("Opening session for current user:", this.state.currentUserSessionId);
+      try {
+          if (!this.state.currentUserSessionId) {
+            this.notification.add("No session found for current user", {
+              type: "warning",
+            });
+            return;
+          }
+
+            // Get the session details
+          const sessions = await this.orm.read(
+            'dw.meeting.session',
+            [this.state.currentUserSessionId],
+            ['id', 'user_id']
+          );
+
+          if (!sessions || sessions.length === 0) {
+            this.notification.add("Session not found", {
+              type: "warning",
+            });
+            return;
+          }
+
+          const session = sessions[0];
+          const userId = Array.isArray(session.user_id) ? session.user_id[0] : session.user_id;
+          const userName = Array.isArray(session.user_id) ? session.user_id[1] : '';
+
+          await this.actionService.doAction({
+            type: "ir.actions.client",
+            name: `Meeting: ${this.state.meeting.name}-${userName}`,
+            tag: 'meeting_session_view_action',
+            params: {
+              planification_id: this.planificationId,
+            },
+            context: {
+              active_id: this.state.currentUserSessionId,
+              default_session_id: this.state.currentUserSessionId,
+              default_planification_id: this.planificationId,
+              default_pv: this.state.meeting.pv,
+            },
+          });
+      } catch (error) {
+          console.error("Failed to open session:", error);
+          this.notification.add("Failed to open session", {
+            type: "danger",
+          });
+      }
+  }
 
   async leaveMeeting() {
         this.goBack();

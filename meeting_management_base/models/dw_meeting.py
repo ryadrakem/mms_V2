@@ -30,7 +30,7 @@ class DwMeeting(models.Model):
     # from session
     actual_start_datetime = fields.Datetime(string='Actual Start Date & Time', tracking=True)
     actual_end_datetime = fields.Datetime(string='Actual End Date & Time', store=True)
-    actual_duration = fields.Float(string='Duration (hours)', default=1.0, tracking=True)
+    actual_duration = fields.Float(string='Duration (hours)', default=0.0, tracking=True)
 
 
     actions_ids = fields.One2many('dw.actions', 'meeting_id', string='Actions')
@@ -76,8 +76,41 @@ class DwMeeting(models.Model):
             'context': {
                 'active_id': self.id,
                 'default_planification_id': planification.id,
+                'uid': self.env.uid,
             },
         }
+
+    # def action_open_session(self):
+    #     self.ensure_one()
+    #     Session = self.env['dw.meeting.session']
+    #     user_session = False
+    #     Meeting = self.env['dw.meeting']
+    #
+    #     # find meeting linked to this planification
+    #     meeting = Meeting.search([('id', '=', self.id)], limit=1)
+    #
+    #     for participant in self.participant_ids:
+    #         if participant.user_id:
+    #             session = Session.search([('meeting_id', '=', meeting.id), ('participant_id', '=', participant.id),
+    #                                       ('user_id', '=', participant.user_id.id)], limit=1)
+    #             # Capture current user's session
+    #             if participant.user_id.id == self.env.user.id:
+    #                 user_session = session
+    #
+    #     return {
+    #         'type': 'ir.actions.client',
+    #         'name': f'Meeting: {meeting.name}-{user_session.user_id.name}',
+    #         'tag': 'meeting_session_view_action',
+    #         'params': {
+    #             'planification_id': meeting.planification.id,
+    #         },
+    #         'context': {
+    #             'active_id': user_session.id,
+    #             'default_session_id': user_session.id,
+    #             'default_planification_id': meeting.planification.id,
+    #             'default_pv': meeting.pv,
+    #         },
+    #     }
 
 
     # abderrahmane jitsi and dashboard methods
