@@ -103,11 +103,11 @@
     <menuitem id="menu_dw_meeting_dashboard" name="Dashboard" parent="menu_meeting_management"
               action="action_dw_meeting_home" sequence="1"/>
 
-    <menuitem id="menu_calendar_all_meetings"
-              name="Calendar View"
-              parent="menu_meeting_management"
-              action="action_calendar_all_meetings"
-              sequence="5"/>
+<!--    <menuitem id="menu_calendar_all_meetings"-->
+<!--              name="Calendar View"-->
+<!--              parent="menu_meeting_management"-->
+<!--              action="action_calendar_all_meetings"-->
+<!--              sequence="5"/>-->
     <menuitem id="menu_meeting_summary"
               name="Meeting Summaries"
               parent="menu_meeting_management"

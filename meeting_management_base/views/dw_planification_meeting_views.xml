@@ -373,13 +373,13 @@
         </field>
     </record>
 
-    <record id="action_calendar_all_meetings" model="ir.actions.act_window">
-        <field name="name">All Calendar Events</field>
-        <field name="res_model">calendar.event</field>
-        <field name="view_mode">list,calendar,form</field>
-        <field name="domain">[]</field>
-        <field name="context">{'search_default_mymeetings': 1}</field>
-    </record>
+<!--    <record id="action_calendar_all_meetings" model="ir.actions.act_window">-->
+<!--        <field name="name">All Calendar Events</field>-->
+<!--        <field name="res_model">calendar.event</field>-->
+<!--        <field name="view_mode">calendar,form</field>-->
+<!--        <field name="domain">[]</field>-->
+<!--        <field name="context">{'search_default_mymeetings': 1}</field>-->
+<!--    </record>-->
 
 
 </smartdz>
