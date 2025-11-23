@@ -24,7 +24,7 @@
                         </div>
                     </div>
                 </div>
-                <button
+                <button t-if="state.isCurrentUserParticipant and state.currentUserSessionId"
                         class="btn btn-primary"
                         t-on-click="openMySession">
                     Open My Session

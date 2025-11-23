@@ -263,6 +263,7 @@ export class MeetingView extends Component {
               default_session_id: this.state.currentUserSessionId,
               default_planification_id: this.planificationId,
               default_pv: this.state.meeting.pv,
+              display_camera: false,
             },
           });
       } catch (error) {
