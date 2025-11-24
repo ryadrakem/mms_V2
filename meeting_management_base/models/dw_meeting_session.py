@@ -16,11 +16,6 @@ class DwMeetingSession(models.Model):
     subject_order = fields.One2many('dw.agenda', 'session_id', string='Agenda')
     planned_start_datetime = fields.Datetime(related="meeting_id.planned_start_datetime", readonly=True, store=True)
     planned_end_time = fields.Datetime(related="meeting_id.planned_end_time", readonly=True, store=True)
-    participant_ids = fields.One2many('dw.participant',
-                                      'session_id',
-                                      related="meeting_id.participant_ids",
-                                      readonly=True, store=True)
-
     duration = fields.Float(string="Duration (hours)", related="planification_id.duration", store=True)
     meeting_id = fields.Many2one("dw.meeting", string="Meeting", required=True, ondelete="cascade")
 
@@ -51,3 +46,20 @@ class DwMeetingSession(models.Model):
         ('done', 'Done'),
         ('cancelled', 'Cancelled'),
     ], string='Status', default='in_progress', tracking=True)
+
+    participant_ids = fields.One2many(
+        'dw.participant',
+        compute='_compute_participant_ids',
+        string='Participants',
+        # store=False
+    )
+
+    @api.depends('meeting_id', 'meeting_id.participant_ids')
+    def _compute_participant_ids(self):
+        for session in self:
+            if session.meeting_id:
+                session.participant_ids = session.meeting_id.participant_ids.filtered(
+                    lambda p: p.meeting_id.id == session.meeting_id.id
+                )
+            else:
+                session.participant_ids = self.env['dw.participant']
