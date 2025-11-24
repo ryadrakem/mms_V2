@@ -400,16 +400,6 @@
             <form string="Meeting" duplicate="false" create="false" delete="false" edit="false">
                 <!-- Header avec statusbar et boutons -->
                 <header>
-                    <button name="action_generate_summary" string="Generate AI Summary"
-                            type="object"
-                            invisible="state != 'done'"
-                            class="btn-primary"
-                            icon="fa-magic"/>
-                    <button name="action_view_summary" string="View Summary"
-                            type="object"
-                            invisible="state != 'done'"
-                            class="btn-secondary"
-                            icon="fa-file-text"/>
                     <field name="state" widget="statusbar" statusbar_visible="in_progress,done,cancelled"/>
                 </header>
 

@@ -61,11 +61,11 @@
               sequence="10"
     />
 
-    <!--    <menuitem id="menu_dw_meeting_session"-->
-    <!--              name="Meeting Sessions"-->
-    <!--              parent="menu_meeting_management"-->
-    <!--              action="dw_meeting_session_action"-->
-    <!--              sequence="40"/>-->
+        <menuitem id="menu_dw_meeting_session"
+                  name="Meeting Sessions"
+                  parent="menu_meeting_management"
+                  action="dw_meeting_session_action"
+                  sequence="40"/>
 
     <!--    <menuitem id="menu_participants"-->
     <!--              name="Participants"-->

@@ -267,8 +267,8 @@ class DwPlanificationMeeting(models.Model):
                 if participant.user_id.id == self.env.user.id:
                     user_session = session
 
-                if user_session:
-                    return self.action_join()
+        if user_session:
+            return self.action_join()
 
         # Else open the main meeting
         return {

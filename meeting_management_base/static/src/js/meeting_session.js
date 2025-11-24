@@ -147,6 +147,34 @@ export class MeetingSessionView extends Component {
     });
   }
 
+  // -------------------- Helper methods for datetime handling --------------------
+  // Format a JS Date (or parseable value) to Odoo DB string "YYYY-MM-DD HH:MM:SS" using UTC
+  formatOdooDatetimeUTC(dateLike) {
+    const d = dateLike instanceof Date ? dateLike : new Date(dateLike);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+  }
+
+  // Parse server datetime into JS Date
+  // Accepts ISO strings with 'T' or Odoo DB format 'YYYY-MM-DD HH:MM:SS'
+  parseOdooDatetimeToDate(s) {
+    if (!s) return null;
+    if (typeof s !== "string") return new Date(s);
+    // If it contains 'T' assume ISO
+    if (s.includes("T")) {
+      return new Date(s);
+    }
+    // Match DB format
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+    if (m) {
+      const [_, Y, M, D, h, mi, sec] = m;
+      // Treat DB values as UTC to avoid timezone 'Z' issues — change if your server uses local time
+      return new Date(Date.UTC(+Y, +M - 1, +D, +h, +mi, +sec));
+    }
+    // Fallback to Date constructor
+    return new Date(s);
+  }
+
   async rpcCall(route, params) {
     const response = await fetch(route, {
       method: "POST",
@@ -474,11 +502,15 @@ export class MeetingSessionView extends Component {
       this.state.loading = false;
       this.state.error = null;
 
-      // Update session join time
-      this.orm.write("dw.meeting.session", [this.sessionId], {
-        is_connected: true,
-        join_datetime: new Date().toISOString(),
-      });
+      // Update session join time (format to Odoo DB format)
+      try {
+        this.orm.write("dw.meeting.session", [this.sessionId], {
+          is_connected: true,
+          join_datetime: this.formatOdooDatetimeUTC(new Date()),
+        });
+      } catch (e) {
+        console.warn('Failed to write join_datetime:', e);
+      }
 
       this.notification.add("Connected to video conference", {
         type: "success",
@@ -515,11 +547,15 @@ export class MeetingSessionView extends Component {
 
     api.addEventListener("videoConferenceLeft", () => {
       console.log("👋 Left conference");
-      // Update session leave time
-      this.orm.write("dw.meeting.session", [this.sessionId], {
-        is_connected: false,
-        actual_end_datetime: new Date().toISOString(),
-      });
+      // Update session leave time (format to Odoo DB format)
+      try {
+        this.orm.write("dw.meeting.session", [this.sessionId], {
+          is_connected: false,
+          actual_end_datetime: this.formatOdooDatetimeUTC(new Date()),
+        });
+      } catch (e) {
+        console.warn('Failed to write actual_end_datetime:', e);
+      }
       this.goBack();
     });
 
@@ -642,7 +678,13 @@ export class MeetingSessionView extends Component {
   }
 
   startDurationTimer() {
-    this.startTime = new Date(this.state.session.actual_start_datetime + "Z").getTime();
+    // Use robust parsing helper instead of appending 'Z'
+    const parsedStart = this.parseOdooDatetimeToDate(this.state.session.actual_start_datetime);
+    if (parsedStart) {
+      this.startTime = parsedStart.getTime();
+    } else {
+      this.startTime = Date.now();
+    }
     console.log("Meeting started at:", new Date(this.startTime).toISOString());
     this.durationInterval = setInterval(() => {
       const elapsed = Date.now() - this.startTime;
@@ -1000,7 +1042,7 @@ Document généré le ${new Date().toLocaleString('fr-FR')}
       await this.orm.write("dw.meeting.session", [this.sessionId], {
         state: "done",
         is_connected: false,
-        actual_end_datetime: new Date().toISOString().slice(0, 19).replace("T", " "),
+        actual_end_datetime: this.formatOdooDatetimeUTC(new Date()),
         actual_duration: durationHours,
       });
 
@@ -1008,7 +1050,7 @@ Document généré le ${new Date().toLocaleString('fr-FR')}
       if (this.planificationId) {
         await this.orm.write("dw.planification.meeting", [this.planificationId], {
           state: "done",
-          actual_end_datetime: new Date().toISOString().slice(0, 19).replace("T", " "),
+          actual_end_datetime: this.formatOdooDatetimeUTC(new Date()),
           actual_duration: durationHours,
         });
       }
@@ -1017,7 +1059,7 @@ Document généré le ${new Date().toLocaleString('fr-FR')}
       if (this.meetingId) {
         await this.orm.write("dw.meeting", [this.meetingId], {
           state: "done",
-          actual_end_datetime: new Date().toISOString().slice(0, 19).replace("T", " "),
+          actual_end_datetime: this.formatOdooDatetimeUTC(new Date()),
           actual_duration: durationHours,
         });
       }
