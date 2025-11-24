@@ -1,18 +1,20 @@
 from smartdz import models, fields, api, _
-from smartdz.exceptions import ValidationError
+from smartdz.exceptions import ValidationError, UserError
 from datetime import timedelta, datetime
 import logging
 
 _logger = logging.getLogger(__name__)
 
+
 class DwAgenda(models.Model):
     _name = 'dw.agenda'
     _description = 'Agenda'
 
-    name = fields.Char(string='Ordre du jour',required=True)
+    name = fields.Char(string='Ordre du jour', required=True)
     planification_id = fields.Many2one('dw.planification.meeting', string='Planification Meeting')
     meeting_id = fields.Many2one('dw.meeting', string='Meeting')
     session_id = fields.Many2one('dw.meeting.session', string='session')
+
 
 class DwPlanificationMeeting(models.Model):
     _name = 'dw.planification.meeting'
@@ -169,7 +171,8 @@ class DwPlanificationMeeting(models.Model):
                     participant._generate_access_token()
 
             # Get the secure email template
-            template = self.env.ref('meeting_management_base.email_template_meeting_invitation_secure', raise_if_not_found=False)
+            template = self.env.ref('meeting_management_base.email_template_meeting_invitation_secure',
+                                    raise_if_not_found=False)
 
             if template:
                 # Send individual email to each participant
@@ -198,7 +201,6 @@ class DwPlanificationMeeting(models.Model):
             else:
                 _logger.warning("Email template 'email_template_meeting_invitation_secure' not found!")
 
-
                 # 'name': rec.name,
                 # 'objet': rec.objet,
                 # 'is_external': rec.is_external,
@@ -216,7 +218,6 @@ class DwPlanificationMeeting(models.Model):
                 # 'jitsi_room_id': f"meeting-room-{rec.id}-{rec.env.cr.dbname}",
                 # 'actual_start_time': fields.Datetime.now(),
                 # 'use_the_chat_room': rec.is_off_site,
-
 
     def create_meeting_and_sessions(self):
         self.ensure_one()
@@ -266,8 +267,8 @@ class DwPlanificationMeeting(models.Model):
                 if participant.user_id.id == self.env.user.id:
                     user_session = session
 
-        if user_session:
-            return self.action_join()
+                if user_session:
+                    return self.action_join()
 
         # Else open the main meeting
         return {
@@ -317,6 +318,115 @@ class DwPlanificationMeeting(models.Model):
         #         'target': 'current',
         #     }
 
+
+    #TODO: claude solution !!!
+    # def action_join(self):
+    #     self.ensure_one()
+    #
+    #     Session = self.env['dw.meeting.session']
+    #     Meeting = self.env['dw.meeting']
+    #     current_user = self.env.user
+    #
+    #     _logger.info(f"=== action_join called by user: {current_user.name} (ID: {current_user.id}) ===")
+    #
+    #     # Find meeting linked to this planification
+    #     meeting = Meeting.search([('planification_id', '=', self.id)], limit=1)
+    #
+    #     if not meeting:
+    #         raise ValidationError(_('No meeting found for this planification. Please start the meeting first.'))
+    #
+    #     _logger.info(f"Found meeting: {meeting.name} (ID: {meeting.id})")
+    #
+    #     # Find current user's participant record
+    #     current_participant = self.participant_ids.filtered(
+    #         lambda p: p.user_id and p.user_id.id == current_user.id
+    #     )
+    #
+    #     if not current_participant:
+    #         _logger.error(f"User {current_user.name} is not a participant of this meeting")
+    #         raise ValidationError(_(
+    #             'You are not a participant of this meeting. '
+    #             'Please contact the meeting organizer.'
+    #         ))
+    #
+    #     _logger.info(f"Found participant record: {current_participant.name} (ID: {current_participant.id})")
+    #
+    #     # Search for existing session
+    #     user_session = Session.search([
+    #         ('meeting_id', '=', meeting.id),
+    #         ('participant_id', '=', current_participant.id),
+    #         ('user_id', '=', current_user.id)
+    #     ], limit=1)
+    #
+    #     # If no session exists, create one
+    #     if not user_session:
+    #         _logger.warning(f"No session found for user {current_user.name}. Creating new session...")
+    #
+    #         try:
+    #             session_vals = {
+    #                 'name': f"Session {meeting.name} - {current_participant.name}",
+    #                 'meeting_id': meeting.id,
+    #                 'user_id': current_user.id,
+    #                 'participant_id': current_participant.id,
+    #                 'planification_id': self.id,
+    #                 'is_host': current_participant.is_host,
+    #                 'is_pv': current_participant.is_pv,
+    #                 'actual_start_datetime': fields.Datetime.now(),
+    #                 'display_camera': self.display_camera,
+    #                 'has_remote_participants': self.has_remote_participants,
+    #                 'state': 'in_progress',
+    #             }
+    #
+    #             user_session = Session.create(session_vals)
+    #             _logger.info(f"Session created successfully: ID={user_session.id}")
+    #
+    #             # Copy agenda items to session
+    #             if self.subject_order:
+    #                 for agenda_item in self.subject_order:
+    #                     self.env['dw.agenda'].create({
+    #                         'name': agenda_item.name,
+    #                         'session_id': user_session.id,
+    #                     })
+    #                 _logger.info(f"Copied {len(self.subject_order)} agenda items to session")
+    #
+    #             # Link session to participant
+    #             current_participant.write({'session_id': user_session.id})
+    #
+    #         except Exception as e:
+    #             _logger.error(f"Failed to create session: {str(e)}")
+    #             raise ValidationError(_(
+    #                 'Failed to create your meeting session: %s'
+    #             ) % str(e))
+    #     else:
+    #         _logger.info(f"Found existing session: ID={user_session.id}")
+    #
+    #     # Final validation
+    #     if not user_session or not user_session.id:
+    #         _logger.error("user_session is still empty after creation attempt")
+    #         raise ValidationError(_(
+    #             'Failed to create or find your meeting session. '
+    #             'Please contact the administrator.'
+    #         ))
+    #
+    #     _logger.info(f"Returning action to open session {user_session.id}")
+    #
+    #     # Get user name safely
+    #     user_name = user_session.user_id.name if user_session.user_id else current_user.name
+    #
+    #     return {
+    #         'type': 'ir.actions.client',
+    #         'name': f'Meeting: {meeting.name} - {user_name}',
+    #         'tag': 'meeting_session_view_action',
+    #         'params': {
+    #             'planification_id': self.id,
+    #         },
+    #         'context': {
+    #             'active_id': user_session.id,
+    #             'default_session_id': user_session.id,
+    #             'default_planification_id': self.id,
+    #             'default_pv': meeting.pv if meeting.pv else '',
+    #         },
+    #     }
     def action_join(self):
         self.ensure_one()
         Session = self.env['dw.meeting.session']
@@ -439,12 +549,27 @@ class DwPlanificationMeeting(models.Model):
         return result
 
     def unlink(self):
-        """Supprimer l'événement calendrier lors de la suppression"""
-        calendar_events = self.mapped('calendar_event_id')
-        result = super().unlink()
-        if calendar_events:
-            calendar_events.unlink()
-        return result
+        """Prevent deletion if meeting has been created or if in certain states"""
+        for record in self:
+            # Check if meeting has been created from this planification
+            if record.meeting_id:
+                raise UserError(_(
+                    'Cannot delete planification "%s" because a meeting has already been created from it. '
+                    'You can cancel the meeting instead.'
+                ) % record.name)
+
+            # Check if there are confirmed reservations
+            if record.state in ['planned', 'confirmed', 'started', 'done']:
+                raise UserError(_(
+                    'Cannot delete planification "%s" in state "%s". '
+                ) % (record.name, record.state))
+
+
+            # Delete associated calendar event if exists
+            if record.calendar_event_id:
+                record.calendar_event_id.unlink()
+
+        return super().unlink()
 
     def _create_calendar_event(self):
         """Créer un événement dans le calendrier"""

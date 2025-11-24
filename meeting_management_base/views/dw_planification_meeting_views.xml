@@ -20,7 +20,7 @@
                             class="btn-primary"/>
                     <button name="action_reset_to_draft" string="Set to Draft"
                             type="object"
-                            invisible="state in ('cancelled','planned','done','draft','started')"
+                            invisible="state in ('cancelled','confirmed','planned','done','draft','started')"
                             class="btn-secondary"/>
                     <button name="action_confirm" string="Confirm"
                             type="object"
@@ -68,16 +68,15 @@
                                 </div>
                             </div>
                             <div style="background:#fff3e0; padding:10px 15px; border-radius:8px; flex:1; min-width:180px;">
-                                <strong style="font-size:14px; color:#f57c00;">Type de réunion:</strong>
+                                <strong style="font-size:14px; color:#f57c00;">Reunion Type:</strong>
                                 <div>
                                     <field name="meeting_type_id" readonly="state != 'draft'"/>
                                 </div>
                             </div>
                             <div style="background:#e8f5e9; padding:10px 15px; border-radius:8px; flex:1; min-width:180px;">
-                                <strong style="font-size:14px; color:#388e3c;">Durée:</strong>
+                                <strong style="font-size:14px; color:#388e3c;">Object:</strong>
                                 <div>
-                                    <field name="duration" widget="float_time" readonly="1"/>
-                                    h
+                                    <field name="objet" readonly="state != 'draft'"/>
                                 </div>
                             </div>
                         </div>
@@ -107,7 +106,7 @@
                     </group>
                     <group>
                         <group>
-                            <field name="objet" readonly="state != 'draft'"/>
+<!--                            <field name="objet" readonly="state != 'draft'"/>-->
                             <field name="planned_start_datetime" readonly="state != 'draft'"/>
                             <field name="duration" widget="float_time" readonly="state != 'draft'"/>
                             <field name="planned_end_time"/>
@@ -135,7 +134,7 @@
                                 </list>
                             </field>
                         </page>
-                        <page string="Meeting Outcome">
+                        <page string="Meeting Outcome" invisible="state not in ('done','cancelled')">
                             <group>
                                 <group>
                                     <field name="actual_start_datetime" readonly="1"/>
@@ -332,7 +331,7 @@
 
                             <!-- FOOTER -->
                             <div style="margin-top:8px; font-size:12px; color:#777;">
-                                <strong>Durée:</strong>
+                                <strong>Duration:</strong>
                                 <field name="duration" widget="float_time"/>
                                 h
                             </div>

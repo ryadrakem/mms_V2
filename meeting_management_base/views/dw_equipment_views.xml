@@ -19,6 +19,9 @@
         <field name="model">dw.equipment</field>
         <field name="arch" type="xml">
             <form>
+                <header>
+                    <field name="status" widget="statusbar" clickable="1"/>
+                </header>
                 <sheet>
                     <div class="oe_title">
                         <label for="name"/>
@@ -30,7 +33,6 @@
                         <field name="equipment_type_id"/>
                         <field name="description"/>
                         <field name="serial_number"/>
-                        <field name="status"/>
                     </group>
                     <group>
                         <field name="reservation_ids">

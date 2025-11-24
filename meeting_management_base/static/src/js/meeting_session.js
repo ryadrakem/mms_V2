@@ -204,9 +204,10 @@ export class MeetingSessionView extends Component {
           "actual_start_datetime",
           "display_camera",
           "actual_duration",
-          "has_remote_participants",
+          "has_remote_participants"
         ]
       );
+      console.log("Loaded session_id:", this.sessionId);
       console.log("Loaded session data:", sessions);
 
       if (!sessions || sessions.length === 0) {
@@ -271,6 +272,8 @@ export class MeetingSessionView extends Component {
         );
         this.state.session.participants = participantRecords;
         this.state.session.participant_ids = participantRecords.map(p => p.id);
+        console.log("Loaded participants:", this.state.session.participants);
+        console.log("Loaded participant_ids:", this.state.session.participant_ids);
       }
 
       if (sessionData.subject_order && sessionData.subject_order.length > 0) {

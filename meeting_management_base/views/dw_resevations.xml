@@ -32,17 +32,25 @@
             </form>
         </field>
     </record>
+
     <record id="view_dw_reservations_calendar" model="ir.ui.view">
         <field name="name">dw.reservations.calendar</field>
         <field name="model">dw.reservations</field>
         <field name="arch" type="xml">
-            <calendar string="Reservations" date_start="start_time" date_stop="planned_end_time">
+            <calendar string="Reservations"
+                      date_start="start_time"
+                      date_stop="planned_end_time"
+                      color="room_id"
+                      create="false"
+                      delete="false"
+                      edit="false">
                 <field name="name"/>
                 <field name="room_id"/>
                 <field name="equipment_ids"/>
             </calendar>
         </field>
     </record>
+
     <record id="dw_reservations_action" model="ir.actions.act_window">
         <field name="name">Reservations</field>
         <field name="res_model">dw.reservations</field>

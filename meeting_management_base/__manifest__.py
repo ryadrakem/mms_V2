@@ -4,6 +4,7 @@
     "summary": "Manage meetings, schedules, and appointments efficiently.",
     "author": "DIGIWAVES - ALGERIA",
     "website": "https://digiwaves.io/",
+    "maintainer": "MES-TEAM",
     "category": "Management/Meetings",
     "depends": ['hr', 'contacts', 'calendar'],
     "data": [
