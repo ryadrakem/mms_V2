@@ -64,7 +64,7 @@ export class MeetingSessionView extends Component {
       activeParticipants: 0,
       waitingParticipants: [],
       meetingDuration: "00:00:00",
-      activeMainTab: 'agenda',
+      activeMainTab: 'video', // Default to video tab
       notes: "",
       actions: [],
       availableAssignees: [],
@@ -74,6 +74,7 @@ export class MeetingSessionView extends Component {
       meetingTypeName: "",
       jitsiRoomId: null,
       pv: "",
+      jitsiInitialized: false, // Track if Jitsi is initialized
     });
 
     this.sessionId = null;
@@ -82,6 +83,7 @@ export class MeetingSessionView extends Component {
     this.durationInterval = null;
     this.startTime = null;
     this._updateTimeout = null;
+    this.jitsiApi = null; // Store Jitsi API instance
 
     // Bind methods
     this.goBack = this.goBack.bind(this);
@@ -99,6 +101,7 @@ export class MeetingSessionView extends Component {
     this.leaveMeeting = this.leaveMeeting.bind(this);
     this.endMeeting = this.endMeeting.bind(this);
     this.retryConnection = this.retryConnection.bind(this);
+    this.onTabChange = this.onTabChange.bind(this); // New method for tab changes
 
     this.loadPvTemplate = this.loadPvTemplate.bind(this);
     this.startBlankPv = this.startBlankPv.bind(this);
@@ -134,13 +137,7 @@ export class MeetingSessionView extends Component {
     });
 
     onWillUnmount(() => {
-      if (this.state.jitsiAPI) {
-        try {
-          this.state.jitsiAPI.dispose();
-        } catch (e) {
-          console.warn("Error disposing Jitsi API:", e);
-        }
-      }
+      this.cleanupJitsi();
       if (this.durationInterval) {
         clearInterval(this.durationInterval);
       }
@@ -339,7 +336,6 @@ export class MeetingSessionView extends Component {
         }
       }
 
-
       this.state.loading = false;
     } catch (error) {
       console.error("Failed to load session data:", error);
@@ -391,6 +387,13 @@ export class MeetingSessionView extends Component {
   }
 
   async initializeJitsi() {
+    // Prevent multiple initializations
+    if (this.jitsiApi && this.state.jitsiInitialized) {
+      this.state.jitsiLoaded = true;
+      this.resumeJitsi();
+      return;
+    }
+
     if (!window.JitsiMeetExternalAPI) {
       this.state.error = "Jitsi API not loaded";
       return;
@@ -414,7 +417,11 @@ export class MeetingSessionView extends Component {
       if (!container) {
         throw new Error("Jitsi container not found");
       }
-      container.innerHTML = "";
+
+      // Clear container only if not already initialized
+      if (!this.state.jitsiInitialized) {
+        container.innerHTML = "";
+      }
 
       const options = {
         roomName: room_name,
@@ -439,7 +446,9 @@ export class MeetingSessionView extends Component {
         },
       };
 
-      this.state.jitsiAPI = new JitsiMeetExternalAPI(domain, options);
+      this.jitsiApi = new JitsiMeetExternalAPI(domain, options);
+      this.state.jitsiAPI = this.jitsiApi;
+      this.state.jitsiInitialized = true;
       this.setupJitsiEvents();
 
       this.notification.add("Connecting to video conference...", {
@@ -455,7 +464,7 @@ export class MeetingSessionView extends Component {
   }
 
   setupJitsiEvents() {
-    const api = this.state.jitsiAPI;
+    const api = this.jitsiApi;
     if (!api) return;
 
     api.addEventListener("videoConferenceJoined", (event) => {
@@ -520,8 +529,70 @@ export class MeetingSessionView extends Component {
     });
   }
 
+  // New method to handle tab changes
+  onTabChange(tabName) {
+    const previousTab = this.state.activeMainTab;
+    this.state.activeMainTab = tabName;
+
+    // If switching to video tab and Jitsi was already initialized
+    if (tabName === 'video' && this.jitsiApi && !this.state.jitsiLoaded) {
+      this.reconnectJitsi();
+    }
+
+    // If switching away from video, don't destroy Jitsi, just hide it
+    if (previousTab === 'video' && tabName !== 'video') {
+      this.pauseJitsi();
+    }
+  }
+
+  pauseJitsi() {
+    // Instead of destroying Jitsi, just mute audio/video when switching tabs
+    if (this.jitsiApi) {
+      try {
+        this.jitsiApi.executeCommand('toggleAudio', false);
+        this.jitsiApi.executeCommand('toggleVideo', false);
+      } catch (e) {
+        console.warn('Could not pause Jitsi:', e);
+      }
+    }
+  }
+
+  resumeJitsi() {
+    // Resume audio/video when returning to video tab
+    if (this.jitsiApi) {
+      try {
+        this.jitsiApi.executeCommand('toggleAudio', true);
+        this.jitsiApi.executeCommand('toggleVideo', true);
+      } catch (e) {
+        console.warn('Could not resume Jitsi:', e);
+      }
+    }
+  }
+
+  reconnectJitsi() {
+    // Re-establish connection if needed
+    if (this.jitsiApi && !this.state.jitsiLoaded) {
+      this.state.jitsiLoaded = true;
+      this.resumeJitsi();
+    }
+  }
+
+  cleanupJitsi() {
+    // Only destroy Jitsi when component is completely unmounted
+    if (this.jitsiApi) {
+      try {
+        this.jitsiApi.dispose();
+      } catch (e) {
+        console.warn('Error disposing Jitsi:', e);
+      }
+      this.jitsiApi = null;
+    }
+    this.state.jitsiInitialized = false;
+    this.state.jitsiLoaded = false;
+  }
+
   refreshParticipants() {
-    const api = this.state.jitsiAPI;
+    const api = this.jitsiApi;
     if (!api || typeof api.getParticipantsInfo !== "function") return;
 
     try {
@@ -540,7 +611,7 @@ export class MeetingSessionView extends Component {
       return;
     }
 
-    const api = this.state.jitsiAPI;
+    const api = this.jitsiApi;
     if (api && typeof api.executeCommand === "function") {
       try {
         api.executeCommand("answerKnockingParticipant", participantId, true);
@@ -557,7 +628,7 @@ export class MeetingSessionView extends Component {
   rejectParticipant(participantId) {
     if (!this.state.session.is_host) return;
 
-    const api = this.state.jitsiAPI;
+    const api = this.jitsiApi;
     if (api && typeof api.executeCommand === "function") {
       try {
         api.executeCommand("answerKnockingParticipant", participantId, false);
@@ -571,7 +642,6 @@ export class MeetingSessionView extends Component {
   }
 
   startDurationTimer() {
-//    this.startTime = Date.now();
     this.startTime = new Date(this.state.session.actual_start_datetime + "Z").getTime();
     console.log("Meeting started at:", new Date(this.startTime).toISOString());
     this.durationInterval = setInterval(() => {
@@ -595,29 +665,17 @@ export class MeetingSessionView extends Component {
     }
   }
 
-//  toggleNotes() {
-//    this.state.showNotes = !this.state.showNotes;
-//    if (this.state.showNotes) {
-//      this.state.showActions = false;
-//    }
-//  }
-    toggleNotes() {
-        this.state.activeMainTab = this.state.activeMainTab === 'notes' ? 'video' : 'notes';
-    }
+  toggleNotes() {
+    this.onTabChange(this.state.activeMainTab === 'notes' ? 'video' : 'notes');
+  }
 
-//  toggleActions() {
-//    this.state.showActions = !this.state.showActions;
-//    if (this.state.showActions) {
-//      this.state.showNotes = false;
-//    }
-//  }
-    toggleActions() {
-    this.state.activeMainTab = this.state.activeMainTab === 'actions' ? 'video' : 'actions';
-    }
+  toggleActions() {
+    this.onTabChange(this.state.activeMainTab === 'actions' ? 'video' : 'actions');
+  }
 
-    toggleAgenda() {
-    this.state.activeMainTab = this.state.activeMainTab === 'actions' ? 'video' : 'actions';
-    }
+  toggleAgenda() {
+    this.onTabChange(this.state.activeMainTab === 'agenda' ? 'video' : 'agenda');
+  }
 
   async toggleCamera() {
     this.state.session.display_camera = !this.state.session.display_camera;
@@ -625,7 +683,7 @@ export class MeetingSessionView extends Component {
     await this.orm.write("dw.meeting.session", [this.sessionId], {
         display_camera: this.state.session.display_camera,
     });
-}
+  }
 
   async saveNotes() {
     try {
@@ -642,28 +700,30 @@ export class MeetingSessionView extends Component {
       });
     }
   }
-    async savePv() {
-        try {
-          if (!this.meetingId) {
-            throw new Error("No meeting ID available");
-          }
 
-          await this.orm.write("dw.meeting", [this.meetingId], {
-            pv: this.state.pv,
-          });
+  async savePv() {
+    try {
+      if (!this.meetingId) {
+        throw new Error("No meeting ID available");
+      }
 
-          console.log("Saved PV:", this.state.pv);
-          this.notification.add("PV saved successfully", {
-            type: "success",
-          });
-        } catch (error) {
-          console.error("Failed to save PV:", error);
-          this.notification.add("Failed to save PV", {
-            type: "danger",
-          });
-        }
+      await this.orm.write("dw.meeting", [this.meetingId], {
+        pv: this.state.pv,
+      });
+
+      console.log("Saved PV:", this.state.pv);
+      this.notification.add("PV saved successfully", {
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Failed to save PV:", error);
+      this.notification.add("Failed to save PV", {
+        type: "danger",
+      });
     }
-    async loadPvTemplate() {
+  }
+
+  async loadPvTemplate() {
     try {
       // Generate PV template with meeting data
       const template = this.generatePvTemplate();
@@ -678,8 +738,9 @@ export class MeetingSessionView extends Component {
         type: "danger",
       });
     }
-    }
-    generatePvTemplate() {
+  }
+
+  generatePvTemplate() {
     const meetingDate = this.state.session.actual_start_datetime
       ? new Date(this.state.session.actual_start_datetime).toLocaleDateString('fr-FR', {
           weekday: 'long',
@@ -809,9 +870,9 @@ Signatures :
 ═══════════════════════════════════════════════════════════════
 Document généré le ${new Date().toLocaleString('fr-FR')}
 ═══════════════════════════════════════════════════════════════`;
-}
+  }
 
-async startBlankPv() {
+  async startBlankPv() {
     const confirmed = this.state.pv
       ? confirm("Cela effacera le contenu actuel du PV. Continuer ?")
       : true;
@@ -826,9 +887,7 @@ async startBlankPv() {
           this.state.pv = meetings[0].pv || "";
         }
     }
-}
-
-
+  }
 
   async addNewAction() {
     try {
@@ -908,8 +967,8 @@ async startBlankPv() {
   async leaveMeeting() {
     const confirmed = confirm("Are you sure you want to leave this meeting?");
     if (confirmed) {
-      if (this.state.jitsiAPI) {
-        this.state.jitsiAPI.executeCommand("hangup");
+      if (this.jitsiApi) {
+        this.jitsiApi.executeCommand("hangup");
       } else {
         this.goBack();
       }
@@ -931,12 +990,12 @@ async startBlankPv() {
     if (!confirmed) return;
 
     try {
-
       this.stopDurationTimer();
 
       const durationStr = this.state.meetingDuration;
       const [h, m, s] = durationStr.split(":").map(Number);
       const durationHours = h + m/60 + s/3600;
+
       // 1. Update session state to 'done'
       await this.orm.write("dw.meeting.session", [this.sessionId], {
         state: "done",
@@ -964,7 +1023,7 @@ async startBlankPv() {
       }
 
       // 4. Kick all participants from Jitsi
-      const api = this.state.jitsiAPI;
+      const api = this.jitsiApi;
       if (api && typeof api.executeCommand === "function") {
         try {
           // Get all participants
@@ -988,8 +1047,8 @@ async startBlankPv() {
 
       // 6. Wait a moment for notifications to show, then leave
       setTimeout(() => {
-        if (this.state.jitsiAPI) {
-          this.state.jitsiAPI.executeCommand("hangup");
+        if (this.jitsiApi) {
+          this.jitsiApi.executeCommand("hangup");
         } else {
           this.goBack();
         }
@@ -1005,14 +1064,7 @@ async startBlankPv() {
 
   async retryConnection() {
     this.state.error = null;
-    if (this.state.jitsiAPI) {
-      try {
-        this.state.jitsiAPI.dispose();
-      } catch (e) {
-        console.warn("Error disposing API:", e);
-      }
-      this.state.jitsiAPI = null;
-    }
+    this.cleanupJitsi();
     await this.initializeJitsi();
   }
 

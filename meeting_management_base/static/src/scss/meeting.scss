@@ -422,6 +422,20 @@
     }
   }
 
+  /* Jitsi container visibility handling */
+  .jitsi-container.d-none {
+    display: none !important;
+  }
+
+  /* Tab content visibility */
+  .main-tab-content {
+    transition: opacity 0.3s ease;
+  }
+
+  .main-tab-content.d-none {
+    display: none !important;
+  }
+
   /* LOADING & ERROR STATES  */
   .video-loading {
     position: absolute;

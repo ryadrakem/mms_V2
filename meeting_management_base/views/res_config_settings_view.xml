@@ -12,7 +12,7 @@
                         <block title="Jitsi as a Service (JaaS) - 8x8">
                             <!-- Jitsi Domain -->
                             <setting string="Jitsi Domain" help="Jitsi server domain (8x8.vc for JaaS)">
-                                <field name="jitsi_domain" placeholder="8x8.vc"/>
+                                <field name="jitsi_domain" placeholder="8x8.vc" readonly="1"/>
                             </setting>
 
                             <!-- App ID -->
