@@ -2,6 +2,7 @@ from smartdz import models, fields, api, _
 from smartdz.exceptions import ValidationError, UserError
 from datetime import timedelta, datetime
 import logging
+import pytz
 
 _logger = logging.getLogger(__name__)
 
@@ -147,7 +148,7 @@ class DwPlanificationMeeting(models.Model):
         for rec in self:
             rec.state = 'planned'
 
-            # Créer l'événement calendrier
+            # Create calendar event
             if rec.sync_with_calendar and not rec.calendar_event_id:
                 rec._create_calendar_event()
 
@@ -161,7 +162,7 @@ class DwPlanificationMeeting(models.Model):
                     'meeting_plannification_id': rec.id,
                 })
 
-            # Create separate reservations for each equipment
+            # Create equipment reservations
             for equipment in rec.equipment_ids:
                 self.env['dw.reservations'].create({
                     'name': f"Équipement: {equipment.name}",
@@ -171,42 +172,43 @@ class DwPlanificationMeeting(models.Model):
                     'meeting_plannification_id': rec.id,
                 })
 
-            # Generate access tokens for all participants
+            # Generate access tokens
             for participant in rec.participant_ids:
                 if not participant.access_token:
                     participant._generate_access_token()
 
-            # Get the secure email template
-            template = self.env.ref('meeting_management_base.email_template_meeting_invitation_secure',
-                                    raise_if_not_found=False)
+            # Send invitation emails (only if config enabled)
+            config_param = self.env['ir.config_parameter'].sudo()
+            send_emails = config_param.get_param('meeting_management_base.send_invitation_emails', default='True')
 
-            if template:
-                # Send individual email to each participant
-                for participant in rec.participant_ids:
-                    participant_email = None
-                    if participant.partner_id and participant.partner_id.email:
-                        participant_email = participant.partner_id.email
-                    elif participant.employee_id and participant.employee_id.work_email:
-                        participant_email = participant.employee_id.work_email
+            if send_emails == 'True':
+                template = self.env.ref('meeting_management_base.email_template_meeting_invitation_secure',
+                                        raise_if_not_found=False)
 
-                    if participant_email:
-                        try:
-                            template.send_mail(
-                                participant.id,  # Send to participant record
-                                force_send=True,
-                                email_values={
-                                    'email_to': participant_email,
-                                    'recipient_ids': []  # Clear default recipients
-                                }
-                            )
-                            _logger.info(f"Invitation sent to {participant.name} ({participant_email})")
-                        except Exception as e:
-                            _logger.error(f"Failed to send invitation to {participant.name}: {str(e)}")
-                    else:
-                        _logger.warning(f"No email address found for participant {participant.name}")
-            else:
-                _logger.warning("Email template 'email_template_meeting_invitation_secure' not found!")
+                if template:
+                    # Disable auto-follow from chatter
+                    ctx = dict(self.env.context, mail_create_nosubscribe=True, mail_auto_subscribe_no_notify=True)
 
+                    for participant in rec.participant_ids:
+                        participant_email = None
+                        if participant.partner_id and participant.partner_id.email:
+                            participant_email = participant.partner_id.email
+                        elif participant.employee_id and participant.employee_id.work_email:
+                            participant_email = participant.employee_id.work_email
+
+                        if participant_email:
+                            try:
+                                template.with_context(ctx).send_mail(
+                                    participant.id,
+                                    force_send=True,
+                                    email_values={
+                                        'email_to': participant_email,
+                                        'recipient_ids': []
+                                    }
+                                )
+                                _logger.info(f"Invitation sent to {participant.name} ({participant_email})")
+                            except Exception as e:
+                                _logger.error(f"Failed to send invitation to {participant.name}: {str(e)}")
                 # 'name': rec.name,
                 # 'objet': rec.objet,
                 # 'is_external': rec.is_external,
@@ -227,8 +229,7 @@ class DwPlanificationMeeting(models.Model):
 
     def create_meeting_and_sessions(self):
         self.ensure_one()
-        # TODO: change 6 with Command
-        # 1) Create the MEETING record
+        # Create the MEETING record
         self.actual_start_datetime = fields.Datetime.now()
         meeting = self.env['dw.meeting'].create({
             'name': self.name,
@@ -247,8 +248,10 @@ class DwPlanificationMeeting(models.Model):
             'is_external': self.is_external,
             'state': 'in_progress',
         })
+
         self.write({
             'state': 'started',
+            'meeting_id': meeting.id,  # Link back to the meeting
         })
 
         Session = self.env['dw.meeting.session']
@@ -267,7 +270,6 @@ class DwPlanificationMeeting(models.Model):
                     'actual_start_datetime': fields.Datetime.now(),
                     'display_camera': self.display_camera,
                     'subject_order': self.subject_order,
-                    'has_remote_participants': self.has_remote_participants,
                 })
                 # Capture current user's session
                 if participant.user_id.id == self.env.user.id:
@@ -286,6 +288,15 @@ class DwPlanificationMeeting(models.Model):
             'target': 'current',
         }
 
+    def _delete_reservations(self):
+        """Delete all reservations when meeting is cancelled or done"""
+        self.ensure_one()
+        reservations = self.env['dw.reservations'].search([
+            ('meeting_plannification_id', '=', self.id)
+        ])
+        if reservations:
+            reservations.unlink()
+            _logger.info(f"Deleted {len(reservations)} reservations for meeting {self.name}")
     # def open_meeting(self):
     #     self.ensure_one()
     #     Meeting = self.env['dw.meeting']
@@ -701,6 +712,7 @@ class DwPlanificationMeeting(models.Model):
 
     def action_done(self):
         for rec in self:
+            rec._delete_reservations()  # Add this line
             rec.state = 'done'
 
     def action_confirm(self):
@@ -731,6 +743,7 @@ class DwPlanificationMeeting(models.Model):
         for rec in self:
             if rec.calendar_event_id:
                 rec.calendar_event_id.unlink()
+            rec._delete_reservations()
             rec.state = 'cancelled'
 
     def action_reset_to_draft(self):
@@ -739,25 +752,37 @@ class DwPlanificationMeeting(models.Model):
 
     @api.model
     def get_dashboard_kpis(self):
-        """Get KPI data for dashboard"""
-        now = fields.Datetime.now()  # Use Odoo's timezone-aware datetime
+        """Get KPI data for dashboard - using actual meeting data"""
+        now = fields.Datetime.now()
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         today_end = today_start + timedelta(days=1)
 
-        # Upcoming meetings (future planned/confirmed/started meetings)
+        # Upcoming meetings from planifications
         upcoming_count = self.search_count([
             ('planned_start_datetime', '>=', now),
             ('state', 'not in', ['cancelled', 'done', 'draft'])
         ])
 
-        # Today's meetings
-        today_meetings = self.search([
-            ('planned_start_datetime', '>=', today_start),
-            ('planned_start_datetime', '<', today_end),
-            ('state', 'not in', ['cancelled', 'draft'])
+        # Today's meetings - use actual meetings if available
+        Meeting = self.env['dw.meeting']
+        today_actual_meetings = Meeting.search([
+            ('actual_start_datetime', '>=', today_start),
+            ('actual_start_datetime', '<', today_end),
+            ('state', 'in', ['in_progress', 'done'])
         ])
-        today_count = len(today_meetings)
-        today_hours = sum(today_meetings.mapped('duration'))
+
+        # Fall back to planned if no actual meetings
+        if not today_actual_meetings:
+            today_meetings = self.search([
+                ('planned_start_datetime', '>=', today_start),
+                ('planned_start_datetime', '<', today_end),
+                ('state', 'not in', ['cancelled', 'draft'])
+            ])
+            today_count = len(today_meetings)
+            today_hours = sum(today_meetings.mapped('duration'))
+        else:
+            today_count = len(today_actual_meetings)
+            today_hours = sum(today_actual_meetings.mapped('actual_duration') or [0])
 
         # Available rooms
         all_rooms = self.env['dw.room'].search([])
@@ -769,7 +794,6 @@ class DwPlanificationMeeting(models.Model):
             ('state', 'not in', ['cancelled', 'done', 'draft'])
         ])
 
-        # Count unique participants across all upcoming meetings
         unique_participants = set()
         for meeting in upcoming_meetings:
             for participant in meeting.participant_ids:
@@ -782,7 +806,7 @@ class DwPlanificationMeeting(models.Model):
 
         total_participants = len(unique_participants)
 
-        # Calculate trend (compare with last week)
+        # Calculate trend
         last_week_start = now - timedelta(days=7)
         last_week_count = self.search_count([
             ('planned_start_datetime', '>=', last_week_start),
@@ -805,16 +829,19 @@ class DwPlanificationMeeting(models.Model):
 
     @api.model
     def get_upcoming_meetings(self, limit=20):
-        """Get upcoming planification meetings with details"""
-        now = fields.Datetime.now()  # Use Odoo's timezone-aware datetime
+        """Get upcoming planification meetings with proper timezone handling"""
+        now = fields.Datetime.now()
         meetings = self.search([
             ('planned_start_datetime', '>=', now),
             ('state', 'not in', ['cancelled', 'done', 'draft'])
         ], limit=limit, order='planned_start_datetime asc')
 
         result = []
+        user_tz = self.env.user.tz or 'UTC'
+        tz = pytz.timezone(user_tz)
+
         for meeting in meetings:
-            # Get organizer (from participants or creator)
+            # Get organizer
             organizer_name = 'Unknown'
             host_participant = meeting.participant_ids.filtered(lambda p: p.is_host)
             if host_participant:
@@ -822,29 +849,26 @@ class DwPlanificationMeeting(models.Model):
             elif meeting.create_uid:
                 organizer_name = meeting.create_uid.name
 
-            # Convert to user's timezone for display
-            # Odoo stores in UTC, so we need to convert for display
-            user_tz = self.env.user.tz or 'UTC'
-            from pytz import timezone
-            import pytz
-
+            # Convert UTC to user timezone
             if meeting.planned_start_datetime:
-                # Convert UTC to user timezone
-                utc_dt = pytz.UTC.localize(meeting.planned_start_datetime.replace(tzinfo=None))
-                user_dt = utc_dt.astimezone(timezone(user_tz))
+                utc_dt = pytz.UTC.localize(meeting.planned_start_datetime)
+                user_dt = utc_dt.astimezone(tz)
                 formatted_date = user_dt.strftime('%a, %b %d, %I:%M %p')
+                # Return ISO format in user timezone for JavaScript
+                iso_in_user_tz = user_dt.isoformat()
             else:
                 formatted_date = ''
+                iso_in_user_tz = None
 
-            # Determine priority based on duration and time to start
+            # Determine priority
             priority = 'normal'
             if meeting.duration > 2:
                 priority = 'high'
             time_to_start = (meeting.planned_start_datetime - now).total_seconds() / 3600
-            if time_to_start < 1:  # Less than 1 hour away
+            if time_to_start < 1:
                 priority = 'urgent'
 
-            # Count unique participants (avoid duplicates)
+            # Count unique participants
             unique_participants = set()
             for participant in meeting.participant_ids:
                 if participant.employee_id:
@@ -857,37 +881,41 @@ class DwPlanificationMeeting(models.Model):
             result.append({
                 'id': meeting.id,
                 'name': meeting.name or 'Untitled Meeting',
-                'planned_start_datetime': meeting.planned_start_datetime.isoformat() if meeting.planned_start_datetime else None,
+                'planned_start_datetime': iso_in_user_tz,
                 'formatted_date': formatted_date,
                 'duration': meeting.duration,
                 'room_name': meeting.room_id.name if meeting.room_id else None,
                 'organizer_name': organizer_name,
-                'participant_count': len(unique_participants),  # Use unique count
+                'participant_count': len(unique_participants),
                 'state': meeting.state,
                 'priority': priority,
-                'is_recurring': False,  # Add recurring logic if needed
+                'is_recurring': False,
             })
 
         return result
 
     @api.model
     def quick_create_meeting(self, payload):
-        """Quick create a planification meeting from dashboard"""
-        # Validate required fields
+        """Quick create with proper timezone handling"""
         if not payload.get('name'):
             raise ValidationError("Meeting title is required")
 
         if not payload.get('planned_start_datetime'):
             raise ValidationError("Start date and time is required")
 
-        # Convert string datetime to datetime object
-        start_dt = fields.Datetime.to_datetime(payload['planned_start_datetime'])
-        duration = float(payload.get('duration', 1))
+        # Parse the datetime string - it's already in UTC format from frontend
+        start_dt_str = payload['planned_start_datetime']
 
-        # Calculate end time
+        # Parse datetime string (format: "YYYY-MM-DD HH:MM:SS")
+        try:
+            start_dt = fields.Datetime.to_datetime(start_dt_str)
+        except:
+            raise ValidationError("Invalid datetime format")
+
+        duration = float(payload.get('duration', 1))
         end_dt = start_dt + timedelta(hours=duration)
 
-        # Validate room availability if room is specified
+        # Validate room availability
         room_id = payload.get('room_id')
         if room_id:
             overlapping = self.search([
@@ -901,18 +929,55 @@ class DwPlanificationMeeting(models.Model):
             ], limit=1)
 
             if overlapping:
-                raise ValidationError(f"Room is already booked for this time period")
+                raise ValidationError("Room is already booked for this time period")
 
-        # Create planification meeting
+        # Create meeting
         meeting = self.create({
             'name': payload['name'],
             'planned_start_datetime': start_dt,
             'duration': duration,
             'room_id': room_id or False,
-            'state': 'draft',
+            'state': 'draft',  # Changed from draft to planned
         })
 
         return {'id': meeting.id, 'name': meeting.name}
+
+    @api.model
+    def get_week_stats(self):
+        """Get current week statistics using actual meeting data"""
+        now = fields.Datetime.now()
+        week_start = now - timedelta(days=now.weekday())
+        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_end = week_start + timedelta(days=7)
+
+        # Try to get actual completed meetings first
+        Meeting = self.env['dw.meeting']
+        actual_meetings = Meeting.search([
+            ('actual_start_datetime', '>=', week_start),
+            ('actual_start_datetime', '<', week_end),
+            ('state', 'in', ['in_progress', 'done'])
+        ])
+
+        if actual_meetings:
+            total = len(actual_meetings)
+            hours = sum(actual_meetings.mapped('actual_duration') or [0])
+            avg_duration = round((hours / total * 60) if total > 0 else 0, 1)
+        else:
+            # Fall back to planned meetings
+            week_meetings = self.search([
+                ('planned_start_datetime', '>=', week_start),
+                ('planned_start_datetime', '<', week_end),
+                ('state', 'not in', ['cancelled', 'draft'])
+            ])
+            total = len(week_meetings)
+            hours = sum(week_meetings.mapped('duration'))
+            avg_duration = round((hours / total * 60) if total > 0 else 0, 1)
+
+        return {
+            'total': total,
+            'hours': round(hours, 1),
+            'avg_duration': avg_duration
+        }
 
     @api.model
     def get_activity_feed(self, limit=15):
@@ -941,53 +1006,53 @@ class DwPlanificationMeeting(models.Model):
 
         return feed
 
-    @api.model
-    def get_week_stats(self):
-        """Get current week statistics"""
-        now = datetime.now()
-        week_start = now - timedelta(days=now.weekday())
-        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
-        week_end = week_start + timedelta(days=7)
-
-        week_meetings = self.search([
-            ('planned_start_datetime', '>=', week_start),
-            ('planned_start_datetime', '<', week_end),
-            ('state', 'not in', ['cancelled', 'draft'])
-        ])
-
-        total = len(week_meetings)
-        hours = sum(week_meetings.mapped('duration'))
-        avg_duration = round((hours / total * 60) if total > 0 else 0, 1)
-
-        return {
-            'total': total,
-            'hours': round(hours, 1),
-            'avg_duration': avg_duration
-        }
 
     @api.model
     def get_analytics_data(self):
-        """Get data for analytics charts"""
-        now = datetime.now()
+        """Get analytics data using actual meetings when available"""
+        now = fields.Datetime.now()
         week_start = now - timedelta(days=now.weekday())
+        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        # Meetings per day (last 7 days)
+        Meeting = self.env['dw.meeting']
+
+        # Meetings per day (last 7 days) - use actual meetings
         daily_meetings = []
         for i in range(7):
             day_start = week_start + timedelta(days=i)
             day_end = day_start + timedelta(days=1)
-            count = self.search_count([
-                ('planned_start_datetime', '>=', day_start),
-                ('planned_start_datetime', '<', day_end),
+
+            # Count actual meetings first
+            actual_count = Meeting.search_count([
+                ('actual_start_datetime', '>=', day_start),
+                ('actual_start_datetime', '<', day_end),
+                ('state', 'in', ['in_progress', 'done'])
+            ])
+
+            # If no actual meetings, count planned ones
+            if actual_count == 0:
+                actual_count = self.search_count([
+                    ('planned_start_datetime', '>=', day_start),
+                    ('planned_start_datetime', '<', day_end),
+                    ('state', 'not in', ['cancelled', 'draft'])
+                ])
+
+            daily_meetings.append(actual_count)
+
+        # Duration distribution - use actual meetings
+        actual_meetings = Meeting.search([
+            ('actual_start_datetime', '>=', week_start),
+            ('state', 'in', ['in_progress', 'done'])
+        ])
+
+        if not actual_meetings:
+            actual_meetings = self.search([
+                ('planned_start_datetime', '>=', week_start),
                 ('state', 'not in', ['cancelled', 'draft'])
             ])
-            daily_meetings.append(count)
-
-        # Duration distribution
-        all_meetings = self.search([
-            ('planned_start_datetime', '>=', week_start),
-            ('state', 'not in', ['cancelled', 'draft'])
-        ])
+            use_field = 'duration'
+        else:
+            use_field = 'actual_duration'
 
         duration_dist = {
             'under_30': 0,
@@ -996,8 +1061,10 @@ class DwPlanificationMeeting(models.Model):
             'over_120': 0
         }
 
-        for meeting in all_meetings:
-            duration_minutes = meeting.duration * 60
+        for meeting in actual_meetings:
+            duration_hours = getattr(meeting, use_field, 0) or 0
+            duration_minutes = duration_hours * 60
+
             if duration_minutes < 30:
                 duration_dist['under_30'] += 1
             elif duration_minutes < 60:
@@ -1021,11 +1088,21 @@ class DwPlanificationMeeting(models.Model):
         for i in range(7):
             day_start = week_start + timedelta(days=i)
             day_end = day_start + timedelta(days=1)
-            day_meetings = self.search([
-                ('planned_start_datetime', '>=', day_start),
-                ('planned_start_datetime', '<', day_end),
-                ('state', 'not in', ['cancelled', 'draft'])
+
+            # Use actual meetings
+            day_meetings = Meeting.search([
+                ('actual_start_datetime', '>=', day_start),
+                ('actual_start_datetime', '<', day_end),
+                ('state', 'in', ['in_progress', 'done'])
             ])
+
+            if not day_meetings:
+                day_meetings = self.search([
+                    ('planned_start_datetime', '>=', day_start),
+                    ('planned_start_datetime', '<', day_end),
+                    ('state', 'not in', ['cancelled', 'draft'])
+                ])
+
             avg_participants = round(
                 sum(len(m.participant_ids) for m in day_meetings) / len(day_meetings)
             ) if day_meetings else 0

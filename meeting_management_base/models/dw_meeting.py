@@ -80,6 +80,46 @@ class DwMeeting(models.Model):
             },
         }
 
+    def action_join_meeting(self):
+        """Join the meeting - opens the user's session"""
+        self.ensure_one()
+
+        # Get current user
+        current_user = self.env.user
+
+        # Find the planification linked to this meeting
+        planification = self.env['dw.planification.meeting'].search([
+            ('meeting_id', '=', self.id)
+        ], limit=1)
+
+        if not planification:
+            raise ValidationError(_("No planification found for this meeting."))
+
+        # Find the session for the current user
+        user_session = self.env['dw.meeting.session'].search([
+            ('meeting_id', '=', self.id),
+            ('user_id', '=', current_user.id)
+        ], limit=1)
+
+        if not user_session:
+            raise ValidationError(_("You are not a participant in this meeting."))
+
+        # Return the action to open the session
+        return {
+            'type': 'ir.actions.client',
+            'name': f'Meeting: {self.name} - {current_user.name}',
+            'tag': 'meeting_session_view_action',
+            'params': {
+                'planification_id': planification.id,
+            },
+            'context': {
+                'active_id': user_session.id,
+                'default_session_id': user_session.id,
+                'default_planification_id': planification.id,
+                'default_pv': self.pv,
+            },
+        }
+
     # def action_open_session(self):
     #     self.ensure_one()
     #     Session = self.env['dw.meeting.session']
@@ -134,7 +174,7 @@ class DwMeeting(models.Model):
             raise ValidationError(_("A Jitsi room has already been created for this meeting."))
 
         # Generate unique room ID
-        room_id = f"odoo-meeting-{self.id}-{uuid.uuid4().hex[:8]}"
+        room_id = f"smartdz-meeting-{self.id}-{uuid.uuid4().hex[:8]}"
 
         self.write({
             'jitsi_room_id': room_id,

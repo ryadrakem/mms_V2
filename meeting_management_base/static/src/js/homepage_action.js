@@ -17,7 +17,6 @@ function parseOdooDatetimeToLocal(dt) {
   try {
     if (typeof dt !== 'string') return null;
 
-
     const humanTimeRegex = /([APap][Mm])|[A-Za-z]{3,}/;
     if (humanTimeRegex.test(dt) && !dt.includes('T') && !dt.includes('+') && !dt.endsWith('Z')) {
       return null;
@@ -33,7 +32,6 @@ function parseOdooDatetimeToLocal(dt) {
     return null;
   }
 }
-
 
 function formatTimeLocal(dateObj, options = { hour: '2-digit', minute: '2-digit', hour12: true }) {
   if (!dateObj) return null;
@@ -188,9 +186,18 @@ export class MeetingsHome extends Component {
 
   setDefaultDateTime() {
     const now = new Date();
+    // Round to next hour
     now.setMinutes(0, 0, 0);
     now.setHours(now.getHours() + 1);
-    this.state.quickCreate.date = now.toISOString().slice(0, 16);
+
+    // Format for datetime-local input (YYYY-MM-DDTHH:mm)
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+
+    this.state.quickCreate.date = `${year}-${month}-${day}T${hours}:${minutes}`;
   }
 
   async _load(silent = false) {
@@ -216,25 +223,37 @@ export class MeetingsHome extends Component {
       this.state.analyticsData = analyticsData || this.state.analyticsData;
 
       this.state.rooms = (rooms || []).map(r => {
-        const dtString = r.free_until || r.free_till || r.free_until_datetime || r.available_until || r.free_until_time || null;
+        // IMPROVED: More robust field detection
+        const dtString = r.free_until || r.busy_until || r.free_till ||
+                         r.free_until_datetime || r.available_until ||
+                         r.free_until_time || null;
 
-        const looksHuman = typeof dtString === 'string' && (/([APap][Mm])|[A-Za-z]{3,}/).test(dtString) && !dtString.includes('T') && !dtString.includes('+') && !dtString.endsWith('Z');
+        const looksHuman = typeof dtString === 'string' &&
+                           (/([APap][Mm])|[A-Za-z]{3,}/).test(dtString) &&
+                           !dtString.includes('T') &&
+                           !dtString.includes('+') &&
+                           !dtString.endsWith('Z');
 
         let freeUntilDate = null;
         let computedLocal = null;
 
-        if (!looksHuman) {
-          freeUntilDate = parseOdooDatetimeToLocal(dtString);
-          computedLocal = freeUntilDate ? formatTimeLocal(freeUntilDate) : null;
+        if (dtString && !looksHuman) {
+            freeUntilDate = parseOdooDatetimeToLocal(dtString);
+            computedLocal = freeUntilDate ? formatTimeLocal(freeUntilDate) : null;
         }
 
-        const display_free_until = looksHuman ? dtString : (computedLocal || dtString || null);
+        // IMPROVED: Don't override backend-provided formatted times
+        const display_free_until = looksHuman ? dtString :
+                                   (r.free_until || r.busy_until || computedLocal || dtString || null);
 
         return {
-          ...r,
-          free_until_date: freeUntilDate,
-          free_until_local: computedLocal,
-          display_free_until,
+            ...r,
+            free_until_date: freeUntilDate,
+            free_until_local: computedLocal,
+            display_free_until,
+            // Keep original fields from backend
+            free_until: r.free_until,
+            busy_until: r.busy_until,
         };
       });
 
@@ -308,28 +327,6 @@ export class MeetingsHome extends Component {
     this.state.filteredUpcoming = this.state.upcoming;
   }
 
-  filterByKpi(type) {
-    this.state.currentView = 'overview';
-    this.state.currentSlide = 0;
-
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    if (type === 'today') {
-      this.state.filteredUpcoming = this.state.upcoming.filter(m => {
-        const meetingDate = new Date(m.planned_start_datetime);
-        const meetingDay = new Date(meetingDate.getFullYear(), meetingDate.getMonth(), meetingDate.getDate());
-        return meetingDay.getTime() === today.getTime();
-      });
-    } else if (type === 'upcoming') {
-      this.state.filteredUpcoming = this.state.upcoming;
-    }
-
-    this.notification.add(`Filtered to show ${type} meetings`, {
-      type: 'info'
-    });
-  }
-
   nextSlide() {
     this.state.currentSlide = (this.state.currentSlide + 1) % 2; // Only 2 slides now
   }
@@ -345,147 +342,160 @@ export class MeetingsHome extends Component {
   async quickCreate() {
     const { title, date, duration, room_id } = this.state.quickCreate;
 
+    // Validation
     if (!title?.trim()) {
-      this.notification.add('Please enter a meeting title', {
-        type: 'warning',
-        title: 'Missing Information'
-      });
-      return;
+        this.notification.add('Please enter a meeting title', {
+            type: 'warning',
+            title: 'Missing Information'
+        });
+        return;
     }
 
     if (!date) {
-      this.notification.add('Please select a date and time', {
-        type: 'warning',
-        title: 'Missing Information'
-      });
-      return;
+        this.notification.add('Please select a date and time', {
+            type: 'warning',
+            title: 'Missing Information'
+        });
+        return;
     }
 
     if (duration <= 0) {
-      this.notification.add('Duration must be greater than 0', {
-        type: 'warning',
-        title: 'Invalid Duration'
-      });
-      return;
+        this.notification.add('Duration must be greater than 0', {
+            type: 'warning',
+            title: 'Invalid Duration'
+        });
+        return;
     }
 
-    const localDate = new Date(date);
+    // IMPROVED: Better timezone handling with validation
+    let formattedDate;
+    try {
+        const localDate = new Date(date);
 
-    const utcDate = new Date(localDate.getTime() - (localDate.getTimezoneOffset() * 60000));
+        // Validate the date is valid
+        if (isNaN(localDate.getTime())) {
+            throw new Error('Invalid date');
+        }
 
-    const year = utcDate.getUTCFullYear();
-    const month = String(utcDate.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(utcDate.getUTCDate()).padStart(2, '0');
-    const hours = String(utcDate.getUTCHours()).padStart(2, '0');
-    const minutes = String(utcDate.getUTCMinutes()).padStart(2, '0');
-    const formattedDate = `${year}-${month}-${day} ${hours}:${minutes}:00`;
+        // Convert to UTC for Odoo
+        const year = localDate.getUTCFullYear();
+        const month = String(localDate.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(localDate.getUTCDate()).padStart(2, '0');
+        const hours = String(localDate.getUTCHours()).padStart(2, '0');
+        const minutes = String(localDate.getUTCMinutes()).padStart(2, '0');
+        const seconds = '00';
+
+        formattedDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    } catch (e) {
+        console.error('Date formatting error:', e);
+        this.notification.add('Invalid date format', {
+            type: 'danger',
+            title: 'Error'
+        });
+        return;
+    }
 
     const payload = {
-      name: title.trim(),
-      planned_start_datetime: formattedDate,
-      duration: parseFloat(duration),
-      room_id: room_id ? parseInt(room_id) : false
+        name: title.trim(),
+        planned_start_datetime: formattedDate,
+        duration: parseFloat(duration),
+        room_id: room_id ? parseInt(room_id) : false
     };
 
     this.state.creating = true;
 
     try {
-      const result = await this.orm.call('dw.planification.meeting', 'quick_create_meeting', [payload]);
+        const result = await this.orm.call('dw.planification.meeting', 'quick_create_meeting', [payload]);
 
-      this.notification.add(`Meeting "${title}" created successfully`, {
-        type: 'success',
-        title: 'Success'
-      });
+        this.notification.add(`Meeting "${title}" created successfully`, {
+            type: 'success',
+            title: 'Success'
+        });
 
-      // Reset form
-      this.state.quickCreate = { title: '', date: '', duration: 1, room_id: '' };
-      this.setDefaultDateTime();
+        // Reset form
+        this.state.quickCreate = { title: '', date: '', duration: 1, room_id: '' };
+        this.setDefaultDateTime();
 
-      // Reload dashboard
-      await this._load(true);
+        // Reload data
+        await this._load(true);
 
-      // Open the created meeting
-      if (result?.id) {
-        setTimeout(() => this.openMeeting(result.id), 500);
-      }
+        // Open meeting if created successfully
+        if (result?.id) {
+            setTimeout(() => this.openMeeting(result.id), 500);
+        }
     } catch (e) {
-      console.error('Quick create failed:', e);
-
-      let errorMsg = 'Failed to create meeting. Please try again.';
-      if (e.data && e.data.message) {
-        errorMsg = e.data.message;
-      }
-
-      this.notification.add(errorMsg, {
-        type: 'danger',
-        title: 'Error'
-      });
+        console.error('Quick create failed:', e);
+        let errorMsg = 'Failed to create meeting. Please try again.';
+        if (e.data && e.data.message) {
+            errorMsg = e.data.message;
+        } else if (e.message) {
+            errorMsg = e.message;
+        }
+        this.notification.add(errorMsg, {
+            type: 'danger',
+            title: 'Error'
+        });
     } finally {
-      this.state.creating = false;
+        this.state.creating = false;
     }
   }
 
   async quickBookRoom(roomId) {
     try {
-      const room = this.state.rooms.find(r => r.id === roomId);
+        const room = this.state.rooms.find(r => r.id === roomId);
 
-      if (!room.is_free) {
-        this.notification.add(`${room?.name || 'Room'} is currently occupied`, {
-          type: 'warning',
-          title: 'Room Unavailable'
+        if (!room.is_free) {
+            this.notification.add(`${room?.name || 'Room'} is currently occupied`, {
+                type: 'warning',
+                title: 'Room Unavailable'
+            });
+            return;
+        }
+
+        this.notification.add(`Booking ${room?.name || 'room'}...`, {
+            type: 'info'
         });
-        return;
-      }
 
-      this.notification.add(`Booking ${room?.name || 'room'}...`, {
-        type: 'info'
-      });
+        // Get current time and convert to UTC
+        const now = new Date();
 
-      // Get current time in user's local timezone
-      const now = new Date();
+        const year = now.getUTCFullYear();
+        const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(now.getUTCDate()).padStart(2, '0');
+        const hours = String(now.getUTCHours()).padStart(2, '0');
+        const minutes = String(now.getUTCMinutes()).padStart(2, '0');
+        const seconds = String(now.getUTCSeconds()).padStart(2, '0');
+        const odooDateTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
-      // Convert to UTC by subtracting timezone offset
-      const utcNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
+        const payload = {
+            name: `Quick Booking - ${room?.name || 'Room'}`,
+            planned_start_datetime: odooDateTime,
+            duration: 1,
+            room_id: roomId
+        };
 
-      const year = utcNow.getUTCFullYear();
-      const month = String(utcNow.getUTCMonth() + 1).padStart(2, '0');
-      const day = String(utcNow.getUTCDate()).padStart(2, '0');
-      const hours = String(utcNow.getUTCHours()).padStart(2, '0');
-      const minutes = String(utcNow.getUTCMinutes()).padStart(2, '0');
-      const seconds = String(utcNow.getUTCSeconds()).padStart(2, '0');
-      const odooDateTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        const result = await this.orm.call('dw.planification.meeting', 'quick_create_meeting', [payload]);
 
-      const payload = {
-        name: `Quick Booking - ${room?.name || 'Room'}`,
-        planned_start_datetime: odooDateTime,
-        duration: 1,
-        room_id: roomId
-      };
+        this.notification.add(`${room?.name || 'Room'} booked successfully for 1 hour`, {
+            type: 'success',
+            title: 'Room Booked'
+        });
 
-      const result = await this.orm.call('dw.planification.meeting', 'quick_create_meeting', [payload]);
+        await this._load(true);
 
-      this.notification.add(`${room?.name || 'Room'} booked successfully for 1 hour`, {
-        type: 'success',
-        title: 'Room Booked'
-      });
-
-      await this._load(true);
-
-      if (result?.id) {
-        setTimeout(() => this.openMeeting(result.id), 300);
-      }
+        if (result?.id) {
+            setTimeout(() => this.openMeeting(result.id), 300);
+        }
     } catch (err) {
-      console.error('Room booking failed:', err);
-
-      let errorMsg = 'Failed to book room. It may no longer be available.';
-      if (err.data && err.data.message) {
-        errorMsg = err.data.message;
-      }
-
-      this.notification.add(errorMsg, {
-        type: 'danger',
-        title: 'Booking Failed'
-      });
+        console.error('Room booking failed:', err);
+        let errorMsg = 'Failed to book room. It may no longer be available.';
+        if (err.data && err.data.message) {
+            errorMsg = err.data.message;
+        }
+        this.notification.add(errorMsg, {
+            type: 'danger',
+            title: 'Booking Failed'
+        });
     }
   }
 
@@ -574,8 +584,8 @@ export class MeetingsHome extends Component {
     const month = date.getMonth();
 
     this.state.calendarMonth = date.toLocaleDateString('en-US', {
-      month: 'long',
-      year: 'numeric'
+        month: 'long',
+        year: 'numeric'
     });
 
     const firstDay = new Date(year, month, 1);
@@ -592,55 +602,83 @@ export class MeetingsHome extends Component {
 
     // Previous month days
     for (let i = firstDayOfWeek - 1; i >= 0; i--) {
-      const day = prevLastDate - i;
-      const dayDate = new Date(year, month - 1, day);
-      days.push({
-        day,
-        date: dayDate.toISOString().split('T')[0],
-        isOtherMonth: true,
-        isToday: false,
-        hasEvents: false,
-        eventCount: 0
-      });
+        const day = prevLastDate - i;
+        const dayDate = new Date(year, month - 1, day);
+        dayDate.setHours(0, 0, 0, 0);
+
+        // FIXED: Format date manually to avoid timezone conversion
+        const dateYear = dayDate.getFullYear();
+        const dateMonth = String(dayDate.getMonth() + 1).padStart(2, '0');
+        const dateDay = String(dayDate.getDate()).padStart(2, '0');
+        const dateString = `${dateYear}-${dateMonth}-${dateDay}`;
+
+        days.push({
+            day,
+            date: dateString,
+            isOtherMonth: true,
+            isToday: false,
+            hasEvents: false,
+            eventCount: 0
+        });
     }
 
     // Current month days
     for (let day = 1; day <= lastDateOfMonth; day++) {
-      const dayDate = new Date(year, month, day);
-      dayDate.setHours(0, 0, 0, 0);
-      const isToday = dayDate.getTime() === today.getTime();
+        const dayDate = new Date(year, month, day);
+        dayDate.setHours(0, 0, 0, 0);
+        const isToday = dayDate.getTime() === today.getTime();
 
-      // Count events for this day
-      const eventCount = this.state.upcoming.filter(m => {
-        if (!m.planned_start_datetime) return false;
-        const mDate = new Date(m.planned_start_datetime);
-        return mDate.getFullYear() === year &&
-               mDate.getMonth() === month &&
-               mDate.getDate() === day;
-      }).length;
+        // FIXED: Format date manually to avoid timezone conversion
+        const dateYear = dayDate.getFullYear();
+        const dateMonth = String(dayDate.getMonth() + 1).padStart(2, '0');
+        const dateDay = String(dayDate.getDate()).padStart(2, '0');
+        const dateString = `${dateYear}-${dateMonth}-${dateDay}`;
 
-      days.push({
-        day,
-        date: dayDate.toISOString().split('T')[0],
-        isOtherMonth: false,
-        isToday,
-        hasEvents: eventCount > 0,
-        eventCount
-      });
+        // Count events for this day correctly - compare LOCAL dates
+        const eventCount = this.state.upcoming.filter(m => {
+            if (!m.planned_start_datetime) return false;
+
+            // Parse the meeting datetime
+            const mDate = new Date(m.planned_start_datetime);
+
+            // Create a date at midnight in LOCAL timezone for comparison
+            const meetingDay = new Date(mDate.getFullYear(), mDate.getMonth(), mDate.getDate());
+            meetingDay.setHours(0, 0, 0, 0);
+
+            // Compare timestamps
+            return meetingDay.getTime() === dayDate.getTime();
+        }).length;
+
+        days.push({
+            day,
+            date: dateString,
+            isOtherMonth: false,
+            isToday,
+            hasEvents: eventCount > 0,
+            eventCount
+        });
     }
 
     // Next month days
     const remainingDays = 42 - days.length;
     for (let day = 1; day <= remainingDays; day++) {
-      const dayDate = new Date(year, month + 1, day);
-      days.push({
-        day,
-        date: dayDate.toISOString().split('T')[0],
-        isOtherMonth: true,
-        isToday: false,
-        hasEvents: false,
-        eventCount: 0
-      });
+        const dayDate = new Date(year, month + 1, day);
+        dayDate.setHours(0, 0, 0, 0);
+
+        // FIXED: Format date manually to avoid timezone conversion
+        const dateYear = dayDate.getFullYear();
+        const dateMonth = String(dayDate.getMonth() + 1).padStart(2, '0');
+        const dateDay = String(dayDate.getDate()).padStart(2, '0');
+        const dateString = `${dateYear}-${dateMonth}-${dateDay}`;
+
+        days.push({
+            day,
+            date: dateString,
+            isOtherMonth: true,
+            isToday: false,
+            hasEvents: false,
+            eventCount: 0
+        });
     }
 
     this.state.calendarDays = days;
@@ -666,27 +704,94 @@ export class MeetingsHome extends Component {
   }
 
   selectDay(day) {
-    const selectedDate = new Date(day.date);
+    // FIXED: Parse the date correctly without timezone issues
+    // The day.date is in format "YYYY-MM-DD"
+    const [year, month, dayNum] = day.date.split('-').map(Number);
+
+    // Create date in LOCAL timezone (not UTC)
+    const selectedDate = new Date(year, month - 1, dayNum);
+    selectedDate.setHours(0, 0, 0, 0);
 
     this.state.filteredUpcoming = this.state.upcoming.filter(m => {
-      if (!m.planned_start_datetime) return false;
-      const mDate = new Date(m.planned_start_datetime);
-      return mDate.getFullYear() === selectedDate.getFullYear() &&
-             mDate.getMonth() === selectedDate.getMonth() &&
-             mDate.getDate() === selectedDate.getDate();
+        if (!m.planned_start_datetime) return false;
+
+        // Parse meeting datetime
+        const mDate = new Date(m.planned_start_datetime);
+
+        // Create comparison date in LOCAL timezone
+        const meetingDay = new Date(mDate.getFullYear(), mDate.getMonth(), mDate.getDate());
+        meetingDay.setHours(0, 0, 0, 0);
+
+        // Compare timestamps
+        return meetingDay.getTime() === selectedDate.getTime();
     });
 
     this.state.currentView = 'overview';
     this.state.currentSlide = 0;
 
-    this.notification.add(`Showing meetings for ${day.date}`, {
-      type: 'info'
+    // Format date for display
+    const displayDate = selectedDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+
+    this.notification.add(`Showing meetings for ${displayDate}`, {
+        type: 'info'
+    });
+  }
+
+  filterByKpi(type) {
+    this.state.currentView = 'overview';
+    this.state.currentSlide = 0;
+
+    const now = new Date();
+    // Create today at midnight in LOCAL timezone
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    today.setHours(0, 0, 0, 0);
+
+    if (type === 'today') {
+        this.state.filteredUpcoming = this.state.upcoming.filter(m => {
+            if (!m.planned_start_datetime) return false;
+
+            const meetingDate = new Date(m.planned_start_datetime);
+            // Create meeting day at midnight in LOCAL timezone
+            const meetingDay = new Date(meetingDate.getFullYear(), meetingDate.getMonth(), meetingDate.getDate());
+            meetingDay.setHours(0, 0, 0, 0);
+
+            return meetingDay.getTime() === today.getTime();
+        });
+    } else if (type === 'upcoming') {
+        this.state.filteredUpcoming = this.state.upcoming;
+    }
+
+    this.notification.add(`Filtered to show ${type} meetings`, {
+        type: 'info'
     });
   }
 
   renderCharts() {
     if (!this.state.chartJsLoaded || !window.Chart) {
       console.warn('Chart.js not loaded');
+      return;
+    }
+
+    // IMPROVED: Check for required DOM elements first
+    const requiredElements = [
+      'meetingsChart',
+      'durationChart',
+      'roomChart',
+      'participantChart'
+    ];
+
+    const allElementsReady = requiredElements.every(id =>
+      document.getElementById(id) !== null
+    );
+
+    if (!allElementsReady) {
+      console.warn('Chart elements not ready, retrying...');
+      setTimeout(() => this.renderCharts(), 200);
       return;
     }
 

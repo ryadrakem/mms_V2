@@ -36,11 +36,14 @@ class DwActions(models.Model):
 
     @api.model
     def create(self, vals):
-        """Auto-link to meeting if session is provided"""
+        """Auto-link to meeting if session is provided and propagate assignee"""
         if vals.get('session_id') and not vals.get('meeting_id'):
             session = self.env['dw.meeting.session'].browse(vals['session_id'])
             if session.meeting_id:
                 vals['meeting_id'] = session.meeting_id.id
+            # Propagate assignee from session user if not provided
+            if not vals.get('assignee') and session.user_id:
+                vals['assignee'] = session.user_id.id
         return super().create(vals)
 
     def write(self, vals):

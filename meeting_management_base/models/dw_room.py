@@ -45,8 +45,8 @@ class DwRoom(models.Model):
 
     @api.depends('current_reservation_id')
     def _compute_status(self):
-        """Compute room status based on current planification meetings"""
-        now = datetime.now()
+        """Compute room status based on current planification meetings - IMPROVED"""
+        now = fields.Datetime.now()
 
         for room in self:
             # Check if there's an active meeting
@@ -60,57 +60,99 @@ class DwRoom(models.Model):
             if active_meeting:
                 room.status = 'reserved'
             else:
+                # Also check for maintenance status or other conditions
                 room.status = 'free'
 
     @api.model
     def get_rooms_availability(self):
-        """Get room availability status for dashboard"""
+        """Get room availability status for dashboard - IMPROVED"""
         rooms = self.search([])
-        now = fields.Datetime.now()  # Use Odoo's timezone-aware now
+        now = fields.Datetime.now()
 
         # Get user's timezone
         user_tz = self.env.user.tz or 'UTC'
         user_timezone = timezone(user_tz)
 
         result = []
+        Meeting = self.env['dw.meeting']
+
         for room in rooms:
-            # Check current status
-            current_meeting = self.env['dw.planification.meeting'].search([
+            # Check for actual ongoing meetings
+            current_actual_meeting = Meeting.search([
                 ('room_id', '=', room.id),
-                ('planned_start_datetime', '<=', now),
-                ('planned_end_time', '>=', now),
-                ('state', 'not in', ['cancelled', 'done', 'draft'])
+                ('actual_start_datetime', '<=', now),
+                ('state', '=', 'in_progress')
             ], limit=1)
 
-            is_free = not current_meeting
+            # Check planned meetings if no actual meeting
+            if not current_actual_meeting:
+                current_meeting = self.env['dw.planification.meeting'].search([
+                    ('room_id', '=', room.id),
+                    ('planned_start_datetime', '<=', now),
+                    ('planned_end_time', '>=', now),
+                    ('state', 'not in', ['cancelled', 'done', 'draft'])
+                ], limit=1)
+            else:
+                current_meeting = None
+
+            is_free = not (current_actual_meeting or current_meeting)
 
             # Get next meeting
-            next_meeting = self.env['dw.planification.meeting'].search([
+            next_actual_meeting = Meeting.search([
                 ('room_id', '=', room.id),
-                ('planned_start_datetime', '>', now),
-                ('state', 'not in', ['cancelled', 'done'])
-            ], limit=1, order='planned_start_datetime asc')
+                ('actual_start_datetime', '>', now),
+                ('state', 'in', ['in_progress', 'planned'])
+            ], limit=1, order='actual_start_datetime asc')
 
-            # Format times in user's timezone
+            if not next_actual_meeting:
+                next_meeting = self.env['dw.planification.meeting'].search([
+                    ('room_id', '=', room.id),
+                    ('planned_start_datetime', '>', now),
+                    ('state', 'not in', ['cancelled', 'done'])
+                ], limit=1, order='planned_start_datetime asc')
+            else:
+                next_meeting = None
+
+            # Format times - FIXED FIELD NAMES
             free_until = None
             busy_until = None
             current_meeting_name = None
 
             if is_free:
-                if next_meeting and next_meeting.planned_start_datetime:
-                    # Convert UTC to user timezone
-                    utc_dt = pytz.UTC.localize(next_meeting.planned_start_datetime.replace(tzinfo=None))
-                    local_dt = utc_dt.astimezone(user_timezone)
-                    free_until = local_dt.strftime('%I:%M %p')  # e.g., "09:01 PM"
+                # Room is free - show when it will be busy
+                target_meeting = next_actual_meeting or next_meeting
+                if target_meeting:
+                    dt = (target_meeting.actual_start_datetime
+                          if hasattr(target_meeting, 'actual_start_datetime') and target_meeting.actual_start_datetime
+                          else target_meeting.planned_start_datetime)
+                    if dt:
+                        utc_dt = pytz.UTC.localize(dt)
+                        local_dt = utc_dt.astimezone(user_timezone)
+                        free_until = local_dt.strftime('%I:%M %p')
             else:
-                if current_meeting.planned_end_time:
-                    # Convert UTC to user timezone
-                    utc_dt = pytz.UTC.localize(current_meeting.planned_end_time.replace(tzinfo=None))
-                    local_dt = utc_dt.astimezone(user_timezone)
-                    busy_until = local_dt.strftime('%I:%M %p')
-                current_meeting_name = current_meeting.name or 'Occupied'
+                # Room is busy - show when it will be free
+                active_meeting = current_actual_meeting or current_meeting
+                if active_meeting:
+                    if hasattr(active_meeting, 'actual_end_datetime') and active_meeting.actual_end_datetime:
+                        dt = active_meeting.actual_end_datetime
+                    elif hasattr(active_meeting, 'planned_end_time') and active_meeting.planned_end_time:
+                        dt = active_meeting.planned_end_time
+                    elif hasattr(active_meeting, 'actual_start_datetime') and active_meeting.actual_start_datetime:
+                        # Calculate end time
+                        duration = getattr(active_meeting, 'actual_duration', None) or getattr(active_meeting,
+                                                                                               'duration', 1)
+                        dt = active_meeting.actual_start_datetime + timedelta(hours=duration)
+                    else:
+                        dt = None
 
-            # Get (equipment names)
+                    if dt:
+                        utc_dt = pytz.UTC.localize(dt)
+                        local_dt = utc_dt.astimezone(user_timezone)
+                        busy_until = local_dt.strftime('%I:%M %p')
+
+                    current_meeting_name = active_meeting.name or 'Occupied'
+
+            # Get equipment names
             amenities = [eq.name for eq in room.equipments[:3]]
 
             result.append({
@@ -118,9 +160,9 @@ class DwRoom(models.Model):
                 'name': room.name,
                 'is_free': is_free,
                 'capacity': room.capacity_number or 0,
-                'free_until': free_until,
-                'busy_until': busy_until,
-                'current_meeting': current_meeting_name,
+                'free_until': free_until,  # Only set when room is FREE
+                'busy_until': busy_until,  # Only set when room is BUSY
+                'current_meeting': current_meeting_name,  # Only set when BUSY
                 'amenities': amenities,
                 'floor': room.floor or 0,
             })

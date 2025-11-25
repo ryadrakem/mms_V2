@@ -14,6 +14,11 @@
                         string="Open Meeting"
                         type="object"
                         class="btn-primary"/>
+                <button name="action_join_meeting"
+                        string="Join Meeting"
+                        type="object"
+                        class="btn-success"
+                        invisible="state != 'in_progress'"/>
             </list>
         </field>
     </record>
@@ -282,8 +287,8 @@
                                         </p>
                                         <p style="margin:8px 0 0 0;">
                                             Powered by
-                                            <a href="https://www.odoo.com" style="color:#3498db; text-decoration:none;">
-                                                Odoo
+                                            <a href="#" style="color:#3498db; text-decoration:none;">
+                                                Smartdz
                                             </a>
                                         </p>
                                     </td>
@@ -380,7 +385,7 @@
                                 <tr>
                                     <td style="font-size:11px; color:#999; padding-top:16px; text-align:center;">
                                         Powered by
-                                        <a href="https://www.odoo.com" style="color:#555;">Odoo</a>
+                                        <a href="" style="color:#555;">Smartdz</a>
                                     </td>
                                 </tr>
                             </tbody>
