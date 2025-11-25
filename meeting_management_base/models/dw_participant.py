@@ -31,6 +31,13 @@ class DwParticipant(models.Model):
     is_host = fields.Boolean(string="Host", compute='_compute_is_host', store=True, readonly=True)
     is_pv = fields.Boolean(string="Rédacteur PV", store=True, readonly=False)
     user_id = fields.Many2one('res.users', string='User', compute='_compute_user_id', store=True, readonly=True)
+    attendance_status = fields.Selection([
+        ('default', 'Awaiting'),
+        ('late', 'Late'),
+        ('present', 'Present'),
+        ('absent', 'absent'),
+        ('excused', 'Excused'),
+    ], string='Attendance', default='default')
 
     @api.depends('role_id')
     def _compute_is_host(self):

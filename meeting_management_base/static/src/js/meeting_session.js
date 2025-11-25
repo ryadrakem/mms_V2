@@ -1038,13 +1038,27 @@ Document généré le ${new Date().toLocaleString('fr-FR')}
       const [h, m, s] = durationStr.split(":").map(Number);
       const durationHours = h + m/60 + s/3600;
 
-      // 1. Update session state to 'done'
-      await this.orm.write("dw.meeting.session", [this.sessionId], {
-        state: "done",
-        is_connected: false,
-        actual_end_datetime: this.formatOdooDatetimeUTC(new Date()),
-        actual_duration: durationHours,
-      });
+//      // 1. Update session state to 'done'
+//      await this.orm.write("dw.meeting.session", [this.sessionId], {
+//        state: "done",
+//        is_connected: false,
+//        actual_end_datetime: this.formatOdooDatetimeUTC(new Date()),
+//        actual_duration: durationHours,
+//      });
+        // 1. Get all session IDs for this planification
+        const sessionIds = await this.orm.search("dw.meeting.session", [
+            ["planification_id", "=", this.planificationId]
+        ]);
+
+        // 2. Write to all found sessions
+        if (sessionIds.length > 0) {
+            await this.orm.write("dw.meeting.session", sessionIds, {
+                state: "done",
+                is_connected: false,
+                actual_end_datetime: this.formatOdooDatetimeUTC(new Date()),
+                actual_duration: durationHours,
+            });
+        }
 
       // 2. Update planification state to 'done'
       if (this.planificationId) {

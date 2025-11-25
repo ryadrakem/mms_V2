@@ -5,7 +5,7 @@
         <field name="name">dw.meeting.view.list</field>
         <field name="model">dw.meeting</field>
         <field name="arch" type="xml">
-            <list duplicate="false" create="false" delete="false" edit="false">
+            <list duplicate="false" create="false" delete="true" edit="false">
                 <field name="name"/>
                 <field name="objet"/>
                 <field name="planned_start_datetime"/>
@@ -402,7 +402,7 @@
         <field name="name">dw.meeting.view.form</field>
         <field name="model">dw.meeting</field>
         <field name="arch" type="xml">
-            <form string="Meeting" duplicate="false" create="false" delete="false" edit="false">
+            <form string="Meeting" duplicate="false" create="false" delete="true" edit="false">
                 <!-- Header avec statusbar et boutons -->
                 <header>
                     <field name="state" widget="statusbar" statusbar_visible="in_progress,done,cancelled"/>
