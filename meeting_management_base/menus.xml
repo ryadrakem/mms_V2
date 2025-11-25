@@ -1,88 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <smartdz>
-    <!-- Menu principal -->
+    <!-- ========================================== -->
+    <!-- MAIN MENU -->
+    <!-- ========================================== -->
     <menuitem id="menu_meeting_management"
               name="Meeting Management"
-              sequence="1"
-    />
+              sequence="1"/>
 
-    <!-- Menu Master Data -->
-    <menuitem id="menu_meeting_settings"
-              name="Settings"
+    <!-- ========================================== -->
+    <!-- DASHBOARD & HOME -->
+    <!-- ========================================== -->
+
+    <!-- Analytics Dashboard -->
+    <record id="action_dw_meeting_home" model="ir.actions.client">
+        <field name="name">Meetings Dashboard</field>
+        <field name="tag">dw_meeting.home</field>
+        <field name="target">current</field>
+    </record>
+
+    <menuitem id="menu_dw_meeting_dashboard"
+              name="Dashboard"
               parent="menu_meeting_management"
-              sequence="200"/>
+              action="action_dw_meeting_home"
+              sequence="1"/>
 
-    <menuitem id="menu_meeting_types"
-              name="Meeting Types"
-              parent="menu_meeting_settings"
-              action="dw_meeting_type_action"/>
-
-    <menuitem id="menu_reservations"
-              name="Reservations"
-              parent="menu_meeting_settings"
-              action="dw_reservations_action"/>
-
-    <menuitem id="menu_locations"
-              name="Locations"
-              parent="menu_meeting_settings"
-              action="dw_location_action"/>
-
-    <menuitem id="menu_rooms"
-              name="Rooms"
-              parent="menu_meeting_settings"
-              action="dw_room_action"/>
-
-    <menuitem id="menu_equipments"
-              name="Equipments"
-              parent="menu_meeting_settings"
-              action="dw_equipment_action"/>
-
-    <menuitem id="menu_equipment_types"
-              name="Equipment Types"
-              parent="menu_meeting_settings"
-              action="dw_equipment_type_action"/>
-
-    <menuitem id="menu_participant_roles"
-              name="Participant Roles"
-              parent="menu_meeting_settings"
-              action="dw_participant_role_action"/>
-
-    <!--  Meetings -->
-    <menuitem id="menu_planification_meetings"
-              name="Planification Meetings"
-              parent="menu_meeting_management"
-              action="dw_planification_meeting_action"
-              sequence="9"/>
-
-    <menuitem id="menu_actual_meetings"
-              name="Meetings"
-              parent="menu_meeting_management"
-              action="dw_meeting_action"
-              sequence="10"
-    />
-
-        <menuitem id="menu_dw_meeting_session"
-                  name="Meeting Sessions"
-                  parent="menu_meeting_management"
-                  action="dw_meeting_session_action"
-                  sequence="40"/>
-
-    <!--    <menuitem id="menu_participants"-->
-    <!--              name="Participants"-->
-    <!--              parent="menu_meeting_settings"-->
-    <!--              action="dw_participant_action"-->
-    <!--    />-->
-
-    <menuitem id="menu_actions"
-              name="Actions"
-              parent="menu_meeting_management"
-              action="dw_actions_action"/>
-
-    <menuitem id="menu_requirements"
-              name="Requirements"
-              parent="menu_meeting_management"
-              action="dw_requirements_action"/>
-
+    <!-- Home Page Dashboard -->
     <record id="action_meeting_home_dashboard" model="ir.actions.client">
         <field name="name">Meeting Home Dashboard</field>
         <field name="tag">meeting_management_base.meeting_home_dashboard_action</field>
@@ -94,23 +36,179 @@
               action="action_meeting_home_dashboard"
               sequence="2"/>
 
-    <record id="action_dw_meeting_home" model="ir.actions.client">
-        <field name="name">Meetings Home</field>
-        <field name="tag">dw_meeting.home</field>
-        <field name="target">current</field>
-    </record>
-    <!--    analytics dashboard-->
-    <menuitem id="menu_dw_meeting_dashboard" name="Dashboard" parent="menu_meeting_management"
-              action="action_dw_meeting_home" sequence="1"/>
+    <!-- ========================================== -->
+    <!-- MEETINGS SECTION -->
+    <!-- ========================================== -->
 
-<!--    <menuitem id="menu_calendar_all_meetings"-->
-<!--              name="Calendar View"-->
+    <menuitem id="menu_planification_meetings"
+              name="Planification Meetings"
+              parent="menu_meeting_management"
+              action="dw_planification_meeting_action"
+              sequence="9"/>
+
+    <menuitem id="menu_actual_meetings"
+              name="Meetings"
+              parent="menu_meeting_management"
+              action="dw_meeting_action"
+              sequence="10"/>
+
+<!--    <menuitem id="menu_dw_meeting_session"-->
+<!--              name="Meeting Sessions"-->
 <!--              parent="menu_meeting_management"-->
-<!--              action="action_calendar_all_meetings"-->
-<!--              sequence="5"/>-->
+<!--              action="dw_meeting_session_action"-->
+<!--              sequence="40"/>-->
+
     <menuitem id="menu_meeting_summary"
               name="Meeting Summaries"
               parent="menu_meeting_management"
               action="action_meeting_summary"
               sequence="50"/>
+
+    <!-- ========================================== -->
+    <!-- ACTIONS & REQUIREMENTS -->
+    <!-- ========================================== -->
+
+    <menuitem id="menu_actions"
+              name="Actions"
+              parent="menu_meeting_management"
+              action="dw_actions_action"
+              sequence="60"/>
+
+<!--    <menuitem id="menu_requirements"-->
+<!--              name="Requirements"-->
+<!--              parent="menu_meeting_management"-->
+<!--              action="dw_requirements_action"-->
+<!--              sequence="70"/>-->
+
+    <!-- ========================================== -->
+    <!-- PEOPLE & CONTACTS -->
+    <!-- ========================================== -->
+
+    <menuitem id="menu_people"
+              name="Employees &amp; Contacts"
+              parent="menu_meeting_management"
+              sequence="100"/>
+
+    <!-- Contacts submenu -->
+    <menuitem id="menu_contacts_submenu"
+              name="Contacts"
+              parent="menu_people"
+              action="contacts.action_contacts"
+              sequence="10"/>
+
+    <!-- Employees submenu -->
+    <menuitem id="menu_employees_submenu"
+              name="Employees"
+              parent="menu_people"
+              action="hr.open_view_employee_list_my"
+              sequence="20"/>
+
+    <!-- Departments submenu -->
+    <menuitem id="menu_departments_submenu"
+              name="Departments"
+              parent="menu_people"
+              action="hr.hr_department_kanban_action"
+              sequence="30"/>
+
+    <!-- Job Positions submenu -->
+    <menuitem id="menu_job_positions_submenu"
+              name="Job Positions"
+              parent="menu_people"
+              action="hr.action_hr_job"
+              sequence="40"/>
+
+    <!-- ========================================== -->
+    <!-- CONFIGURATION -->
+    <!-- ========================================== -->
+
+    <menuitem id="menu_meeting_settings"
+              name="Configuration"
+              parent="menu_meeting_management"
+              sequence="200"/>
+
+    <!-- Settings Submenu -->
+    <menuitem id="menu_meeting_general_settings"
+              name="Settings"
+              parent="menu_meeting_settings"
+              action="base.res_config_setting_act_window"
+              sequence="5"/>
+
+    <!-- Meeting Settings Submenu -->
+    <menuitem id="menu_meeting_config"
+              name="Meeting Settings"
+              parent="menu_meeting_settings"
+              sequence="10"/>
+
+    <menuitem id="menu_meeting_types"
+              name="Meeting Types"
+              parent="menu_meeting_config"
+              action="dw_meeting_type_action"
+              sequence="10"/>
+
+    <menuitem id="menu_participant_roles"
+              name="Participant Roles"
+              parent="menu_meeting_config"
+              action="dw_participant_role_action"
+              sequence="20"/>
+
+    <!-- Resources Submenu -->
+    <menuitem id="menu_resources_config"
+              name="Resources"
+              parent="menu_meeting_settings"
+              sequence="20"/>
+
+    <menuitem id="menu_locations"
+              name="Locations"
+              parent="menu_resources_config"
+              action="dw_location_action"
+              sequence="10"/>
+
+    <menuitem id="menu_rooms"
+              name="Rooms"
+              parent="menu_resources_config"
+              action="dw_room_action"
+              sequence="20"/>
+
+    <menuitem id="menu_equipments"
+              name="Equipments"
+              parent="menu_resources_config"
+              action="dw_equipment_action"
+              sequence="30"/>
+
+    <menuitem id="menu_equipment_types"
+              name="Equipment Types"
+              parent="menu_resources_config"
+              action="dw_equipment_type_action"
+              sequence="40"/>
+
+    <menuitem id="menu_reservations"
+              name="Reservations"
+              parent="menu_resources_config"
+              action="dw_reservations_action"
+              sequence="50"/>
+
+    <!-- ========================================== -->
+    <!-- HIDE UNNECESSARY MENUS -->
+    <!-- ========================================== -->
+
+    <!-- Hide Calendar menu -->
+    <record id="calendar.mail_menu_calendar" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+
+    <!-- Hide Discuss menu -->
+    <record id="mail.menu_root_discuss" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+
+    <!-- Hide default Contacts menu (we have our own) -->
+    <record id="contacts.menu_contacts" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+
+    <!-- Hide default HR menu (we have our own submenus) -->
+    <record id="hr.menu_hr_root" model="ir.ui.menu">
+        <field name="active" eval="False"/>
+    </record>
+
 </smartdz>

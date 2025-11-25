@@ -48,65 +48,131 @@
             <!-- Main Menu Sections -->
             <section class="dashboard-menus">
                 <div class="menu-grid">
-                    <div class="menu-card"
-                         t-on-click="() => this.openMenuAction('meeting_management_base.dw_meeting_action')">
-                        <i class="fa fa-users"></i>
-                        <h3>Meetings</h3>
-                        <p>Manage your ongoing meetings.</p>
-                    </div>
-
-                    <div class="menu-card"
-                         t-on-click="() => this.openMenuAction('meeting_management_base.dw_planification_meeting_action')">
-                        <i class="fa fa-calendar"></i>
-                        <h3>Planning</h3>
-                        <p>Organize upcoming meetings.</p>
-                    </div>
-
-                    <div class="menu-card"
-                         t-on-click="() => this.openMenuAction('meeting_management_base.dw_actions_action')">
-                        <i class="fa fa-clipboard"></i>
-                        <h3>Actions</h3>
-                        <p>Track tasks associated with meetings.</p>
-                    </div>
-
+                    <!-- Dashboard -->
                     <div class="menu-card"
                          t-on-click="() => this.openMenuAction('meeting_management_base.action_dw_meeting_home')">
                         <i class="fa fa-line-chart"></i>
                         <h3>Dashboard</h3>
-                        <p>View statistics and analytics.</p>
+                        <p>View statistics and analytics</p>
                     </div>
 
-                    <!-- Settings Card -->
+                    <!-- Planification Meetings -->
+                    <div class="menu-card"
+                         t-on-click="() => this.openMenuAction('meeting_management_base.dw_planification_meeting_action')">
+                        <i class="fa fa-calendar-plus-o"></i>
+                        <h3>Planification Meetings</h3>
+                        <p>Schedule and plan upcoming meetings</p>
+                    </div>
+
+                    <!-- Meetings -->
+                    <div class="menu-card"
+                         t-on-click="() => this.openMenuAction('meeting_management_base.dw_meeting_action')">
+                        <i class="fa fa-users"></i>
+                        <h3>Meetings</h3>
+                        <p>Manage your ongoing meetings</p>
+                    </div>
+
+<!--                    &lt;!&ndash; Meeting Sessions &ndash;&gt;-->
+<!--                    <div class="menu-card"-->
+<!--                         t-on-click="() => this.openMenuAction('meeting_management_base.dw_meeting_session_action')">-->
+<!--                        <i class="fa fa-video-camera"></i>-->
+<!--                        <h3>Meeting Sessions</h3>-->
+<!--                        <p>View and manage meeting sessions</p>-->
+<!--                    </div>-->
+
+                    <!-- Meeting Summaries -->
+                    <div class="menu-card"
+                         t-on-click="() => this.openMenuAction('meeting_management_base.action_meeting_summary')">
+                        <i class="fa fa-file-text-o"></i>
+                        <h3>Meeting Summaries</h3>
+                        <p>Review meeting summaries and reports</p>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="menu-card"
+                         t-on-click="() => this.openMenuAction('meeting_management_base.dw_actions_action')">
+                        <i class="fa fa-clipboard"></i>
+                        <h3>Actions</h3>
+                        <p>Track tasks from meetings</p>
+                    </div>
+
+<!--                    &lt;!&ndash; Requirements &ndash;&gt;-->
+<!--                    <div class="menu-card"-->
+<!--                         t-on-click="() => this.openMenuAction('meeting_management_base.dw_requirements_action')">-->
+<!--                        <i class="fa fa-check-square-o"></i>-->
+<!--                        <h3>Requirements</h3>-->
+<!--                        <p>Manage meeting requirements</p>-->
+<!--                    </div>-->
+
+                    <!-- Employees & Contacts -->
+                    <div class="menu-card people-card">
+                        <i class="fa fa-address-book"></i>
+                        <h3>Employees &amp; Contacts</h3>
+                        <p>Manage people and organizations</p>
+                        <!-- Dropdown Menu -->
+                        <div class="people-dropdown">
+                            <div class="dropdown-item"
+                                 t-on-click="(ev) => this.openMenuAction('contacts.action_contacts', ev)">
+                                <span>Contacts</span>
+                            </div>
+                            <div class="dropdown-item"
+                                 t-on-click="(ev) => this.openMenuAction('hr.open_view_employee_list_my', ev)">
+                                <span>Employees</span>
+                            </div>
+                            <div class="dropdown-item"
+                                 t-on-click="(ev) => this.openMenuAction('hr.hr_department_kanban_action', ev)">
+                                <span>Departments</span>
+                            </div>
+                            <div class="dropdown-item"
+                                 t-on-click="(ev) => this.openMenuAction('hr.action_hr_job', ev)">
+                                <span>Job Positions</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configuration -->
                     <div class="menu-card settings-card">
-                        <i class="fa fa-gears"></i>
-                        <h3>Settings</h3>
-                        <p>System configuration</p>
+                        <i class="fa fa-cogs"></i>
+                        <h3>Configuration</h3>
+                        <p>System settings and resources</p>
                         <!-- Dropdown Menu -->
                         <div class="settings-dropdown">
+                            <!-- General Settings -->
+                            <div class="dropdown-item"
+                                 t-on-click="(ev) => this.openMenuAction('base.res_config_setting_act_window', ev)">
+                                <span>General Settings</span>
+                            </div>
+                            <!-- Meeting Types -->
                             <div class="dropdown-item"
                                  t-on-click="(ev) => this.openMenuAction('meeting_management_base.dw_meeting_type_action', ev)">
                                 <span>Meeting Types</span>
                             </div>
-                            <div class="dropdown-item"
-                                 t-on-click="(ev) => this.openMenuAction('meeting_management_base.dw_location_action', ev)">
-                                <span>Locations</span>
-                            </div>
-                            <div class="dropdown-item"
-                                 t-on-click="(ev) => this.openMenuAction('meeting_management_base.dw_room_action', ev)">
-                                <span>Rooms</span>
-                            </div>
-                            <div class="dropdown-item"
-                                 t-on-click="(ev) => this.openMenuAction('meeting_management_base.dw_equipment_action', ev)">
-                                <span>Equipments</span>
-                            </div>
-                            <div class="dropdown-item"
-                                 t-on-click="(ev) => this.openMenuAction('meeting_management_base.dw_equipment_type_action', ev)">
-                                <span>Equipment Types</span>
-                            </div>
+                            <!-- Participant Roles -->
                             <div class="dropdown-item"
                                  t-on-click="(ev) => this.openMenuAction('meeting_management_base.dw_participant_role_action', ev)">
                                 <span>Participant Roles</span>
                             </div>
+                            <!-- Locations -->
+                            <div class="dropdown-item"
+                                 t-on-click="(ev) => this.openMenuAction('meeting_management_base.dw_location_action', ev)">
+                                <span>Locations</span>
+                            </div>
+                            <!-- Rooms -->
+                            <div class="dropdown-item"
+                                 t-on-click="(ev) => this.openMenuAction('meeting_management_base.dw_room_action', ev)">
+                                <span>Rooms</span>
+                            </div>
+                            <!-- Equipments -->
+                            <div class="dropdown-item"
+                                 t-on-click="(ev) => this.openMenuAction('meeting_management_base.dw_equipment_action', ev)">
+                                <span>Equipments</span>
+                            </div>
+                            <!-- Equipment Types -->
+                            <div class="dropdown-item"
+                                 t-on-click="(ev) => this.openMenuAction('meeting_management_base.dw_equipment_type_action', ev)">
+                                <span>Equipment Types</span>
+                            </div>
+                            <!-- Reservations -->
                             <div class="dropdown-item"
                                  t-on-click="(ev) => this.openMenuAction('meeting_management_base.dw_reservations_action', ev)">
                                 <span>Reservations</span>

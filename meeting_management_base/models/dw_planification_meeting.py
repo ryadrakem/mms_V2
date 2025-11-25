@@ -87,6 +87,12 @@ class DwPlanificationMeeting(models.Model):
             if record.planned_start_datetime and record.planned_start_datetime < fields.Datetime.now():
                 raise ValidationError(_("You cannot set a reservation date in the past."))
 
+    @api.onchange('location_id')
+    def _onchange_location_clear_room(self):
+        """Clear room field when location changes"""
+        if self.room_id:
+            self.room_id = False
+
     @api.onchange('is_off_site')
     def _onchange_location_id(self):
         for rec in self:
@@ -318,8 +324,7 @@ class DwPlanificationMeeting(models.Model):
         #         'target': 'current',
         #     }
 
-
-    #TODO: claude solution !!!
+    # TODO: claude solution !!!
     # def action_join(self):
     #     self.ensure_one()
     #
@@ -564,7 +569,6 @@ class DwPlanificationMeeting(models.Model):
                     'Cannot delete planification "%s" in state "%s". '
                 ) % (record.name, record.state))
 
-
             # Delete associated calendar event if exists
             if record.calendar_event_id:
                 record.calendar_event_id.unlink()
@@ -694,21 +698,6 @@ class DwPlanificationMeeting(models.Model):
             partner_ids.append(self.env.user.partner_id.id)
 
         return partner_ids
-
-    def action_view_calendar_event(self):
-        """Action pour ouvrir l'événement calendrier"""
-        self.ensure_one()
-        if not self.calendar_event_id:
-            raise ValidationError(_("No calendar event linked to this meeting."))
-
-        return {
-            'name': _('Calendar Event'),
-            'type': 'ir.actions.act_window',
-            'res_model': 'calendar.event',
-            'res_id': self.calendar_event_id.id,
-            'view_mode': 'form',
-            'target': 'current',
-        }
 
     def action_done(self):
         for rec in self:

@@ -8,7 +8,8 @@
             <field name="inherit_id" ref="base.res_config_settings_view_form" />
             <field name="arch" type="xml">
                 <xpath expr="//form" position="inside">
-                    <app data-string="Jitsi" string="Jitsi" name="jitsi">
+                    <app data-string="Jitsi" string="Jitsi" name="jitsi"
+                         logo="/meeting_management_base/static/src/img/jitsi.png">
                         <block title="Jitsi as a Service (JaaS) - 8x8">
                             <!-- Jitsi Domain -->
                             <setting string="Jitsi Domain" help="Jitsi server domain (8x8.vc for JaaS)">
@@ -43,7 +44,8 @@
                     </app>
                 </xpath>
                 <xpath expr="//form" position="inside">
-                    <app data-string="Meeting AI" string="Meeting AI" name="meeting_ai">
+                    <app data-string="Meeting AI" string="Meeting AI" name="meeting_ai"
+                         logo="/meeting_management_base/static/src/img/ai.png">
                         <block title="AI-Powered Meeting Summaries (100% FREE Options)">
 
                             <!-- AI Provider Selection -->

@@ -90,7 +90,6 @@ class DwParticipant(models.Model):
             rec.employee_id = {}
             rec.partner_id = {}
 
-
     @api.onchange('partner_id', 'employee_id')
     @api.depends('partner_id', 'employee_id')
     def _compute_name(self):
@@ -103,3 +102,11 @@ class DwParticipant(models.Model):
                 rec.name = rec.partner_id.name
             else:
                 rec.name = False
+
+    @api.constrains('role_id', 'is_pv', 'user_id')
+    def _check_user_required_for_roles(self):
+        if not record.user_id:
+            if record.role_id and record.role_id.name == 'host':
+                raise ValidationError('Cannot be host without user account')
+            if record.is_pv:
+                raise ValidationError('Cannot be PV writer without user account')
