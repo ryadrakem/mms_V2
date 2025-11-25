@@ -123,33 +123,60 @@ class DwPlanificationMeeting(models.Model):
 
     @api.constrains('planned_start_datetime', 'planned_end_time', 'room_id', 'equipment_ids')
     def _check_availability(self):
+        """Check availability considering actual meeting times"""
         for rec in self:
             if not rec.planned_start_datetime or not rec.planned_end_time:
                 continue
 
-            # 1 Check room availability
+            # 1. Check room availability
             if rec.room_id:
-                overlapping_rooms = self.env['dw.planification.meeting'].search([
+                # PRIORITY 1: Check for actual ongoing meetings
+                overlapping_actual = self.env['dw.meeting'].search([
+                    ('room_id', '=', rec.room_id.id),
+                    ('state', '=', 'in_progress'),
+                    ('actual_start_datetime', '<', rec.planned_end_time),
+                ])
+
+                # Filter out meetings that have actually ended
+                now = fields.Datetime.now()
+                active_actual = []
+                for meeting in overlapping_actual:
+                    # Meeting is still ongoing if:
+                    # - It hasn't ended yet (actual_end_datetime is False), OR
+                    # - It ended after our planned start time
+                    if not meeting.actual_end_datetime or meeting.actual_end_datetime > rec.planned_start_datetime:
+                        active_actual.append(meeting)
+
+                if active_actual:
+                    raise ValidationError(
+                        f"La salle '{rec.room_id.name}' est actuellement occupée par une réunion en cours: {active_actual[0].name}"
+                    )
+
+                # PRIORITY 2: Check for other planned meetings
+                overlapping_planned = self.search([
                     ('id', '!=', rec.id),
                     ('room_id', '=', rec.room_id.id),
-                    ('state', '=', 'planned'),
+                    ('state', 'in', ['planned', 'confirmed']),
                     ('planned_start_datetime', '<', rec.planned_end_time),
                     ('planned_end_time', '>', rec.planned_start_datetime),
+                    ('meeting_id', '=', False),  # Not yet converted to actual
                 ])
-                if overlapping_rooms:
+
+                if overlapping_planned:
                     raise ValidationError(
                         f"La salle '{rec.room_id.name}' est déjà réservée pour cet intervalle de temps."
                     )
 
-            # 2 Check equipment availability
+            # 2. Check equipment availability (similar logic)
             for equipment in rec.equipment_ids:
-                overlapping_equipments = self.env['dw.planification.meeting'].search([
+                overlapping_equipments = self.search([
                     ('id', '!=', rec.id),
                     ('equipment_ids', 'in', equipment.id),
-                    ('state', '=', 'planned'),
+                    ('state', 'in', ['planned', 'confirmed']),
                     ('planned_start_datetime', '<', rec.planned_end_time),
                     ('planned_end_time', '>', rec.planned_start_datetime),
                 ])
+
                 if overlapping_equipments:
                     raise ValidationError(
                         f"L'équipement '{equipment.name}' est déjà réservé pour cet intervalle de temps."
