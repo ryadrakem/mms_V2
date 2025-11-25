@@ -57,7 +57,7 @@ class DwPlanificationMeeting(models.Model):
         compute='_compute_has_remote_participants',
         store=True
     )
-
+    is_send_email = fields.Boolean(string='Send Email Invitations', default=True)
     state = fields.Selection([
         ('draft', 'Draft'),
         ('confirmed', 'Confirmed'),
@@ -213,54 +213,56 @@ class DwPlanificationMeeting(models.Model):
                 if not participant.access_token:
                     participant._generate_access_token()
 
-            # Get the secure email template
-            template = self.env.ref('meeting_management_base.email_template_meeting_invitation_secure',
-                                    raise_if_not_found=False)
+            is_send_email = rec.is_send_email
+            if is_send_email:
+                # Get the secure email template
+                template = self.env.ref('meeting_management_base.email_template_meeting_invitation_secure',
+                                        raise_if_not_found=False)
 
-            if template:
-                # Send individual email to each participant
-                for participant in rec.participant_ids:
-                    participant_email = None
-                    if participant.partner_id and participant.partner_id.email:
-                        participant_email = participant.partner_id.email
-                    elif participant.employee_id and participant.employee_id.work_email:
-                        participant_email = participant.employee_id.work_email
+                if template:
+                    # Send individual email to each participant
+                    for participant in rec.participant_ids:
+                        participant_email = None
+                        if participant.partner_id and participant.partner_id.email:
+                            participant_email = participant.partner_id.email
+                        elif participant.employee_id and participant.employee_id.work_email:
+                            participant_email = participant.employee_id.work_email
 
-                    if participant_email:
-                        try:
-                            template.send_mail(
-                                participant.id,  # Send to participant record
-                                force_send=True,
-                                email_values={
-                                    'email_to': participant_email,
-                                    'recipient_ids': []  # Clear default recipients
-                                }
-                            )
-                            _logger.info(f"Invitation sent to {participant.name} ({participant_email})")
-                        except Exception as e:
-                            _logger.error(f"Failed to send invitation to {participant.name}: {str(e)}")
-                    else:
-                        _logger.warning(f"No email address found for participant {participant.name}")
-            else:
-                _logger.warning("Email template 'email_template_meeting_invitation_secure' not found!")
+                        if participant_email:
+                            try:
+                                template.send_mail(
+                                    participant.id,  # Send to participant record
+                                    force_send=True,
+                                    email_values={
+                                        'email_to': participant_email,
+                                        'recipient_ids': []  # Clear default recipients
+                                    }
+                                )
+                                _logger.info(f"Invitation sent to {participant.name} ({participant_email})")
+                            except Exception as e:
+                                _logger.error(f"Failed to send invitation to {participant.name}: {str(e)}")
+                        else:
+                            _logger.warning(f"No email address found for participant {participant.name}")
+                else:
+                    _logger.warning("Email template 'email_template_meeting_invitation_secure' not found!")
 
-                # 'name': rec.name,
-                # 'objet': rec.objet,
-                # 'is_external': rec.is_external,
-                # 'meeting_type_id': rec.meeting_type_id.id,
-                # 'client_ids': [(6, 0, rec.client_ids.ids)],
-                # 'room_id': rec.room_id.id if rec.room_id else False,
-                # 'planned_start_datetime': rec.planned_start_datetime,
-                # 'end_datetime': rec.planned_end_time if hasattr(rec, 'planned_end_time') else False,
-                # 'duration': rec.duration,
-                # 'state': 'in_progress',
-                # 'location_id': rec.location_id.id if rec.location_id else False,
-                # 'agenda': rec.subject_order if hasattr(rec, 'subject_order') else False,
-                # 'form_planification': True,
-                # 'planification_id': rec.id,
-                # 'jitsi_room_id': f"meeting-room-{rec.id}-{rec.env.cr.dbname}",
-                # 'actual_start_time': fields.Datetime.now(),
-                # 'use_the_chat_room': rec.is_off_site,
+                    # 'name': rec.name,
+                    # 'objet': rec.objet,
+                    # 'is_external': rec.is_external,
+                    # 'meeting_type_id': rec.meeting_type_id.id,
+                    # 'client_ids': [(6, 0, rec.client_ids.ids)],
+                    # 'room_id': rec.room_id.id if rec.room_id else False,
+                    # 'planned_start_datetime': rec.planned_start_datetime,
+                    # 'end_datetime': rec.planned_end_time if hasattr(rec, 'planned_end_time') else False,
+                    # 'duration': rec.duration,
+                    # 'state': 'in_progress',
+                    # 'location_id': rec.location_id.id if rec.location_id else False,
+                    # 'agenda': rec.subject_order if hasattr(rec, 'subject_order') else False,
+                    # 'form_planification': True,
+                    # 'planification_id': rec.id,
+                    # 'jitsi_room_id': f"meeting-room-{rec.id}-{rec.env.cr.dbname}",
+                    # 'actual_start_time': fields.Datetime.now(),
+                    # 'use_the_chat_room': rec.is_off_site,
 
     def create_meeting_and_sessions(self):
         self.ensure_one()
@@ -332,6 +334,7 @@ class DwPlanificationMeeting(models.Model):
         if reservations:
             reservations.unlink()
             _logger.info(f"Deleted {len(reservations)} reservations for meeting {self.name}")
+
     # def open_meeting(self):
     #     self.ensure_one()
     #     Meeting = self.env['dw.meeting']
@@ -1051,7 +1054,6 @@ class DwPlanificationMeeting(models.Model):
             })
 
         return feed
-
 
     @api.model
     def get_analytics_data(self):

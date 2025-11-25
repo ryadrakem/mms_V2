@@ -105,6 +105,7 @@
                             </group>
                             <group>
                                 <field name="has_pv" readonly="state != 'draft'"/>
+                                <field name="is_send_email" readonly="state not in ('draft','confirmed')"/>
                             </group>
                         </group>
 
