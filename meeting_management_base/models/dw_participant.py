@@ -105,8 +105,9 @@ class DwParticipant(models.Model):
 
     @api.constrains('role_id', 'is_pv', 'user_id')
     def _check_user_required_for_roles(self):
-        if not record.user_id:
-            if record.role_id and record.role_id.name == 'host':
-                raise ValidationError('Cannot be host without user account')
-            if record.is_pv:
-                raise ValidationError('Cannot be PV writer without user account')
+        for record in self:
+            if not record.user_id:
+                if record.role_id and record.role_id.name == 'host':
+                    raise ValidationError('Cannot be host without user account')
+                if record.is_pv:
+                    raise ValidationError('Cannot be PV writer without user account')

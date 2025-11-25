@@ -537,7 +537,7 @@ class DwPlanificationMeeting(models.Model):
         result = super().write(vals)
 
         # Si on passe à l'état planned ou confirmed, créer l'événement
-        if 'state' in vals and vals['state'] in ['planned', 'confirmed']:
+        if 'state' in vals and vals['state'] in ['planned']:
             for record in self:
                 if record.sync_with_calendar and not record.calendar_event_id:
                     record._create_calendar_event()
