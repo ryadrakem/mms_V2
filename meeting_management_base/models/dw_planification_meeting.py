@@ -32,6 +32,9 @@ class DwPlanificationMeeting(models.Model):
     client_ids = fields.Many2many('res.partner', string='Client', domain=[('is_company', '=', True)])
     planned_start_datetime = fields.Datetime(string='Start Date & Time', required=True, tracking=True)
     actual_start_datetime = fields.Datetime(string='Actual Start Date & Time', tracking=True)
+    tolerated_late = fields.Integer(string="Tolerated Late (minutes)", help="In minutes")
+    tolerated_limit = fields.Datetime(string="Tolerated Limit", compute="_compute_tolerated_limit", store=True)
+
     planned_end_time = fields.Datetime(string='End Time', compute='_compute_end_time', store=True)
     actual_end_datetime = fields.Datetime(string='Actual End Date & Time', store=True)
     location_id = fields.Many2one('dw.location', string='Location')
@@ -63,6 +66,14 @@ class DwPlanificationMeeting(models.Model):
         ('done', 'Done'),
         ('cancelled', 'Cancelled'),
     ], string='Status', default='draft', tracking=True)
+
+    @api.depends("actual_start_datetime", "tolerated_late")
+    def _compute_tolerated_limit(self):
+        for rec in self:
+            if rec.actual_start_datetime and rec.tolerated_late is not None:
+                rec.tolerated_limit = rec.actual_start_datetime + timedelta(minutes=rec.tolerated_late)
+            else:
+                rec.tolerated_limit = False
 
     @api.depends('participant_ids', 'participant_ids.is_remote')
     def _compute_has_remote_participants(self):
@@ -453,9 +464,20 @@ class DwPlanificationMeeting(models.Model):
             if participant.user_id:
                 session = Session.search([('meeting_id', '=', meeting.id), ('participant_id', '=', participant.id),
                                           ('user_id', '=', participant.user_id.id)], limit=1)
-                # Capture current user's session
+
                 if participant.user_id.id == self.env.user.id:
                     user_session = session
+
+        if user_session and not user_session.flag_attendance:
+            now = fields.Datetime.now()
+            user_session.join_time = now
+            if self.actual_start_datetime and self.tolerated_late:
+                tolerated_limit = self.actual_start_datetime + timedelta(minutes=self.tolerated_late)
+                if now <= tolerated_limit:
+                    user_session.participant_id.attendance_status = "present"
+                else:
+                    user_session.participant_id.attendance_status = "late"
+            user_session.flag_attendance = True
 
         return {
             'type': 'ir.actions.client',

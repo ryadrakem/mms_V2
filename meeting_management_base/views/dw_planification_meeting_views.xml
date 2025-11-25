@@ -115,6 +115,7 @@
                         <group>
                             <!--                            <field name="objet" readonly="state != 'draft'"/>-->
                             <field name="planned_start_datetime" readonly="state != 'draft'"/>
+                            <field name="tolerated_late" readonly="state != 'draft'"/>
                             <field name="duration" widget="float_time" readonly="state != 'draft'"/>
                             <field name="planned_end_time"/>
                         </group>
