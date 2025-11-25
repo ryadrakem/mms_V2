@@ -5,6 +5,7 @@
     <!-- ========================================== -->
     <menuitem id="menu_meeting_management"
               name="Meeting Management"
+              web_icon="meeting_management_base,static/src/img/icon.png"
               sequence="1"/>
 
     <!-- ========================================== -->
@@ -52,11 +53,11 @@
               action="dw_meeting_action"
               sequence="10"/>
 
-<!--    <menuitem id="menu_dw_meeting_session"-->
-<!--              name="Meeting Sessions"-->
-<!--              parent="menu_meeting_management"-->
-<!--              action="dw_meeting_session_action"-->
-<!--              sequence="40"/>-->
+    <!--    <menuitem id="menu_dw_meeting_session"-->
+    <!--              name="Meeting Sessions"-->
+    <!--              parent="menu_meeting_management"-->
+    <!--              action="dw_meeting_session_action"-->
+    <!--              sequence="40"/>-->
 
     <menuitem id="menu_meeting_summary"
               name="Meeting Summaries"
@@ -74,11 +75,11 @@
               action="dw_actions_action"
               sequence="60"/>
 
-<!--    <menuitem id="menu_requirements"-->
-<!--              name="Requirements"-->
-<!--              parent="menu_meeting_management"-->
-<!--              action="dw_requirements_action"-->
-<!--              sequence="70"/>-->
+    <!--    <menuitem id="menu_requirements"-->
+    <!--              name="Requirements"-->
+    <!--              parent="menu_meeting_management"-->
+    <!--              action="dw_requirements_action"-->
+    <!--              sequence="70"/>-->
 
     <!-- ========================================== -->
     <!-- PEOPLE & CONTACTS -->

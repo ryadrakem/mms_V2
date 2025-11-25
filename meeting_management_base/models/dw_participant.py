@@ -16,6 +16,8 @@ class DwParticipant(models.Model):
     job = fields.Many2one('hr.job', string='Job Position')
     external_job = fields.Char(string='Job Position')
     partner_id = fields.Many2one('res.partner', string='Partner')
+    available_partner_ids = fields.Many2many('res.partner', compute='_compute_available_partner_ids',
+                                             string='Available Partners')
     employee_id = fields.Many2one('hr.employee', string='Partner')
     meeting_planification_id = fields.Many2one('dw.planification.meeting', string='Meeting')
     meeting_id = fields.Many2one('dw.meeting', string='Meeting')
@@ -38,6 +40,29 @@ class DwParticipant(models.Model):
         ('absent', 'absent'),
         ('excused', 'Excused'),
     ], string='Attendance', default='default')
+
+    @api.depends('is_external')
+    def _compute_available_partner_ids(self):
+        """Compute partners that are not linked to any employee"""
+        for rec in self:
+            if rec.is_external:
+                # Get all partner IDs that ARE linked to employees
+                employees = self.env['hr.employee'].search([
+                    ('user_id', '!=', False),
+                    ('user_id.partner_id', '!=', False)
+                ])
+                excluded_partner_ids = employees.mapped('user_id.partner_id.id')
+
+                # Get ALL partners EXCEPT those linked to employees
+                # This automatically includes:
+                # - Partners without user_id
+                # - Partners with user_id but no employee
+                available_partners = self.env['res.partner'].search([
+                    ('id', 'not in', excluded_partner_ids)
+                ])
+                rec.available_partner_ids = available_partners
+            else:
+                rec.available_partner_ids = self.env['res.partner'].search([])
 
     @api.depends('role_id')
     def _compute_is_host(self):

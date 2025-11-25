@@ -12,8 +12,12 @@
                 <field name="job"/>
                 <field name="role_id"/>
                 <field name="attachments"/>
-                <field name="attendance_status" decoration-warning="attendance_status == 'late'" decoration-success="attendance_status == 'present'" decoration-danger="attendance_status == 'absent'" widget="badge"/>
-                <field name="invitation_status" decoration-info="invitation_status == 'pending'" decoration-success="invitation_status == 'accepted'" decoration-danger="invitation_status == 'declined'" widget="badge"/>
+                <field name="attendance_status" decoration-warning="attendance_status == 'late'"
+                       decoration-success="attendance_status == 'present'"
+                       decoration-danger="attendance_status == 'absent'" widget="badge"/>
+                <field name="invitation_status" decoration-info="invitation_status == 'pending'"
+                       decoration-success="invitation_status == 'accepted'"
+                       decoration-danger="invitation_status == 'declined'" widget="badge"/>
             </list>
         </field>
     </record>
@@ -26,7 +30,10 @@
                 <sheet>
                     <div class="oe_title">
                         <h1>
-                            <field name="partner_id" invisible="not is_external" placeholder="select external participant"/>
+                            <field name="available_partner_ids" invisible="1"/>
+                            <field name="partner_id" invisible="not is_external"
+                                   placeholder="select external participant"
+                                   domain="[('id', 'in', available_partner_ids)]"/>
                             <field name="employee_id" invisible="is_external" placeholder="select employee"/>
                         </h1>
                     </div>
