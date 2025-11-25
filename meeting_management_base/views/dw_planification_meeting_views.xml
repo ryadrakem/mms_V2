@@ -43,8 +43,6 @@
 
                 <sheet>
                     <!-- En-tête stylé -->
-                    <widget name="web_ribbon" title="Synced with Calendar" bg_color="text-bg-success"
-                            invisible="not calendar_event_id"/>
                     <widget name="web_ribbon" title="Cancelled" bg_color="text-bg-danger"
                             invisible="state != 'cancelled'"/>
                     <div style="padding:15px; background:#f5f7fa; border-radius:10px; margin-bottom:20px;">
@@ -94,7 +92,7 @@
                         <group>
                             <group>
                                 <field name="use_the_chat_room" readonly="state != 'draft'"/>
-                                <field name="sync_with_calendar" invisible="1"/>
+                                <field name="sync_with_calendar"/>
                             </group>
                             <group>
                                 <field name="is_off_site" readonly="state != 'draft'"/>
