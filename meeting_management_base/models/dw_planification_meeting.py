@@ -148,7 +148,6 @@ class DwPlanificationMeeting(models.Model):
         for rec in self:
             rec.state = 'planned'
 
-            # Create calendar event
             if rec.sync_with_calendar and not rec.calendar_event_id:
                 rec._create_calendar_event()
 
@@ -162,7 +161,6 @@ class DwPlanificationMeeting(models.Model):
                     'meeting_plannification_id': rec.id,
                 })
 
-            # Create equipment reservations
             for equipment in rec.equipment_ids:
                 self.env['dw.reservations'].create({
                     'name': f"Équipement: {equipment.name}",
@@ -172,43 +170,42 @@ class DwPlanificationMeeting(models.Model):
                     'meeting_plannification_id': rec.id,
                 })
 
-            # Generate access tokens
+            # Generate access tokens for all participants
             for participant in rec.participant_ids:
                 if not participant.access_token:
                     participant._generate_access_token()
 
-            # Send invitation emails (only if config enabled)
-            config_param = self.env['ir.config_parameter'].sudo()
-            send_emails = config_param.get_param('meeting_management_base.send_invitation_emails', default='True')
+            # Get the secure email template
+            template = self.env.ref('meeting_management_base.email_template_meeting_invitation_secure',
+                                    raise_if_not_found=False)
 
-            if send_emails == 'True':
-                template = self.env.ref('meeting_management_base.email_template_meeting_invitation_secure',
-                                        raise_if_not_found=False)
+            if template:
+                # Send individual email to each participant
+                for participant in rec.participant_ids:
+                    participant_email = None
+                    if participant.partner_id and participant.partner_id.email:
+                        participant_email = participant.partner_id.email
+                    elif participant.employee_id and participant.employee_id.work_email:
+                        participant_email = participant.employee_id.work_email
 
-                if template:
-                    # Disable auto-follow from chatter
-                    ctx = dict(self.env.context, mail_create_nosubscribe=True, mail_auto_subscribe_no_notify=True)
+                    if participant_email:
+                        try:
+                            template.send_mail(
+                                participant.id,  # Send to participant record
+                                force_send=True,
+                                email_values={
+                                    'email_to': participant_email,
+                                    'recipient_ids': []  # Clear default recipients
+                                }
+                            )
+                            _logger.info(f"Invitation sent to {participant.name} ({participant_email})")
+                        except Exception as e:
+                            _logger.error(f"Failed to send invitation to {participant.name}: {str(e)}")
+                    else:
+                        _logger.warning(f"No email address found for participant {participant.name}")
+            else:
+                _logger.warning("Email template 'email_template_meeting_invitation_secure' not found!")
 
-                    for participant in rec.participant_ids:
-                        participant_email = None
-                        if participant.partner_id and participant.partner_id.email:
-                            participant_email = participant.partner_id.email
-                        elif participant.employee_id and participant.employee_id.work_email:
-                            participant_email = participant.employee_id.work_email
-
-                        if participant_email:
-                            try:
-                                template.with_context(ctx).send_mail(
-                                    participant.id,
-                                    force_send=True,
-                                    email_values={
-                                        'email_to': participant_email,
-                                        'recipient_ids': []
-                                    }
-                                )
-                                _logger.info(f"Invitation sent to {participant.name} ({participant_email})")
-                            except Exception as e:
-                                _logger.error(f"Failed to send invitation to {participant.name}: {str(e)}")
                 # 'name': rec.name,
                 # 'objet': rec.objet,
                 # 'is_external': rec.is_external,
