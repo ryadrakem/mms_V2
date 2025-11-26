@@ -81,6 +81,7 @@ export class MeetingSessionView extends Component {
     this.planificationId = null;
     this.meetingId = null;
     this.durationInterval = null;
+    this.statusInterval = null;
     this.startTime = null;
     this._updateTimeout = null;
     this.jitsiApi = null; // Store Jitsi API instance
@@ -134,6 +135,12 @@ export class MeetingSessionView extends Component {
         await this.initializeJitsi();
         this.startDurationTimer();
       }
+  this.statusInterval = setInterval(async () => {
+    await this.refreshParticipantStatus();
+  }, 10000); // 10 seconds
+
+  // Also call it once immediately to get initial status
+  await this.refreshParticipantStatus();
     });
 
     onWillUnmount(() => {
@@ -143,6 +150,9 @@ export class MeetingSessionView extends Component {
       }
       if (this._updateTimeout) {
         clearTimeout(this._updateTimeout);
+      }
+      if (this.statusInterval) {
+      clearInterval(this.statusInterval);
       }
     });
   }
@@ -293,7 +303,7 @@ export class MeetingSessionView extends Component {
         const participantRecords = await this.orm.read(
           'dw.participant',
           sessionData.participant_ids,
-          ['id', 'name']
+          ['id', 'name', 'attendance_status']
         );
         this.state.session.participants = participantRecords;
         this.state.session.participant_ids = participantRecords.map(p => p.id);
@@ -373,6 +383,19 @@ export class MeetingSessionView extends Component {
         type: "danger",
       });
     }
+  }
+
+
+
+  getStatusLabel(status) {
+        const labels = {
+            'present': 'Present',
+            'late': 'Late',
+            'absent': 'Absent',
+            'excused': 'Excused',
+            'default': 'Awaiting'
+        };
+        return labels[status] || 'Unknown';
   }
 
   async loadActions() {
@@ -676,6 +699,32 @@ export class MeetingSessionView extends Component {
       }
     }
   }
+
+async refreshParticipantStatus() {
+  console.log("🔄 Refreshing participant status...");
+  console.log("Participant IDs:", this.state.session.participant_ids);
+
+  if (this.state.session.participant_ids?.length > 0) {
+    try {
+      const participantRecords = await this.orm.read(
+        'dw.participant',
+        this.state.session.participant_ids,
+        ['id', 'name', 'attendance_status']
+      );
+
+      console.log("✅ Fetched participant records:", participantRecords);
+
+      // Update participants while preserving reactivity
+      this.state.session.participants = participantRecords;
+      console.log("✅ Updated state.session.participants");
+
+    } catch (error) {
+      console.error("❌ Error refreshing participant status:", error);
+    }
+  } else {
+    console.log("⚠️ No participant IDs to refresh");
+  }
+}
 
   startDurationTimer() {
     // Use robust parsing helper instead of appending 'Z'

@@ -30,6 +30,7 @@
         # security
         "security/ir.model.access.csv",
         "security/dw_meeting_rules.xml",
+        "views/email_templates.xml",
         # menus
         "menus.xml",
 

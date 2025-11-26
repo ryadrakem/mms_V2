@@ -13,12 +13,18 @@
                 <button name="open_meeting"
                         string="Open Meeting"
                         type="object"
-                        class="btn-primary"/>
+                        class="btn-primary"
+                        invisible="state != 'done'"/>
                 <button name="action_join_meeting"
                         string="Join Meeting"
                         type="object"
                         class="btn-success"
                         invisible="state != 'in_progress'"/>
+                <button name="action_join_meeting"
+                        string="Open session"
+                        type="object"
+                        class="btn-success"
+                        invisible="state != 'done'"/>
             </list>
         </field>
     </record>
@@ -167,7 +173,6 @@
             <t t-set="participant" t-value="object"/>
             <t t-set="meeting_title" t-value="meeting.name or ''"/>
             <t t-set="meeting_objet" t-value="meeting.objet or ''"/>
-            <t t-set="meeting_agenda" t-value="meeting.subject_order or ''"/>
             <t t-set="meeting_start" t-value="meeting.planned_start_datetime"/>
             <t t-set="meeting_end" t-value="meeting.planned_end_time"/>
             <t t-set="meeting_room" t-value="meeting.room_id.name if meeting.room_id else ''"/>
@@ -220,7 +225,13 @@
                                                 <td style="padding:8px 0;">
                                                     <strong style="color:#2c3e50;">📋 Agenda:</strong>
                                                     <div style="margin-top:4px; color:#555;">
-                                                        <t t-raw="meeting_agenda"/>
+                                                        <ul>
+                                                            <t t-foreach="meeting.subject_order" t-as="line">
+                                                                <li>
+                                                                    <t t-esc="line.name"/>
+                                                                </li>
+                                                            </t>
+                                                        </ul>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -302,90 +313,135 @@
         <field name="auto_delete" eval="True"/>
     </record>
 
-    <record id="email_template_meeting_invitation_5" model="mail.template">
-        <field name="name">Meeting Invitation 5</field>
-        <field name="model_id" ref="model_dw_planification_meeting"/>
-        <field name="subject">Invitation: {{ object.name }}</field>
-        <field name="description">Invitation email for scheduled meetings</field>
+    <record id="email_template_imminent_meeting_invitation_secure" model="mail.template">
+        <field name="name">Imminent Meeting Invitation</field>
+        <field name="model_id" ref="model_dw_participant"/>
+        <field name="subject">Invitation: {{ object.meeting_planification_id.name }}</field>
+        <field name="description">Secure invitation email for scheduled meetings</field>
         <field name="body_html" type="html">
-            <t t-set="meeting_title" t-value="object.name or ''"/>
-            <t t-set="meeting_objet" t-value="object.objet or ''"/>
-            <t t-set="meeting_agenda" t-value="object.subject_order or ''"/>
-            <t t-set="meeting_start" t-value="object.planned_start_datetime"/>
-            <t t-set="meeting_end" t-value="object.planned_end_time"/>
-            <t t-set="meeting_room" t-value="object.room_id.name if object.room_id else ''"/>
-            <t t-set="meeting_location" t-value="object.location_id.name if object.location_id else ''"/>
-
-            <!-- Generate token for the recipient -->
-            <t t-set="base_url" t-value="object.get_base_url()"/>
+            <t t-set="meeting" t-value="object.meeting_planification_id"/>
+            <t t-set="participant" t-value="object"/>
+            <t t-set="meeting_title" t-value="meeting.name or ''"/>
+            <t t-set="meeting_objet" t-value="meeting.objet or ''"/>
+            <t t-set="meeting_start" t-value="meeting.planned_start_datetime"/>
+            <t t-set="meeting_end" t-value="meeting.planned_end_time"/>
+            <t t-set="meeting_room" t-value="meeting.room_id.name if meeting.room_id else ''"/>
+            <t t-set="meeting_location" t-value="meeting.location_id.name if meeting.location_id else ''"/>
+            <t t-set="base_url" t-value="meeting.get_base_url()"/>
+            <t t-set="accept_url"
+               t-value="'%s/meeting/respond/%s/%s/%s/accept' % (base_url, meeting.id, participant.id, participant.access_token)"/>
+            <t t-set="decline_url"
+               t-value="'%s/meeting/respond/%s/%s/%s/decline' % (base_url, meeting.id, participant.id, participant.access_token)"/>
 
             <table border="0" cellpadding="0" cellspacing="0"
                    style="padding:16px; background-color:#f5f5f5; font-family:Verdana, Arial,sans-serif; color:#333; width:100%; border-collapse:separate;">
                 <tr>
                     <td align="center">
                         <table border="0" cellpadding="16" cellspacing="0" width="600"
-                               style="background-color:white; border-collapse:separate;">
+                               style="background-color:white; border-collapse:separate; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
                             <tbody>
                                 <!-- HEADER -->
                                 <tr>
-                                    <td style="font-size:20px; font-weight:bold; text-align:center;">
+                                    <td style="font-size:20px; font-weight:bold; text-align:center; color:#2c3e50; padding-top:24px;">
                                         <t t-esc="meeting_title"/>
                                     </td>
                                 </tr>
-                                <tr>
-                                    <td style="font-size:14px; text-align:center; color:#666;">
+                                <tr t-if="meeting_objet">
+                                    <td style="font-size:14px; text-align:center; color:#7f8c8d; padding-bottom:8px;">
                                         <t t-esc="meeting_objet"/>
+                                    </td>
+                                </tr>
+
+                                <!-- DIVIDER -->
+                                <tr>
+                                    <td style="padding:16px 0;">
+                                        <div style="height:2px; background-color:#ecf0f1;"></div>
                                     </td>
                                 </tr>
 
                                 <!-- CONTENT -->
                                 <tr>
-                                    <td style="font-size:13px; padding-top:16px;">
-                                        <p>Dear participant,</p>
-                                        <p>You are invited to the following meeting:</p>
-                                        <ul>
-                                            <li>
-                                                <strong>Agenda:</strong>
-                                                <t t-esc="meeting_agenda"/>
-                                            </li>
-                                            <li>
-                                                <strong>Date and Time:</strong>
-                                                <t t-esc="meeting_start"/>
-                                                -
-                                                <t t-esc="meeting_end"/>
-                                            </li>
-                                            <li>
-                                                <strong>Room:</strong>
-                                                <t t-esc="meeting_room"/>
-                                            </li>
-                                            <li>
-                                                <strong>Location:</strong>
-                                                <t t-esc="meeting_location"/>
-                                            </li>
-                                        </ul>
-                                        <p>Please confirm your attendance.</p>
+                                    <td style="font-size:13px; line-height:1.6; color:#34495e;">
+                                        <p style="margin-top:0;">Dear
+                                            <strong>
+                                                <t t-esc="participant.name"/>
+                                            </strong>
+                                            ,
+                                        </p>
+                                        <p>The meeting started:</p>
+
+                                        <table style="width:100%; margin:20px 0;">
+                                            <tr>
+                                                <td style="padding:8px 0;">
+                                                    <strong style="color:#2c3e50;">📋 Agenda:</strong>
+                                                    <div style="margin-top:4px; color:#555;">
+                                                        <ul>
+                                                            <t t-foreach="meeting.subject_order" t-as="line">
+                                                                <li>
+                                                                    <t t-esc="line.name"/>
+                                                                </li>
+                                                            </t>
+                                                        </ul>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr t-if="meeting_room">
+                                                <td style="padding:8px 0;">
+                                                    <strong style="color:#2c3e50;">🚪 Room:</strong>
+                                                    <span style="margin-left:8px; color:#555;">
+                                                        <t t-esc="meeting_room"/>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <tr t-if="meeting_location">
+                                                <td style="padding:8px 0;">
+                                                    <strong style="color:#2c3e50;">📍 Location:</strong>
+                                                    <span style="margin-left:8px; color:#555;">
+                                                        <t t-esc="meeting_location"/>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <p style="margin-bottom:24px;">Please confirm your attendance by clicking one of
+                                            the buttons below:
+                                        </p>
                                     </td>
                                 </tr>
 
                                 <!-- ACTION BUTTONS -->
                                 <tr>
-                                    <td style="margin: 16px 0; text-align: center;">
-                                        <a t-attf-href="#{base_url}/meeting/respond/#{object.id}/accept"
-                                           style="display:inline-block; padding:10px 20px; margin:0 5px; font-size:13px; background-color:#28a745; color:#fff; text-decoration:none; border-radius:5px;">
-                                            ✓ Accept
+                                    <td style="text-align:center; padding:20px 0;">
+                                        <a t-att-href="accept_url"
+                                           style="display:inline-block; padding:12px 32px; margin:0 8px; font-size:14px; font-weight:bold; background-color:#27ae60; color:#ffffff; text-decoration:none; border-radius:5px; box-shadow:0 2px 4px rgba(0,0,0,0.2);">
+                                            ✓ Accept Invitation
                                         </a>
-                                        <a t-attf-href="#{base_url}/meeting/respond/#{object.id}/decline"
-                                           style="display:inline-block; padding:10px 20px; margin:0 5px; font-size:13px; background-color:#dc3545; color:#fff; text-decoration:none; border-radius:5px;">
-                                            ✗ Decline
+                                        <a t-att-href="decline_url"
+                                           style="display:inline-block; padding:12px 32px; margin:0 8px; font-size:14px; font-weight:bold; background-color:#e74c3c; color:#ffffff; text-decoration:none; border-radius:5px; box-shadow:0 2px 4px rgba(0,0,0,0.2);">
+                                            ✗ Decline Invitation
                                         </a>
+                                    </td>
+                                </tr>
+
+                                <!-- DIVIDER -->
+                                <tr>
+                                    <td style="padding:16px 0;">
+                                        <div style="height:1px; background-color:#ecf0f1;"></div>
                                     </td>
                                 </tr>
 
                                 <!-- FOOTER -->
                                 <tr>
-                                    <td style="font-size:11px; color:#999; padding-top:16px; text-align:center;">
-                                        Powered by
-                                        <a href="" style="color:#555;">Smartdz</a>
+                                    <td style="font-size:11px; color:#95a5a6; padding:16px 0; text-align:center;">
+                                        <p style="margin:0;">
+                                            This is an automated message. Please do not reply to this email.
+                                        </p>
+                                        <p style="margin:8px 0 0 0;">
+                                            Powered by
+                                            <a href="#" style="color:#3498db; text-decoration:none;">
+                                                Smartdz
+                                            </a>
+                                        </p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -396,7 +452,6 @@
         </field>
         <field name="auto_delete" eval="True"/>
     </record>
-
 
     <record id="dw_meeting_view_form" model="ir.ui.view">
         <field name="name">dw.meeting.view.form</field>
@@ -485,3 +540,111 @@
         </field>
     </record>
 </smartdz>
+
+
+        <!--    <record id="email_template_meeting_invitation_5" model="mail.template">-->
+        <!--        <field name="name">Meeting Invitation 5</field>-->
+        <!--        <field name="model_id" ref="model_dw_planification_meeting"/>-->
+        <!--        <field name="subject">Invitation: {{ object.name }}</field>-->
+        <!--        <field name="description">Invitation email for scheduled meetings</field>-->
+        <!--        <field name="body_html" type="html">-->
+        <!--            <t t-set="meeting_title" t-value="object.name or ''"/>-->
+        <!--            <t t-set="meeting_objet" t-value="object.objet or ''"/>-->
+        <!--            <ul>-->
+        <!--                <t t-foreach="meeting.subject_order" t-as="line">-->
+        <!--                    <li>-->
+        <!--                        <t t-esc="line.name"/>-->
+        <!--                    </li>-->
+        <!--                </t>-->
+        <!--            </ul>-->
+        <!--            <t t-set="meeting_start" t-value="object.planned_start_datetime"/>-->
+        <!--            <t t-set="meeting_end" t-value="object.planned_end_time"/>-->
+        <!--            <t t-set="meeting_room" t-value="object.room_id.name if object.room_id else ''"/>-->
+        <!--            <t t-set="meeting_location" t-value="object.location_id.name if object.location_id else ''"/>-->
+
+        <!--            &lt;!&ndash; Generate token for the recipient &ndash;&gt;-->
+        <!--            <t t-set="base_url" t-value="object.get_base_url()"/>-->
+
+        <!--            <table border="0" cellpadding="0" cellspacing="0"-->
+        <!--                   style="padding:16px; background-color:#f5f5f5; font-family:Verdana, Arial,sans-serif; color:#333; width:100%; border-collapse:separate;">-->
+        <!--                <tr>-->
+        <!--                    <td align="center">-->
+        <!--                        <table border="0" cellpadding="16" cellspacing="0" width="600"-->
+        <!--                               style="background-color:white; border-collapse:separate;">-->
+        <!--                            <tbody>-->
+        <!--                                &lt;!&ndash; HEADER &ndash;&gt;-->
+        <!--                                <tr>-->
+        <!--                                    <td style="font-size:20px; font-weight:bold; text-align:center;">-->
+        <!--                                        <t t-esc="meeting_title"/>-->
+        <!--                                    </td>-->
+        <!--                                </tr>-->
+        <!--                                <tr>-->
+        <!--                                    <td style="font-size:14px; text-align:center; color:#666;">-->
+        <!--                                        <t t-esc="meeting_objet"/>-->
+        <!--                                    </td>-->
+        <!--                                </tr>-->
+
+        <!--                                &lt;!&ndash; CONTENT &ndash;&gt;-->
+        <!--                                <tr>-->
+        <!--                                    <td style="font-size:13px; padding-top:16px;">-->
+        <!--                                        <p>Dear participant,</p>-->
+        <!--                                        <p>You are invited to the following meeting:</p>-->
+        <!--                                        <ul>-->
+        <!--                                            <li>-->
+        <!--                                                <strong>Agenda:</strong>-->
+        <!--                                                <ul>-->
+        <!--                                                    <t t-foreach="meeting.subject_order" t-as="line">-->
+        <!--                                                        <li>-->
+        <!--                                                            <t t-esc="line.name"/>-->
+        <!--                                                        </li>-->
+        <!--                                                    </t>-->
+        <!--                                                </ul>-->
+        <!--                                            </li>-->
+        <!--                                            <li>-->
+        <!--                                                <strong>Date and Time:</strong>-->
+        <!--                                                <t t-esc="meeting_start"/>-->
+        <!--                                                - -->
+        <!--                                                <t t-esc="meeting_end"/>-->
+        <!--                                            </li>-->
+        <!--                                            <li>-->
+        <!--                                                <strong>Room:</strong>-->
+        <!--                                                <t t-esc="meeting_room"/>-->
+        <!--                                            </li>-->
+        <!--                                            <li>-->
+        <!--                                                <strong>Location:</strong>-->
+        <!--                                                <t t-esc="meeting_location"/>-->
+        <!--                                            </li>-->
+        <!--                                        </ul>-->
+        <!--                                        <p>Please confirm your attendance.</p>-->
+        <!--                                    </td>-->
+        <!--                                </tr>-->
+
+        <!--                                &lt;!&ndash; ACTION BUTTONS &ndash;&gt;-->
+        <!--                                <tr>-->
+        <!--                                    <td style="margin: 16px 0; text-align: center;">-->
+        <!--                                        <a t-attf-href="#{base_url}/meeting/respond/#{object.id}/accept"-->
+        <!--                                           style="display:inline-block; padding:10px 20px; margin:0 5px; font-size:13px; background-color:#28a745; color:#fff; text-decoration:none; border-radius:5px;">-->
+        <!--                                            ✓ Accept-->
+        <!--                                        </a>-->
+        <!--                                        <a t-attf-href="#{base_url}/meeting/respond/#{object.id}/decline"-->
+        <!--                                           style="display:inline-block; padding:10px 20px; margin:0 5px; font-size:13px; background-color:#dc3545; color:#fff; text-decoration:none; border-radius:5px;">-->
+        <!--                                            ✗ Decline-->
+        <!--                                        </a>-->
+        <!--                                    </td>-->
+        <!--                                </tr>-->
+
+        <!--                                &lt;!&ndash; FOOTER &ndash;&gt;-->
+        <!--                                <tr>-->
+        <!--                                    <td style="font-size:11px; color:#999; padding-top:16px; text-align:center;">-->
+        <!--                                        Powered by-->
+        <!--                                        <a href="" style="color:#555;">Smartdz</a>-->
+        <!--                                    </td>-->
+        <!--                                </tr>-->
+        <!--                            </tbody>-->
+        <!--                        </table>-->
+        <!--                    </td>-->
+        <!--                </tr>-->
+        <!--            </table>-->
+        <!--        </field>-->
+        <!--        <field name="auto_delete" eval="True"/>-->
+        <!--    </record>-->
