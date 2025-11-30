@@ -385,8 +385,6 @@ export class MeetingSessionView extends Component {
     }
   }
 
-
-
   getStatusLabel(status) {
         const labels = {
             'present': 'Present',

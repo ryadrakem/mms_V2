@@ -244,24 +244,6 @@ class DwPlanificationMeeting(models.Model):
             else:
                 _logger.warning("Email template 'email_template_meeting_invitation_secure' not found!")
 
-                # 'name': rec.name,
-                # 'objet': rec.objet,
-                # 'is_external': rec.is_external,
-                # 'meeting_type_id': rec.meeting_type_id.id,
-                # 'client_ids': [(6, 0, rec.client_ids.ids)],
-                # 'room_id': rec.room_id.id if rec.room_id else False,
-                # 'planned_start_datetime': rec.planned_start_datetime,
-                # 'end_datetime': rec.planned_end_time if hasattr(rec, 'planned_end_time') else False,
-                # 'duration': rec.duration,
-                # 'state': 'in_progress',
-                # 'location_id': rec.location_id.id if rec.location_id else False,
-                # 'agenda': rec.subject_order if hasattr(rec, 'subject_order') else False,
-                # 'form_planification': True,
-                # 'planification_id': rec.id,
-                # 'jitsi_room_id': f"meeting-room-{rec.id}-{rec.env.cr.dbname}",
-                # 'actual_start_time': fields.Datetime.now(),
-                # 'use_the_chat_room': rec.is_off_site,
-
     def create_meeting_and_sessions(self):
         self.ensure_one()
         # Create the MEETING record
@@ -332,18 +314,6 @@ class DwPlanificationMeeting(models.Model):
         if reservations:
             reservations.unlink()
             _logger.info(f"Deleted {len(reservations)} reservations for meeting {self.name}")
-    # def open_meeting(self):
-    #     self.ensure_one()
-    #     Meeting = self.env['dw.meeting']
-    #     meeting = Meeting.search([('planification_id', '=', self.id)], limit=1)
-    #     return {
-    #         'type': 'ir.actions.act_window',
-    #         'name': f'Meeting: {meeting.name}',
-    #         'res_model': 'dw.meeting',
-    #         'view_mode': 'form',
-    #         'res_id': meeting.id,
-    #         'target': 'current',
-    #     }
 
     def open_meeting(self):
         self.ensure_one()
@@ -359,125 +329,6 @@ class DwPlanificationMeeting(models.Model):
             },
         }
 
-        # 1911
-        # if user_session:
-        #     return {
-        #         'type': 'ir.actions.act_window',
-        #         'name': 'My Meeting Session',
-        #         'res_model': 'dw.meeting.session',
-        #         'view_mode': 'form',
-        #         'res_id': user_session.id,
-        #         'target': 'current',
-        #     }
-
-    # TODO: claude solution !!!
-    # def action_join(self):
-    #     self.ensure_one()
-    #
-    #     Session = self.env['dw.meeting.session']
-    #     Meeting = self.env['dw.meeting']
-    #     current_user = self.env.user
-    #
-    #     _logger.info(f"=== action_join called by user: {current_user.name} (ID: {current_user.id}) ===")
-    #
-    #     # Find meeting linked to this planification
-    #     meeting = Meeting.search([('planification_id', '=', self.id)], limit=1)
-    #
-    #     if not meeting:
-    #         raise ValidationError(_('No meeting found for this planification. Please start the meeting first.'))
-    #
-    #     _logger.info(f"Found meeting: {meeting.name} (ID: {meeting.id})")
-    #
-    #     # Find current user's participant record
-    #     current_participant = self.participant_ids.filtered(
-    #         lambda p: p.user_id and p.user_id.id == current_user.id
-    #     )
-    #
-    #     if not current_participant:
-    #         _logger.error(f"User {current_user.name} is not a participant of this meeting")
-    #         raise ValidationError(_(
-    #             'You are not a participant of this meeting. '
-    #             'Please contact the meeting organizer.'
-    #         ))
-    #
-    #     _logger.info(f"Found participant record: {current_participant.name} (ID: {current_participant.id})")
-    #
-    #     # Search for existing session
-    #     user_session = Session.search([
-    #         ('meeting_id', '=', meeting.id),
-    #         ('participant_id', '=', current_participant.id),
-    #         ('user_id', '=', current_user.id)
-    #     ], limit=1)
-    #
-    #     # If no session exists, create one
-    #     if not user_session:
-    #         _logger.warning(f"No session found for user {current_user.name}. Creating new session...")
-    #
-    #         try:
-    #             session_vals = {
-    #                 'name': f"Session {meeting.name} - {current_participant.name}",
-    #                 'meeting_id': meeting.id,
-    #                 'user_id': current_user.id,
-    #                 'participant_id': current_participant.id,
-    #                 'planification_id': self.id,
-    #                 'is_host': current_participant.is_host,
-    #                 'is_pv': current_participant.is_pv,
-    #                 'actual_start_datetime': fields.Datetime.now(),
-    #                 'display_camera': self.display_camera,
-    #                 'has_remote_participants': self.has_remote_participants,
-    #                 'state': 'in_progress',
-    #             }
-    #
-    #             user_session = Session.create(session_vals)
-    #             _logger.info(f"Session created successfully: ID={user_session.id}")
-    #
-    #             # Copy agenda items to session
-    #             if self.subject_order:
-    #                 for agenda_item in self.subject_order:
-    #                     self.env['dw.agenda'].create({
-    #                         'name': agenda_item.name,
-    #                         'session_id': user_session.id,
-    #                     })
-    #                 _logger.info(f"Copied {len(self.subject_order)} agenda items to session")
-    #
-    #             # Link session to participant
-    #             current_participant.write({'session_id': user_session.id})
-    #
-    #         except Exception as e:
-    #             _logger.error(f"Failed to create session: {str(e)}")
-    #             raise ValidationError(_(
-    #                 'Failed to create your meeting session: %s'
-    #             ) % str(e))
-    #     else:
-    #         _logger.info(f"Found existing session: ID={user_session.id}")
-    #
-    #     # Final validation
-    #     if not user_session or not user_session.id:
-    #         _logger.error("user_session is still empty after creation attempt")
-    #         raise ValidationError(_(
-    #             'Failed to create or find your meeting session. '
-    #             'Please contact the administrator.'
-    #         ))
-    #
-    #     _logger.info(f"Returning action to open session {user_session.id}")
-    #
-    #     # Get user name safely
-    #     user_name = user_session.user_id.name if user_session.user_id else current_user.name
-    #
-    #     return {
-    #         'type': 'ir.actions.client',
-    #         'name': f'Meeting: {meeting.name} - {user_name}',
-    #         'tag': 'meeting_session_view_action',
-    #         'params': {
-    #             'planification_id': self.id,
-    #         },
-    #         'context': {
-    #             'active_id': user_session.id,
-    #             'default_session_id': user_session.id,
-    #             'default_planification_id': self.id,
-    #             'default_pv': meeting.pv if meeting.pv else '',
-    #         },
-    #     }
     def action_join(self):
         self.ensure_one()
         Session = self.env['dw.meeting.session']
@@ -520,61 +371,6 @@ class DwPlanificationMeeting(models.Model):
                 'default_pv': meeting.pv,
             },
         }
-
-    def action_start(self):
-        """Start meeting: ensure host, create meeting, link participants, update planification."""
-        for rec in self:
-            host_count = rec.participant_ids.filtered(lambda p: p.role_id.name == 'host')
-            if not host_count:
-                raise ValidationError(
-                    _("At least one participant must be designated as host before starting the meeting.")
-                )
-
-            # Prepare meeting values
-            meeting_vals = {
-                'name': rec.name,
-                'objet': rec.objet,
-                'is_external': rec.is_external,
-                'meeting_type_id': rec.meeting_type_id.id,
-                'client_ids': [(6, 0, rec.client_ids.ids)],
-                'room_id': rec.room_id.id if rec.room_id else False,
-                'planned_start_datetime': rec.planned_start_datetime,
-                'planned_end_time': rec.planned_end_time if hasattr(rec, 'planned_end_time') else False,
-                'duration': rec.duration,
-                'state': 'in_progress',
-                'location_id': rec.location_id.id if rec.location_id else False,
-                'subject_order': rec.subject_order if hasattr(rec, 'subject_order') else False,
-                'form_planification': True,
-                'planification_id': rec.id,
-                'jitsi_room_id': f"meeting-room-{rec.id}-{rec.env.cr.dbname}",
-                'actual_start_time': fields.Datetime.now(),
-                'use_the_chat_room': rec.is_off_site,
-            }
-
-            # Create the meeting
-            meeting = self.env['dw.meeting'].create(meeting_vals)
-
-            # Link participants to meeting
-            rec.participant_ids.write({'meeting_id': meeting.id})
-
-            rec.write({
-                'state': 'started',
-                'meeting_id': meeting.id,
-            })
-
-            return rec.action_join()
-
-            1911
-            # Return action for dashboard
-            # return {
-            #     'type': 'ir.actions.client',
-            #     'tag': 'meeting_dashboard_client',
-            #     'name': f'Meeting: {meeting.name}',
-            #     'params': {
-            #         'meeting_id': meeting.id,
-            #         'current_user': self.env.user.name,  # <-- pass user name
-            #     }
-            # }
 
     """
     # TODO : we have to check about this create for the calendar integration suggested by claude.

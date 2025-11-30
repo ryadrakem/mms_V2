@@ -23,6 +23,13 @@ class DwParticipant(models.Model):
     meeting_id = fields.Many2one('dw.meeting', string='Meeting')
     role_id = fields.Many2one('dw.participant.role', string='Rôles')
     attachments = fields.Binary(string='Attachments')
+    attachments_2 = fields.Binary(string='Attachments 2')
+    attachments_3 = fields.Binary(string='Attachments 3')
+    attachments_4 = fields.Binary(string='Attachments 4')
+    is_attachments_2_visible = fields.Boolean(store=True, readonly=True)
+    is_attachments_3_visible = fields.Boolean(store=True, readonly=True)
+    is_attachments_4_visible = fields.Boolean(store=True, readonly=True)
+
     access_token = fields.Char(string='Access Token', copy=False, readonly=True)
     session_id = fields.Many2one('dw.meeting.session', string='Meeting Session')
     invitation_status = fields.Selection([
@@ -40,6 +47,35 @@ class DwParticipant(models.Model):
         ('absent', 'absent'),
         ('excused', 'Excused'),
     ], string='Attendance', default='default')
+
+    def set_attachment_2_visible(self):
+        self.ensure_one()
+        self.is_attachments_2_visible = True
+
+    def set_attachment_3_visible(self):
+        self.ensure_one()
+        self.is_attachments_3_visible = True
+
+    def set_attachment_4_visible(self):
+        self.ensure_one()
+        self.is_attachments_4_visible = True
+
+    def set_attachment_2_invisible(self):
+        self.ensure_one()
+        self.is_attachments_2_visible = False
+        self.attachments_2 = False
+
+    def set_attachment_3_invisible(self):
+        self.ensure_one()
+        self.is_attachments_3_visible = False
+        self.attachments_3 = False
+
+    def set_attachment_4_invisible(self):
+        self.ensure_one()
+        self.is_attachments_4_visible = False
+        self.attachments_4 = False
+
+
 
     @api.depends('is_external')
     def _compute_available_partner_ids(self):
