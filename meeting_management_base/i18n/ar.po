@@ -20,7 +20,7 @@ msgstr ""
 #: code:addons/Meetting/mms_V2/meeting_management_base/static/src/xml/homepage_template.xml:0
 #: code:addons/meeting_management_base/static/src/xml/homepage_template.xml:0
 msgid "% vs last week"
-msgstr "مقابل الاسبوع الماضي"
+msgstr "الاسبوع الماضي vs"
 
 #. module: meeting_management_base
 #: model_terms:ir.ui.view,arch_db:meeting_management_base.res_config_settings_view_form_inherit_jitsi
@@ -204,7 +204,7 @@ msgid ""
 msgstr ""
 "<p>مرحباً <strong>${object.name}</strong>,</p>\n"
 "                <p>تم إنهاء الاجتماع. يرجى الاطلاع على محضر الاجتماع المرفق.</p>\n"
-"                <p>مع تحياتي،</p>\n"
+"                <p>مع تحياتنا،</p>\n"
 "            "
 
 #. module: meeting_management_base
@@ -236,7 +236,7 @@ msgid ""
 "                                </strong>"
 msgstr ""
 "<strong style=\"font-size:14px; color:#0277bd; display:block; margin-bottom:8px;\">\n"
-"                                    العميل (العميل):\n"
+"                                    العميل :\n"
 "                                </strong>"
 
 #. module: meeting_management_base
@@ -1076,7 +1076,7 @@ msgstr "إضافة أول إجراء"
 #: code:addons/Meetting/mms_V2/meeting_management_base/static/src/xml/homepage_template.xml:0
 #: code:addons/meeting_management_base/static/src/xml/homepage_template.xml:0
 msgid "Add meeting rooms to track availability"
-msgstr "إضافة غرف الاجتماعات لتتبع التوفر"
+msgstr "إضافة غرف الاجتماعات لتتبع توفرها"
 
 #. module: meeting_management_base
 #. smartdz-javascript
@@ -1253,7 +1253,7 @@ msgstr "الغرف المتاحة"
 #: code:addons/Meetting/mms_V2/meeting_management_base/static/src/xml/homepage_template.xml:0
 #: code:addons/meeting_management_base/static/src/xml/homepage_template.xml:0
 msgid "Average attendance over time"
-msgstr "متوسط الحضور عبر الزمن"
+msgstr "متوسط الحضور مع مرور الوقت"
 
 #. module: meeting_management_base
 #. smartdz-javascript
@@ -1315,18 +1315,18 @@ msgid ""
 "Calendar event created: <a href='#' data-oe-model='calendar.event' data-oe-"
 "id='%s'>%s</a>"
 msgstr ""
-"تم إنشاء حدث التقويم: <a href='#' data-oe-model='calendar.event' data-oe-"
+"تم إنشاء الحدث في التقويم: <a href='#' data-oe-model='calendar.event' data-oe-"
 "id='%s'>%s</a>"
 
 #. module: meeting_management_base
 #: model:ir.model.fields,field_description:meeting_management_base.field_dw_meeting_session__can_edit_agenda
 msgid "Can Edit Agenda"
-msgstr "يمكن تحرير جدول الأعمال"
+msgstr "يمكن التعديل في جدول الأعمال"
 
 #. module: meeting_management_base
 #: model:ir.model.fields,field_description:meeting_management_base.field_dw_meeting_session__can_edit_summary
 msgid "Can Edit Summary"
-msgstr "يمكن تحرير الملخص"
+msgstr "يمكن التعديل في الملخص"
 
 #. module: meeting_management_base
 #. smartdz-javascript
@@ -1448,7 +1448,7 @@ msgstr "مغلق"
 #. module: meeting_management_base
 #: model:ir.model.fields,field_description:meeting_management_base.field_dw_actions__completed_date
 msgid "Completed Date"
-msgstr "تاريخ الإكمال"
+msgstr "تاريخ الإنتهاء"
 
 #. module: meeting_management_base
 #: model:ir.model,name:meeting_management_base.model_res_config_settings
@@ -1461,7 +1461,7 @@ msgstr "تهيئة الإعدادات "
 #: code:addons/meeting_management_base/static/src/xml/meeting_home_dashboard_templates.xml:0
 #: model:ir.ui.menu,name:meeting_management_base.menu_meeting_settings
 msgid "Configuration"
-msgstr "التكوين"
+msgstr "الإعدادات"
 
 #. module: meeting_management_base
 #: model_terms:ir.ui.view,arch_db:meeting_management_base.view_dw_planification_meeting_form
@@ -1532,7 +1532,7 @@ msgstr "أنشئ بواسطة"
 #. module: meeting_management_base
 #: model:ir.model.fields,field_description:meeting_management_base.field_dw_meeting__form_planification
 msgid "Created from the planification meetings"
-msgstr "تم إنشاؤه من اجتماعات التخطيط"
+msgstr "تم إنشاؤه من تخطيط الاجتماعات"
 
 #. module: meeting_management_base
 #: model:ir.model.fields,field_description:meeting_management_base.field_dw_actions__create_date
@@ -1686,7 +1686,7 @@ msgstr "اسم العرض"
 #: model:ir.model.fields,field_description:meeting_management_base.field_dw_meeting_session__display_camera
 #: model:ir.model.fields,field_description:meeting_management_base.field_dw_planification_meeting__display_camera
 msgid "Display the cameras in the meeting"
-msgstr "عرض الكاميرات في الاجتماع"
+msgstr "تشغيل الكاميرات في الاجتماع"
 
 #. module: meeting_management_base
 #. smartdz-javascript
@@ -2726,14 +2726,14 @@ msgstr "الاجتماعات"
 #: code:addons/meeting_management_base/static/src/xml/homepage_template.xml:0
 #: model:ir.actions.client,name:meeting_management_base.action_dw_meeting_home
 msgid "Meetings Dashboard"
-msgstr "لوحة تحكم الاجتماعات"
+msgstr "الاجتماعات"
 
 #. module: meeting_management_base
 #. smartdz-javascript
 #: code:addons/Meetting/mms_V2/meeting_management_base/static/src/xml/homepage_template.xml:0
 #: code:addons/meeting_management_base/static/src/xml/homepage_template.xml:0
 msgid "Meetings Over Time"
-msgstr "الاجتماعات عبر الزمن"
+msgstr  "الاجتماعات المبرمجة"
 
 #. module: meeting_management_base
 #: model:ir.model.fields,field_description:meeting_management_base.field_dw_actions__message_has_error
@@ -3187,14 +3187,14 @@ msgstr "الإجراءات الشخصية"
 #: code:addons/Meetting/mms_V2/meeting_management_base/static/src/xml/meeting_home_dashboard_templates.xml:0
 #: code:addons/meeting_management_base/static/src/xml/meeting_home_dashboard_templates.xml:0
 msgid "Plan, track, and improve your meetings in one integrated space."
-msgstr "خطط، تابع، وحسن اجتماعاتك في مساحة متكاملة واحدة."
+msgstr "خطط، تابع، وحسن اجتماعاتك في مساحة متكاملة واحدة"
 
 #. module: meeting_management_base
 #: model:ir.model,name:meeting_management_base.model_dw_planification_meeting
 #: model:ir.model.fields,field_description:meeting_management_base.field_dw_agenda__planification_id
 #: model_terms:ir.ui.view,arch_db:meeting_management_base.view_dw_planification_meeting_form
 msgid "Planification Meeting"
-msgstr "اجتماع التخطيط"
+msgstr " تخطيط الاجتماع"
 
 #. module: meeting_management_base
 #. smartdz-javascript
@@ -3204,7 +3204,7 @@ msgstr "اجتماع التخطيط"
 #: model:ir.ui.menu,name:meeting_management_base.menu_planification_meetings
 #: model_terms:ir.ui.view,arch_db:meeting_management_base.view_dw_planification_meeting_list
 msgid "Planification Meetings"
-msgstr "اجتماعات التخطيط"
+msgstr " تخطيط الاجتماعات"
 
 #. module: meeting_management_base
 #: model_terms:ir.ui.view,arch_db:meeting_management_base.view_dw_planification_meeting_form
@@ -3237,7 +3237,7 @@ msgstr "المدة المخطط لها:"
 #: code:addons/Meetting/mms_V2/meeting_management_base/static/src/xml/meeting.xml:0
 #: code:addons/meeting_management_base/static/src/xml/meeting.xml:0
 msgid "Planned End"
-msgstr "النهاية المخطط لها"
+msgstr "نهاية المخطط"
 
 #. module: meeting_management_base
 #. smartdz-javascript
@@ -3251,21 +3251,21 @@ msgstr "الاجتماعات المخطط لها"
 #: code:addons/Meetting/mms_V2/meeting_management_base/static/src/xml/meeting.xml:0
 #: code:addons/meeting_management_base/static/src/xml/meeting.xml:0
 msgid "Planned Start"
-msgstr "البداية المخطط لها"
+msgstr "بداية المخطط"
 
 #. module: meeting_management_base
 #. smartdz-javascript
 #: code:addons/Meetting/mms_V2/meeting_management_base/static/src/xml/meeting_session_view.xml:0
 #: code:addons/meeting_management_base/static/src/xml/meeting_session_view.xml:0
 msgid "Planned end"
-msgstr "النهاية المخطط لها"
+msgstr "نهاية المخطط"
 
 #. module: meeting_management_base
 #. smartdz-javascript
 #: code:addons/Meetting/mms_V2/meeting_management_base/static/src/xml/meeting_session_view.xml:0
 #: code:addons/meeting_management_base/static/src/xml/meeting_session_view.xml:0
 msgid "Planned start"
-msgstr "البداية المخطط لها"
+msgstr "بداية المخطط"
 
 #. module: meeting_management_base
 #. smartdz-javascript
@@ -3277,7 +3277,7 @@ msgstr "تخطيط"
 #. module: meeting_management_base
 #: model_terms:ir.ui.view,arch_db:meeting_management_base.meeting_response_error
 msgid "Please contact the meeting organizer if you need assistance."
-msgstr "يرجى الاتصال بمنظم الاجتماع إذا كنت بحاجة إلى مساعدة."
+msgstr "يرجى الاتصال بمنظم الاجتماع إذا كنت بحاجة إلى مساعدة"
 
 #. module: meeting_management_base
 #. smartdz-javascript
@@ -4094,12 +4094,12 @@ msgstr "مكتمل"
 #. module: meeting_management_base
 #: model_terms:ir.ui.view,arch_db:meeting_management_base.dw_equipment_type_view_form
 msgid "e.g Datashow"
-msgstr "مثل جهاز عرض البيانات"
+msgstr "مثال: جهاز عرض البيانات"
 
 #. module: meeting_management_base
 #: model_terms:ir.ui.view,arch_db:meeting_management_base.dw_room_view_form
 msgid "e.g Meeting room 1"
-msgstr "مثل غرفة الاجتماعات 1"
+msgstr "مثال: غرفة الاجتماعات 1"
 
 #. module: meeting_management_base
 #: model_terms:ir.ui.view,arch_db:meeting_management_base.dw_equipment_view_form
@@ -4109,34 +4109,34 @@ msgstr "مثل جهاز كمبيوتر Dell Inspiron"
 #. module: meeting_management_base
 #: model_terms:ir.ui.view,arch_db:meeting_management_base.dw_meeting_type_view_form
 msgid "e.g Presentation"
-msgstr "مثل العرض التقديمي"
+msgstr "مثال: العرض التقديمي"
 
 #. module: meeting_management_base
 #: model_terms:ir.ui.view,arch_db:meeting_management_base.dw_participant_role_view_form
 msgid "e.g Stakeholder"
-msgstr "مثل صاحب المصلحة"
+msgstr "مثال: صاحب المصلحة"
 
 #. module: meeting_management_base
 #: model_terms:ir.ui.view,arch_db:meeting_management_base.dw_actions_view_form
 msgid "e.g. Action 01"
-msgstr "مثل الإجراء 01"
+msgstr "مثال: الإجراء 01"
 
 #. module: meeting_management_base
 #: model_terms:ir.ui.view,arch_db:meeting_management_base.view_dw_planification_meeting_form
 msgid "e.g. Réunion Projet ALPHA"
-msgstr "مثل اجتماع مشروع ألفا"
+msgstr "مثال: اجتماع مشروع ألفا"
 
 #. module: meeting_management_base
 #: model_terms:ir.ui.view,arch_db:meeting_management_base.dw_meeting_view_form
 msgid "e.g. Réunion Projet Meeting app"
-msgstr "مثل اجتماع تطبيق الاجتماعات"
+msgstr "مثال: اجتماع تطبيق الاجتماعات"
 
 #. module: meeting_management_base
 #. smartdz-javascript
 #: code:addons/Meetting/mms_V2/meeting_management_base/static/src/xml/homepage_template.xml:0
 #: code:addons/meeting_management_base/static/src/xml/homepage_template.xml:0
 msgid "e.g., Team Sync"
-msgstr "مثل، تزامن الفريق"
+msgstr "مثال:، تزامن الفريق"
 
 #. module: meeting_management_base
 #: model_terms:ir.ui.view,arch_db:meeting_management_base.res_config_settings_view_form_inherit_jitsi
@@ -4176,7 +4176,7 @@ msgstr "ساعات"
 #: code:addons/Meetting/mms_V2/meeting_management_base/static/src/xml/meeting_session_view.xml:0
 #: code:addons/meeting_management_base/static/src/xml/meeting_session_view.xml:0
 msgid "in_progress"
-msgstr "قيد التقدم"
+msgstr "قيد التنفيذ"
 
 #. module: meeting_management_base
 #. smartdz-javascript
