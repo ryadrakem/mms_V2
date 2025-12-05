@@ -1,0 +1,18 @@
+<smartdz>
+    <record id="dw_meeting_pv_wizard_view" model="ir.ui.view">
+        <field name="name">dw.meeting.pv.wizard.form</field>
+        <field name="model">dw.meeting.pv.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Export PV">
+                <group>
+                    <field name="export_type"/>
+                </group>
+                <footer>
+                    <button name="action_download_pv" type="object" string="Download" class="btn-primary"/>
+                    <button string="Cancel" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+</smartdz>

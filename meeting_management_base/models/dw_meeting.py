@@ -358,6 +358,21 @@ class DwMeeting(models.Model):
 
         return res
 
+    def action_open_pv_wizard(self):
+        """Open the popup allowing user to choose PDF or Word."""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Download PV',
+            'res_model': 'dw.meeting.pv.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_meeting_id': self.id,
+            }
+        }
+
+
 class DwMeetingNote(models.Model):
     """Meeting Notes - real-time collaborative notes"""
     _name = 'dw.meeting.note'

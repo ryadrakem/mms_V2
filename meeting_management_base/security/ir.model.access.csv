@@ -49,3 +49,4 @@ access_dw_meeting_summary_admin,access.dw.meeting.summary.admin,model_dw_meeting
 
 access_dw_agenda_user,access_dw_agenda.user,model_dw_agenda,base.group_user,1,1,1,1
 access_dw_agenda_admin,access_dw_agenda.admin,model_dw_agenda,base.group_erp_manager,1,1,1,1
+access_dw_meeting_pv_wizard,dw.meeting.pv.wizard,model_dw_meeting_pv_wizard,base.group_user,1,1,1,1
