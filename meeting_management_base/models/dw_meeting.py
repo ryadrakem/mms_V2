@@ -20,7 +20,7 @@ class DwMeeting(models.Model):
     meeting_type_id = fields.Many2one('dw.meeting.type', string='Meeting Type')
     client_ids = fields.Many2many('res.partner', string='Client', domain=[('is_company', '=', True)])
     # subject_order = fields.Html(string='Agenda')
-    subject_order = fields.One2many('dw.agenda', 'meeting_id', string='Agenda')
+    subject_order = fields.One2many('dw.agenda', 'meeting_id', string='Calendar')
     planned_start_datetime = fields.Datetime(string='Start Date & Time', required=True, tracking=True)
     planned_end_time = fields.Datetime(string='End Date & Time', related="planification_id.planned_end_time",store=True)
     location_id = fields.Many2one('dw.location', string='Location')
