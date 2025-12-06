@@ -1924,7 +1924,7 @@ msgstr "التنسيق: {AppID}/{key_id} - احصل عليه من صفحة مف�
 #. module: meeting_management_base
 #: model:ir.model.fields.selection,name:meeting_management_base.selection__dw_room__status__free
 msgid "Free"
-msgstr "مجاني"
+msgstr "متاح"
 
 #. module: meeting_management_base
 #. smartdz-javascript
