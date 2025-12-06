@@ -297,6 +297,7 @@ class DwPlanificationMeeting(models.Model):
                     'planification_id': self.id,
                     'is_host': participant.is_host,
                     'is_pv': participant.is_pv,
+                    'is_action_assigner': participant.is_action_assigner,
                     'actual_start_datetime': fields.Datetime.now(),
                     'display_camera': self.display_camera,
                     'subject_order': self.subject_order,

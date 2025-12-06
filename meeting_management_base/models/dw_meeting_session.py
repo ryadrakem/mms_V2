@@ -33,6 +33,7 @@ class DwMeetingSession(models.Model):
     is_connected = fields.Boolean(string="Currently Connected", default=False)
     is_host = fields.Boolean(string="Host User", related="participant_id.is_host", store=True)
     is_pv = fields.Boolean(string="Rédacteur PV", related="participant_id.is_pv", store=True)
+    is_action_assigner = fields.Boolean(string="Action ", related="participant_id.is_action_assigner", store=True, readonly=False)
     can_edit_agenda = fields.Boolean(string="Can Edit Agenda")
     can_edit_summary = fields.Boolean(string="Can Edit Summary")
     display_camera = fields.Boolean(string='Display the cameras in the meeting')
