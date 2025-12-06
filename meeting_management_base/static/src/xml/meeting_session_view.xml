@@ -32,9 +32,9 @@
                             title="End Meeting for All">
                         <i class="fa fa-power-off"/>
                     </button>
-                    <button class="btn-action primary" t-on-click="toggleCamera" title="Toggle Camera">
-                        <i t-att-class="state.session.display_camera ? 'fa fa-eye-slash' : 'fa fa-eye'"/>
-                    </button>
+<!--                    <button class="btn-action primary" t-on-click="toggleCamera" title="Toggle Camera">-->
+<!--                        <i t-att-class="state.session.display_camera ? 'fa fa-eye-slash' : 'fa fa-eye'"/>-->
+<!--                    </button>-->
                 </div>
             </header>
 
@@ -198,6 +198,7 @@
                         <button
                                 class="tab-nav-button"
                                 t-att-class="{ 'active': state.activeMainTab === 'actions' }"
+                                t-if="state.session.is_action_assigner"
                                 t-on-click="() => onTabChange('actions')">
                             <i class="fa fa-tasks"/>
                             <span>Actions (<t t-esc="state.actions.length"/>)
@@ -213,6 +214,7 @@
                         <button
                                 class="tab-nav-button"
                                 t-att-class="{ 'active': state.activeMainTab === 'pv' }"
+                                t-if="state.session.is_pv"
                                 t-on-click="() => onTabChange('pv')">
                             <i class="fa fa-file-text-o"/>
                             <span>PV</span>
@@ -220,8 +222,7 @@
                         <button
                                 class="tab-nav-button"
                                 t-att-class="{ 'active': state.activeMainTab === 'video' }"
-                                t-on-click="() => onTabChange('video')"
-                                t-if="state.session.display_camera">
+                                t-on-click="() => onTabChange('video')">
                             <i class="fa fa-video-camera"/>
                             <span>Video Conference</span>
                         </button>
@@ -300,7 +301,7 @@
                     </div>
 
                     <!-- Actions Section -->
-                    <div class="main-tab-content" t-if="state.activeMainTab === 'actions'">
+                    <div class="main-tab-content" t-if="state.activeMainTab === 'actions' and state.session.is_action_assigner">
                         <div class="meeting-actions-section">
                             <div class="actions-header">
                                 <h3>
@@ -432,7 +433,7 @@
                     </div>
 
                     <!-- PV Section -->
-                    <div class="main-tab-content" t-if="state.activeMainTab === 'pv'">
+                    <div class="main-tab-content" t-if="state.activeMainTab === 'pv' and state.session.is_pv">
                         <div class="meeting-notes-section">
                             <div class="notes-header">
                                 <h3>
@@ -484,7 +485,7 @@
 
                 <!-- Right Sidebar: Video (only visible when not on video tab and video is enabled) -->
                 <aside class="meeting-sidebar meeting-sidebar-right"
-                       t-if="state.session.display_camera &amp;&amp; state.showVideoPip &amp;&amp; state.activeMainTab !== 'video'">
+                       t-if="state.showVideoPip &amp;&amp; state.activeMainTab !== 'video'">
                     <div class="sidebar-card video-sidebar-card">
                         <div class="card-header">
                             <h3>

@@ -45,6 +45,7 @@
                         <field name="external_job" invisible="not is_external"/>
                         <field name="role_id"/>
                         <field name="is_pv"/>
+                        <field name="is_action_assigner"/>
                         <field name="is_remote"/>
                     </group>
                     <group>
