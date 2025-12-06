@@ -339,12 +339,15 @@
                                                                 <i class="fa fa-user"/>
                                                                 Assigned to:
                                                             </label>
-                                                            <select t-model="action.assignee_id"
-                                                                    t-on-change="() => updateAction(action)">
+                                                            <select
+                                                                    t-model="action.assignee_id"
+                                                                    t-on-change="() => updateAction(action)"
+                                                                    class="form-select">
                                                                 <option value="">Select assignee...</option>
                                                                 <t t-foreach="state.availableAssignees" t-as="assignee"
                                                                    t-key="assignee.id">
-                                                                    <option t-att-value="assignee.id">
+                                                                    <option t-att-value="assignee.id"
+                                                                            t-att-selected="action.assignee_id == assignee.id">
                                                                         <t t-esc="assignee.name"/>
                                                                     </option>
                                                                 </t>
@@ -366,9 +369,9 @@
                                                                 Priority:
                                                             </label>
                                                             <select t-model="action.priority"
-                                                                    t-on-click="() => updateAction(action)">
-                                                                <option value="0">Normal</option>
+                                                                    t-on-change="() => updateAction(action)">
                                                                 <option value="1">Low</option>
+                                                                <option value="0">Normal</option>
                                                                 <option value="2">High</option>
                                                                 <option value="3">Urgent</option>
                                                             </select>

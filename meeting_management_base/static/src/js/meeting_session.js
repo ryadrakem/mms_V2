@@ -405,6 +405,15 @@ export class MeetingSessionView extends Component {
         };
         return labels[status] || 'Unknown';
   }
+  getPriorityLabel(priority) {
+  const labels = {
+    '0': 'Normal',
+    '1': 'Low',
+    '2': 'High',
+    '3': 'Urgent'
+  };
+  return labels[priority] || 'Normal';
+}
 
   async loadActions() {
     try {
@@ -417,6 +426,7 @@ export class MeetingSessionView extends Component {
       this.state.actions = actions.map(a => ({
         ...a,
         assignee_id: a.assignee ? (Array.isArray(a.assignee) ? a.assignee[0] : a.assignee) : "",
+        priority: a.priority || '0',
       }));
     } catch (error) {
       console.error("Failed to load actions:", error);
@@ -1026,64 +1036,77 @@ Document généré le ${new Date().toLocaleString('fr-FR')}
     }
   }
 
-  async addNewAction() {
-    try {
-      const newActionId = await this.orm.create("dw.actions", [{
-        name: "New Action",
-        session_id: this.sessionId,
-        meeting_id: this.meetingId,
-        status: "todo",
-        priority: "medium",
-      }]);
+async addNewAction() {
+  try {
+    const newActionId = await this.orm.create("dw.actions", [{
+      name: "New Action",
+      session_id: this.sessionId,
+      meeting_id: this.meetingId,
+      status: "todo",
+      priority: "0",  // ✅ Changed from "medium" to "0"
+    }]);
 
-      this.state.actions.push({
-        id: newActionId[0],
-        name: "New Action",
-        assignee_id: "",
-        dead_line: "",
-        priority: "medium",
-        status: "todo",
-        description: "",
-      });
+    this.state.actions.push({
+      id: newActionId[0],
+      name: "New Action",
+      assignee_id: "",
+      dead_line: "",
+      priority: "0",  // ✅ Changed from "medium" to "0"
+      status: "todo",
+      description: "",
+    });
 
-      this.notification.add("Action item created", { type: "success" });
-    } catch (error) {
-      console.error("Failed to create action:", error);
-      this.notification.add("Failed to create action", { type: "danger" });
-    }
+    this.notification.add("Action item created", { type: "success" });
+  } catch (error) {
+    console.error("Failed to create action:", error);
+    this.notification.add("Failed to create action", { type: "danger" });
   }
+}
 
   async updateAction(action) {
-    if (!action.id) return;
+  if (!action.id) return;
 
-    try {
-      const updateData = {
-        name: action.name,
-        status: action.status,
-        priority: action.priority,
-      };
+  try {
+    const updateData = {
+      name: action.name,
+      status: action.status,
+      priority: action.priority,
+    };
 
-      if (action.assignee_id) {
-        updateData.assignee = action.assignee_id;
+    if (action.assignee_id) {
+      // Make sure it's a number
+      const assigneeId = typeof action.assignee_id === 'string'
+        ? parseInt(action.assignee_id, 10)
+        : action.assignee_id;
+
+      if (!isNaN(assigneeId) && assigneeId > 0) {
+        updateData.assignee = assigneeId;
       }
-      if (action.dead_line) {
-        updateData.dead_line = action.dead_line;
-      }
-
-      await this.orm.write("dw.actions", [action.id], updateData);
-
-      if (this._updateTimeout) clearTimeout(this._updateTimeout);
-      this._updateTimeout = setTimeout(() => {
-        this.notification.add("Action updated", {
-          type: "success",
-          timeout: 1000
-        });
-      }, 500);
-    } catch (error) {
-      console.error("Failed to update action:", error);
-      this.notification.add("Failed to update action", { type: "danger" });
+    } else {
+      // If assignee_id is empty, set assignee to false to clear it
+      updateData.assignee = false;
     }
+
+    if (action.dead_line) {
+      updateData.dead_line = action.dead_line;
+    }
+
+    console.log("Updating action with data:", updateData);
+
+    await this.orm.write("dw.actions", [action.id], updateData);
+
+    if (this._updateTimeout) clearTimeout(this._updateTimeout);
+    this._updateTimeout = setTimeout(() => {
+      this.notification.add("Action updated", {
+        type: "success",
+        timeout: 1000
+      });
+    }, 500);
+  } catch (error) {
+    console.error("Failed to update action:", error);
+    this.notification.add("Failed to update action", { type: "danger" });
   }
+}
 
   async deleteAction(action) {
     if (!action.id) return;
