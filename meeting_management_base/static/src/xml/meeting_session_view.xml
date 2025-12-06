@@ -25,10 +25,12 @@
                         <span class="status-dot"/>
                         <t t-esc="state.session.state.charAt(0).toUpperCase() + state.session.state.slice(1).replace('_', ' ')"/>
                     </span>
-                    <button class="btn-action danger" t-if="state.session.state !== 'done'" t-on-click="leaveMeeting" title="Leave">
+                    <button class="btn-action danger" t-if="state.session.state !== 'done'" t-on-click="leaveMeeting"
+                            title="Leave">
                         <i class="fa fa-sign-out"/>
                     </button>
-                    <button class="btn-action danger" t-if="state.session.is_host and state.session.state !== 'done'" t-on-click="endMeeting"
+                    <button class="btn-action danger" t-if="state.session.is_host and state.session.state !== 'done'"
+                            t-on-click="endMeeting"
                             title="End Meeting for All">
                         <i class="fa fa-power-off"/>
                     </button>
@@ -57,30 +59,35 @@
                                             <div class="participant-avatar">
                                                 <t t-esc="p.name.slice(0, 2).toUpperCase()"/>
                                                 <span t-att-class="'status-badge status-' + (p.attendance_status || 'default')"
-                                          t-att-title="getStatusLabel(p.attendance_status)"/>
+                                                      t-att-title="getStatusLabel(p.attendance_status)"/>
                                             </div>
                                             <div class="participant-info">
                                                 <div class="participant-name">
                                                     <t t-esc="p.name"/>
                                                 </div>
                                             </div>
-                                                                                <div class="participant-status">
-                                        <t t-if="p.attendance_status === 'present'">
-                                            <i class="fa fa-circle text-success"/> Present
-                                        </t>
-                                        <t t-elif="p.attendance_status === 'late'">
-                                            <i class="fa fa-circle text-warning"/> Late
-                                        </t>
-                                        <t t-elif="p.attendance_status === 'absent'">
-                                            <i class="fa fa-circle text-danger"/> Absent
-                                        </t>
-                                        <t t-elif="p.attendance_status === 'excused'">
-                                            <i class="fa fa-circle text-muted"/> Excused
-                                        </t>
-                                        <t t-else="">
-                                            <i class="fa fa-circle text-secondary"/> Awaiting
-                                        </t>
-                                    </div>
+                                            <div class="participant-status">
+                                                <t t-if="p.attendance_status === 'present'">
+                                                    <i class="fa fa-circle text-success"/>
+                                                    Present
+                                                </t>
+                                                <t t-elif="p.attendance_status === 'late'">
+                                                    <i class="fa fa-circle text-warning"/>
+                                                    Late
+                                                </t>
+                                                <t t-elif="p.attendance_status === 'absent'">
+                                                    <i class="fa fa-circle text-danger"/>
+                                                    Absent
+                                                </t>
+                                                <t t-elif="p.attendance_status === 'excused'">
+                                                    <i class="fa fa-circle text-muted"/>
+                                                    Excused
+                                                </t>
+                                                <t t-else="">
+                                                    <i class="fa fa-circle text-secondary"/>
+                                                    Awaiting
+                                                </t>
+                                            </div>
                                         </div>
                                     </t>
                                 </t>
@@ -337,17 +344,21 @@
                                                 </div>
                                                 <div class="action-item-body">
                                                     <div class="action-fields-grid">
+
                                                         <div class="action-field">
                                                             <label>
                                                                 <i class="fa fa-user"/>
                                                                 Assigned to:
                                                             </label>
-                                                            <select t-model="action.assignee_id"
-                                                                    t-on-change="() => updateAction(action)">
+                                                            <select
+                                                                    t-model="action.assignee_id"
+                                                                    t-on-change="() => updateAction(action)"
+                                                                    class="form-select">
                                                                 <option value="">Select assignee...</option>
                                                                 <t t-foreach="state.availableAssignees" t-as="assignee"
                                                                    t-key="assignee.id">
-                                                                    <option t-att-value="assignee.id">
+                                                                    <option t-att-value="assignee.id"
+                                                                            t-att-selected="action.assignee_id == assignee.id">
                                                                         <t t-esc="assignee.name"/>
                                                                     </option>
                                                                 </t>
@@ -369,10 +380,11 @@
                                                                 Priority:
                                                             </label>
                                                             <select t-model="action.priority"
-                                                                    t-on-click="() => updateAction(action)">
-                                                                <option value="low">Low</option>
-                                                                <option value="medium">Medium</option>
-                                                                <option value="high">High</option>
+                                                                    t-on-change="() => updateAction(action)">
+                                                                <option value="1">Low</option>
+                                                                <option value="0">Normal</option>
+                                                                <option value="2">High</option>
+                                                                <option value="3">Urgent</option>
                                                             </select>
                                                         </div>
                                                         <div class="action-field">
