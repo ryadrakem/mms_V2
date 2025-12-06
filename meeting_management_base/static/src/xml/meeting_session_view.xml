@@ -39,9 +39,9 @@
             </header>
 
             <!-- Content Grid -->
-            <div class="meeting-content-grid">
+            <div class="meeting-content-grid" t-att-class="{'has-video-sidebar': state.showVideoPip &amp;&amp; state.activeMainTab !== 'video'}">
                 <!-- Left Sidebar: Participants -->
-                <aside class="meeting-sidebar">
+                <aside class="meeting-sidebar meeting-sidebar-left">
                     <div class="sidebar-card">
                         <div class="card-header">
                             <h3>
@@ -64,23 +64,23 @@
                                                     <t t-esc="p.name"/>
                                                 </div>
                                             </div>
-                                                                                <div class="participant-status">
-                                        <t t-if="p.attendance_status === 'present'">
-                                            <i class="fa fa-circle text-success"/> Present
-                                        </t>
-                                        <t t-elif="p.attendance_status === 'late'">
-                                            <i class="fa fa-circle text-warning"/> Late
-                                        </t>
-                                        <t t-elif="p.attendance_status === 'absent'">
-                                            <i class="fa fa-circle text-danger"/> Absent
-                                        </t>
-                                        <t t-elif="p.attendance_status === 'excused'">
-                                            <i class="fa fa-circle text-muted"/> Excused
-                                        </t>
-                                        <t t-else="">
-                                            <i class="fa fa-circle text-secondary"/> Awaiting
-                                        </t>
-                                    </div>
+                                            <div class="participant-status">
+                                                <t t-if="p.attendance_status === 'present'">
+                                                    <i class="fa fa-circle text-success"/> Present
+                                                </t>
+                                                <t t-elif="p.attendance_status === 'late'">
+                                                    <i class="fa fa-circle text-warning"/> Late
+                                                </t>
+                                                <t t-elif="p.attendance_status === 'absent'">
+                                                    <i class="fa fa-circle text-danger"/> Absent
+                                                </t>
+                                                <t t-elif="p.attendance_status === 'excused'">
+                                                    <i class="fa fa-circle text-muted"/> Excused
+                                                </t>
+                                                <t t-else="">
+                                                    <i class="fa fa-circle text-secondary"/> Awaiting
+                                                </t>
+                                            </div>
                                         </div>
                                     </t>
                                 </t>
@@ -227,17 +227,14 @@
                         </button>
                     </div>
 
-                    <!-- Video Conference Section - Always rendered but hidden when not active -->
-                    <div class="main-tab-content" t-att-class="{'d-none': state.activeMainTab !== 'video'}">
+                    <!-- Video Conference Section - Full size when active tab -->
+                    <div class="main-tab-content" t-if="state.activeMainTab === 'video'">
                         <div class="video-conference-container">
-                            <!-- Jitsi container always in DOM, just hidden with CSS -->
-                            <div id="jitsi-meet-container"
-                                 class="jitsi-container"
-                                 t-att-class="{'d-none': state.activeMainTab !== 'video'}"/>
+                            <!-- Jitsi container -->
+                            <div id="jitsi-meet-container" class="jitsi-container"/>
 
                             <!-- Loading -->
-                            <div class="video-loading"
-                                 t-if="state.loading &amp;&amp; !state.error &amp;&amp; state.activeMainTab === 'video'">
+                            <div class="video-loading" t-if="state.loading &amp;&amp; !state.error">
                                 <div class="loading-spinner">
                                     <div class="spinner-ring"/>
                                 </div>
@@ -245,7 +242,7 @@
                             </div>
 
                             <!-- Error -->
-                            <div class="video-error" t-if="state.error &amp;&amp; state.activeMainTab === 'video'">
+                            <div class="video-error" t-if="state.error">
                                 <div class="error-icon">
                                     <i class="fa fa-exclamation-triangle"/>
                                 </div>
@@ -264,8 +261,7 @@
                             </div>
 
                             <!-- Timer -->
-                            <div class="meeting-timer"
-                                 t-if="state.jitsiLoaded &amp;&amp; state.activeMainTab === 'video'">
+                            <div class="meeting-timer">
                                 <i class="fa fa-circle recording-indicator"/>
                                 <span t-esc="state.meetingDuration"/>
                             </div>
@@ -481,6 +477,54 @@
                         </div>
                     </div>
                 </main>
+
+                <!-- Right Sidebar: Video (only visible when not on video tab and video is enabled) -->
+                <aside class="meeting-sidebar meeting-sidebar-right"
+                       t-if="state.session.display_camera &amp;&amp; state.showVideoPip &amp;&amp; state.activeMainTab !== 'video'">
+                    <div class="sidebar-card video-sidebar-card">
+                        <div class="card-header">
+                            <h3>
+                                <i class="fa fa-video-camera"/>
+                                Video Conference
+                            </h3>
+                            <div class="video-sidebar-controls">
+                                <button class="btn-icon-sm"
+                                        t-on-click="() => onTabChange('video')"
+                                        title="Expand to full size">
+                                    <i class="fa fa-expand"/>
+                                </button>
+                                <button class="btn-icon-sm"
+                                        t-on-click="closeVideoPip"
+                                        title="Hide video">
+                                    <i class="fa fa-times"/>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body video-sidebar-body">
+                            <div class="video-sidebar-container">
+                                <!-- Jitsi iframe will be moved here -->
+                                <div id="jitsi-sidebar-container" class="jitsi-sidebar"/>
+
+                                <!-- Timer in sidebar -->
+                                <div class="video-sidebar-timer">
+                                    <i class="fa fa-circle recording-indicator"/>
+                                    <span t-esc="state.meetingDuration"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Show Video Button (when video is hidden) -->
+                    <div class="show-video-sidebar-btn"
+                         t-if="!state.showVideoPip">
+                        <button class="btn-show-video-sidebar"
+                                t-on-click="showVideoPip"
+                                title="Show video in sidebar">
+                            <i class="fa fa-video-camera"/>
+                            <span>Show Video</span>
+                        </button>
+                    </div>
+                </aside>
             </div>
         </div>
     </t>

@@ -14,20 +14,20 @@
                     <!-- Boutons d'action selon l'état -->
                     <button name="action_reset_to_draft" string="Set to Draft"
                             type="object"
-                            invisible="state in ('cancelled','confirmed','planned','done','draft','started')"
+                            invisible="state in ('cancelled','confirmed','planned','done','draft','started') or not is_current_user_host"
                             class="btn-secondary"/>
                     <button name="action_confirm" string="Confirm"
                             type="object"
-                            invisible="state in ('cancelled','planned','done','confirmed','started')"
+                            invisible="state in ('cancelled','planned','done','confirmed','started') or not is_current_user_host"
                             class="btn-primary"/>
                     <button name="action_plan" string="Planify" type="object"
-                            invisible="state in ('planned','draft','started','cancelled','done')"
+                            invisible="state in ('planned','draft','started','cancelled','done') or not is_current_user_host"
                             class="btn-primary"/>
                     <button name="create_meeting_and_sessions" string="Start" type="object"
                             invisible="state != 'planned' or not is_current_user_host"
                             class="btn-success"/>
                     <button name="action_join" string="Join" type="object"
-                            invisible="state != 'started'"
+                            invisible="state != 'started' or not is_current_user_participant"
                             class="btn-primary"/>
                     <button name="action_done" string="Done" type="object"
                             invisible="state in ('done','draft','confirmed','cancelled','planned','started')"
@@ -36,7 +36,7 @@
                             invisible="state in ('draft','confirmed','cancelled','planned','started')"
                             class="btn-success"/>
                     <button name="action_cancel" string="Cancel" type="object"
-                            invisible="state in ('cancelled','done', 'started')"
+                            invisible="state in ('cancelled','done', 'started') or not is_current_user_host"
                             class="btn-danger"/>
 
                 </header>
@@ -358,7 +358,7 @@
                       date_start="planned_start_datetime"
                       date_stop="planned_end_time"
                       color="meeting_type_id"
-                      mode="month"
+                      mode="year"
                       quick_create="0">
                 <field name="name"/>
                 <field name="objet"/>
@@ -374,9 +374,6 @@
         <field name="name">Planification Meetings</field>
         <field name="res_model">dw.planification.meeting</field>
         <field name="view_mode">list,calendar,kanban,form</field>
-        <field name="help" type="html">
-            <p>Créez et suivez vos réunions planifiées ici.</p>
-        </field>
     </record>
 
     <!--    <record id="action_calendar_all_meetings" model="ir.actions.act_window">-->

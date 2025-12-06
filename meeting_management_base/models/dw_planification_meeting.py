@@ -49,6 +49,7 @@ class DwPlanificationMeeting(models.Model):
     use_the_chat_room = fields.Boolean(string='Use the chat room', default=False)
     display_camera = fields.Boolean(string='Display the cameras in the meeting', default=False)
     is_current_user_host = fields.Boolean(string="Is Current User Host", compute="_compute_is_current_user_host")
+    is_current_user_participant = fields.Boolean(string="Is Current User Participant", compute="_compute_is_current_user_participant")
     calendar_event_id = fields.Many2one('calendar.event', string='Calendar Event', readonly=True, copy=False)
     sync_with_calendar = fields.Boolean(string='Sync with Calendar', default=True)
     has_pv = fields.Boolean(string='PV', default=True)
@@ -92,6 +93,18 @@ class DwPlanificationMeeting(models.Model):
 
             # true if host
             rec.is_current_user_host = bool(participant and participant.is_host)
+
+    def _compute_is_current_user_participant(self):
+        for rec in self:
+            user = self.env.user
+
+            # find participant linked to this user
+            participant = rec.participant_ids.filtered(
+                lambda p: p.user_id.id == user.id
+            )
+
+            # true if participant found
+            rec.is_current_user_participant = bool(participant)
 
     @api.constrains('planned_start_datetime')
     def _check_start_datetime(self):
@@ -352,6 +365,12 @@ class DwPlanificationMeeting(models.Model):
             if self.actual_start_datetime and self.tolerated_late:
                 tolerated_limit = self.actual_start_datetime + timedelta(minutes=self.tolerated_late)
                 if now <= tolerated_limit:
+                    user_session.participant_id.attendance_status = "present"
+                else:
+                    user_session.participant_id.attendance_status = "late"
+
+            elif self.actual_start_datetime and self.tolerated_late == 0:
+                if now <= self.actual_start_datetime + timedelta(minutes=1):
                     user_session.participant_id.attendance_status = "present"
                 else:
                     user_session.participant_id.attendance_status = "late"

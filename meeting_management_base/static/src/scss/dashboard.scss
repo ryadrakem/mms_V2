@@ -87,11 +87,16 @@
   background: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.6;
-  min-height: 100vh;
+//   min-height: 100vh;
   animation: fadeInDashboard 0.4s ease-out;
   overflow: visible !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  height: 100%;       /* Changed from min-height: 100vh */
+  max-height: 100vh;  /* Ensures it doesn't grow beyond screen */
+  /* CHANGE 2: Enable vertical scrolling on the dashboard element */
+  overflow-y: auto !important; /* Changed from overflow: visible */
+  overflow-x: hidden;
 
   * {
     box-sizing: border-box;
@@ -2247,17 +2252,4 @@
       font-size: 0.688rem;
     }
   }
-}
-
-/*  GLOBAL OVERRIDES  */
-html,
-body,
-.o_web_client,
-.o_action_manager,
-.o_action {
-  margin: 0;
-  padding: 0;
-  overflow: visible !important;
-  height: auto !important;
-  min-height: 100vh;
 }

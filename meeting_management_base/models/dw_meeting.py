@@ -113,6 +113,11 @@ class DwMeeting(models.Model):
                     user_session.participant_id.attendance_status = "present"
                 else:
                     user_session.participant_id.attendance_status = "late"
+            elif self.planification_id.actual_start_datetime and self.planification_id.tolerated_late == 0:
+                if now <= self.planification_id.actual_start_datetime + timedelta(minutes=1):
+                    user_session.participant_id.attendance_status = "present"
+                else:
+                    user_session.participant_id.attendance_status = "late"
             user_session.flag_attendance = True
 
 

@@ -74,7 +74,8 @@ export class MeetingSessionView extends Component {
       meetingTypeName: "",
       jitsiRoomId: null,
       pv: "",
-      jitsiInitialized: false, // Track if Jitsi is initialized
+      jitsiInitialized: false,
+      showVideoPip: false,
     });
 
     this.sessionId = null;
@@ -107,6 +108,12 @@ export class MeetingSessionView extends Component {
     this.loadPvTemplate = this.loadPvTemplate.bind(this);
     this.startBlankPv = this.startBlankPv.bind(this);
     this.generatePvTemplate = this.generatePvTemplate.bind(this);
+
+    this.moveJitsiToSidebar = this.moveJitsiToSidebar.bind(this);
+    this.moveJitsiToMain = this.moveJitsiToMain.bind(this);
+    this.closeVideoPip = this.closeVideoPip.bind(this);
+    this.showVideoPip = this.showVideoPip.bind(this);
+
 
     onWillStart(async () => {
       const context = this.props.action?.context || {};
@@ -587,20 +594,49 @@ export class MeetingSessionView extends Component {
   }
 
   // New method to handle tab changes
-  onTabChange(tabName) {
-    const previousTab = this.state.activeMainTab;
-    this.state.activeMainTab = tabName;
+    onTabChange(tabName) {
+        const previousTab = this.state.activeMainTab;
+        this.state.activeMainTab = tabName;
 
-    // If switching to video tab and Jitsi was already initialized
-    if (tabName === 'video' && this.jitsiApi && !this.state.jitsiLoaded) {
-      this.reconnectJitsi();
+        // If switching away from video tab to another tab, automatically show video in sidebar
+        if (previousTab === 'video' && tabName !== 'video') {
+            this.state.showVideoPip = true;
+            // Move Jitsi to sidebar after a short delay to ensure DOM is ready
+            setTimeout(() => this.moveJitsiToSidebar(), 100);
+        }
+
+        // If switching to video tab, hide sidebar and move Jitsi back to main
+        if (tabName === 'video') {
+            this.state.showVideoPip = false;
+            setTimeout(() => this.moveJitsiToMain(), 100);
+        }
     }
 
-    // If switching away from video, don't destroy Jitsi, just hide it
-    if (previousTab === 'video' && tabName !== 'video') {
-      this.pauseJitsi();
+    // Method to move Jitsi iframe to sidebar
+    moveJitsiToSidebar() {
+        const jitsiContainer = document.getElementById('jitsi-meet-container');
+        const sidebarContainer = document.getElementById('jitsi-sidebar-container');
+
+        if (jitsiContainer && sidebarContainer && jitsiContainer.firstChild) {
+            // Move the iframe from main container to sidebar
+            while (jitsiContainer.firstChild) {
+                sidebarContainer.appendChild(jitsiContainer.firstChild);
+            }
+        }
     }
-  }
+
+// Method to move Jitsi iframe back to main container
+    moveJitsiToMain() {
+        const jitsiContainer = document.getElementById('jitsi-meet-container');
+        const sidebarContainer = document.getElementById('jitsi-sidebar-container');
+
+        if (jitsiContainer && sidebarContainer && sidebarContainer.firstChild) {
+            // Move the iframe from sidebar back to main container
+            while (sidebarContainer.firstChild) {
+                jitsiContainer.appendChild(sidebarContainer.firstChild);
+            }
+        }
+    }
 
   pauseJitsi() {
     // Instead of destroying Jitsi, just mute audio/video when switching tabs
@@ -764,6 +800,15 @@ async refreshParticipantStatus() {
 
   toggleAgenda() {
     this.onTabChange(this.state.activeMainTab === 'agenda' ? 'video' : 'agenda');
+  }
+
+  showVideoPip() {
+        this.state.showVideoPip = true;
+        setTimeout(() => this.moveJitsiToSidebar(), 100);
+  }
+
+  closeVideoPip() {
+        this.state.showVideoPip = false;
   }
 
   async toggleCamera() {

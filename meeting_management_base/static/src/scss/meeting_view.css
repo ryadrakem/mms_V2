@@ -521,3 +521,365 @@
   font-weight: 600;
   color: #555;
 }
+
+/* Picture-in-Picture Video Styles */
+.video-pip-mode {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 400px;
+    height: 300px;
+    z-index: 1000;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    background: #1a1a1a;
+    transition: all 0.3s ease;
+}
+
+.video-pip-mode:hover {
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+}
+
+.pip-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pip-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pip-controls {
+    display: flex;
+    gap: 4px;
+}
+
+.btn-pip-expand,
+.btn-pip-close {
+    background: transparent;
+    border: none;
+    color: white;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.btn-pip-expand:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.btn-pip-close:hover {
+    background: rgba(239, 68, 68, 0.3);
+}
+
+.jitsi-pip {
+    height: calc(100% - 40px) !important;
+}
+
+.show-pip-button-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 999;
+}
+
+.btn-show-pip {
+    background: #4f46e5;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(79, 70, 229, 0.4);
+    transition: all 0.2s;
+}
+
+.btn-show-pip:hover {
+    background: #4338ca;
+    box-shadow: 0 6px 20px rgba(79, 70, 229, 0.6);
+    transform: translateY(-2px);
+}
+
+.btn-show-pip i {
+    font-size: 16px;
+}
+
+/* Meeting Content Grid with Right Sidebar */
+.meeting-content-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 20px;
+    padding: 20px;
+    height: calc(100vh - 80px);
+    transition: grid-template-columns 0.3s ease;
+}
+
+/* When video sidebar is active */
+.meeting-content-grid.has-video-sidebar {
+    grid-template-columns: 300px 1fr 350px;
+}
+
+/* Left Sidebar Styling */
+.meeting-sidebar-left {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Right Sidebar for Video */
+.meeting-sidebar-right {
+    overflow: visible;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Video Sidebar Card */
+.video-sidebar-card {
+    background: #1a1a1a;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    height: fit-content;
+    position: sticky;
+    top: 0;
+}
+
+.video-sidebar-card .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.5);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.video-sidebar-card .card-header h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.video-sidebar-card .card-header h3 i {
+    color: #4f46e5;
+}
+
+.video-sidebar-controls {
+    display: flex;
+    gap: 4px;
+}
+
+.video-sidebar-controls .btn-icon-sm {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    padding: 6px 8px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+    font-size: 13px;
+}
+
+.video-sidebar-controls .btn-icon-sm:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.video-sidebar-controls .btn-icon-sm:last-child:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+}
+
+.video-sidebar-body {
+    padding: 0;
+    background: #000;
+}
+
+.video-sidebar-container {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    background: #000;
+}
+
+.jitsi-sidebar {
+    width: 100%;
+    height: 100%;
+}
+
+.jitsi-sidebar iframe {
+    width: 100% !important;
+    height: 100% !important;
+    border: none;
+}
+
+/* Video Timer in Sidebar */
+.video-sidebar-timer {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.video-sidebar-timer .recording-indicator {
+    color: #ef4444;
+    font-size: 10px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Show Video Button in Sidebar */
+.show-video-sidebar-btn {
+    padding: 0 16px;
+}
+
+.btn-show-video-sidebar {
+    width: 100%;
+    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+    color: white;
+    border: none;
+    padding: 12px 16px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-show-video-sidebar:hover {
+    background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
+    box-shadow: 0 6px 16px rgba(79, 70, 229, 0.6);
+    transform: translateY(-2px);
+}
+
+.btn-show-video-sidebar i {
+    font-size: 14px;
+}
+
+/* Main Content Area */
+.meeting-main {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive Design */
+@media (max-width: 1400px) {
+    .meeting-content-grid.has-video-sidebar {
+        grid-template-columns: 280px 1fr 320px;
+    }
+
+    .video-sidebar-container {
+        height: 350px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .meeting-content-grid {
+        grid-template-columns: 260px 1fr;
+    }
+
+    .meeting-content-grid.has-video-sidebar {
+        grid-template-columns: 260px 1fr 300px;
+    }
+
+    .video-sidebar-container {
+        height: 300px;
+    }
+}
+
+@media (max-width: 992px) {
+    .meeting-content-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .meeting-content-grid.has-video-sidebar {
+        grid-template-columns: 1fr;
+    }
+
+    /* On mobile, show video as overlay instead */
+    .meeting-sidebar-right {
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        width: 320px;
+        z-index: 1000;
+    }
+
+    .video-sidebar-container {
+        height: 240px;
+    }
+}
+
+/* Hide default jitsi container when in sidebar mode */
+.has-video-sidebar #jitsi-meet-container {
+    display: none;
+}
+
+/* Ensure smooth transitions */
+* {
+    transition-property: grid-template-columns, width, height, transform, opacity;
+    transition-duration: 0.3s;
+    transition-timing-function: ease;
+}
