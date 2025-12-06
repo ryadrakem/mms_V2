@@ -371,6 +371,35 @@
             </search>
         </field>
     </record>
+        <record id="dw_actions_view_list" model="ir.ui.view">
+        <field name="name">dw.actions.view.list</field>
+        <field name="model">dw.actions</field>
+        <field name="arch" type="xml">
+            <list sample="1"
+                  multi_edit="1"
+                  decoration-danger="is_overdue and status != 'done'"
+                  decoration-success="status == 'done'"
+                  decoration-muted="status == 'done'"
+                  decoration-warning="deadline_status == 'today' and status != 'done'"
+                  decoration-bf="priority == 'urgent' or priority == 'high'">
+                <field name="priority" widget="priority"/>
+                <field name="name"/>
+                <field name="assignee" widget="many2one_avatar_user"/>
+                <field name="status" widget="badge"
+                       decoration-info="status == 'todo'"
+                       decoration-warning="status == 'in_progress'"
+                       decoration-success="status == 'done'"
+                       decoration-danger="status == 'blocked'"/>
+                <field name="dead_line" optional="show"/>
+                <field name="is_overdue" column_invisible="1"/>
+                <field name="deadline_status" column_invisible="1"/>
+                <field name="subtask_progress" widget="progressbar" optional="show"/>
+                <field name="meeting_name" optional="show"/>
+                <field name="parent_id" optional="hide"/>
+                <field name="requirements" widget="many2many_tags" optional="hide"/>
+            </list>
+        </field>
+    </record>
 
     <!-- ========== ACTIONS ========== -->
     <record id="dw_actions_action" model="ir.actions.act_window">
