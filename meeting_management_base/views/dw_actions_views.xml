@@ -1,85 +1,411 @@
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
 <smartdz>
-    <record id="dw_actions_view_list" model="ir.ui.view">
-        <field name="name">dw.actions.view.list</field>
+<record id="dw_actions_view_kanban" model="ir.ui.view">
+        <field name="name">dw.actions.view.kanban</field>
         <field name="model">dw.actions</field>
         <field name="arch" type="xml">
-            <list>
+            <kanban default_group_by="status"
+                    class="o_kanban_small_column"
+                    sample="1">
+
+                <field name="subtask_count"/>
+                <field name="subtask_progress"/>
+                <field name="meeting_name"/>
+                <field name="id"/>
                 <field name="name"/>
-                <field name="assignee"/>
+                <field name="color"/>
                 <field name="priority"/>
-                <field name="requirements" widget="many2many_tags"/>
                 <field name="dead_line"/>
-            </list>
+                <field name="is_overdue"/>
+                <field name="activity_ids"/>
+                <field name="activity_state"/>
+                <field name="assignee"/>
+
+                <progressbar field="activity_state"
+                             colors='{"planned": "success", "today": "warning", "overdue": "danger"}'/>
+
+                <templates>
+                    <t t-name="kanban-box">
+                        <div t-attf-class="#{!selection_mode ? kanban_color(record.color.raw_value) : ''} oe_kanban_global_click oe_kanban_card d-flex flex-column">
+
+                            <div class="o_kanban_record_top mb-2">
+                                <div class="o_kanban_record_headings">
+                                    <strong class="o_kanban_record_title">
+                                        <field name="name"/>
+                                    </strong>
+                                </div>
+                                <div class="o_dropdown_kanban dropdown">
+                                    <a class="dropdown-toggle o-no-caret btn" role="button" data-bs-toggle="dropdown" href="#" aria-label="Dropdown menu" title="Dropdown menu">
+                                        <span class="fa fa-ellipsis-v"/>
+                                    </a>
+                                    <div class="dropdown-menu" role="menu">
+                                        <ul class="oe_kanban_colorpicker" data-field="color"/>
+                                        <t t-if="widget.editable"><a role="menuitem" type="edit" class="dropdown-item">Edit</a></t>
+                                        <t t-if="widget.deletable"><a role="menuitem" type="delete" class="dropdown-item">Delete</a></t>
+                                        <div class="dropdown-divider"/>
+                                        <a role="menuitem" name="action_set_done" type="object" class="dropdown-item">Mark Done</a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="o_kanban_record_body">
+                                <div t-if="record.dead_line.raw_value" class="mt-1">
+                                    <i class="fa fa-clock-o" title="Deadline"/>
+                                    <span t-attf-class="#{record.is_overdue.raw_value ? 'text-danger fw-bold' : ''}">
+                                        <field name="dead_line"/>
+                                    </span>
+                                </div>
+
+                                <div t-if="record.meeting_name.raw_value" class="text-muted small mt-1">
+                                    <i class="fa fa-calendar"/> <field name="meeting_name"/>
+                                </div>
+
+                                <div t-if="record.subtask_count.raw_value > 0" class="mt-2">
+                                    <div class="d-flex justify-content-between small text-muted">
+                                        <span>Subtasks</span>
+                                        <span><field name="subtask_progress" widget="float" digits="[0,0]"/>%</span>
+                                    </div>
+                                    <div class="progress" style="height: 5px;">
+                                        <div class="progress-bar bg-info" role="progressbar"
+                                             t-att-style="'width: ' + record.subtask_progress.raw_value + '%'"
+                                             aria-valuenow="record.subtask_progress.raw_value"
+                                             aria-valuemin="0" aria-valuemax="100"/>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="o_kanban_record_bottom mt-auto pt-2">
+                                <div class="oe_kanban_bottom_left">
+                                    <field name="priority" widget="priority"/>
+                                    <field name="activity_ids" widget="kanban_activity"/>
+                                </div>
+                                <div class="oe_kanban_bottom_right">
+                                    <field name="assignee" widget="many2one_avatar_user"/>
+                                </div>
+                            </div>
+
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
         </field>
     </record>
-    <record id="dw_actions_view_form" model="ir.ui.view">
+
+<record id="dw_actions_view_form" model="ir.ui.view">
         <field name="name">dw.actions.view.form</field>
         <field name="model">dw.actions</field>
         <field name="arch" type="xml">
             <form string="Action">
                 <header>
-                    <field name="status" widget="statusbar" clickable="True"/>
+                    <button name="action_set_in_progress"
+                            string="Start"
+                            type="object"
+                            class="btn-primary"
+                            invisible="status != 'todo'"/>
+
+                    <button name="action_set_done"
+                            string="Mark Done"
+                            type="object"
+                            class="btn-success"
+                            invisible="status == 'done'"/>
+
+                    <button name="action_set_blocked"
+                            string="Block"
+                            type="object"
+                            class="btn-danger"
+                            invisible="status in ('done', 'blocked')"/>
+
+                    <button name="action_set_todo"
+                            string="Re-open"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="status != 'done'"/>
+
+                    <button name="action_set_todo"
+                            string="Unblock"
+                            type="object"
+                            class="btn-secondary"
+                            invisible="status != 'blocked'"/>
+
+                    <button name="action_open_meeting"
+                            string="Open Meeting"
+                            type="object"
+                            invisible="not meeting_id"
+                            class="btn-link"/>
+
+                    <field name="status"
+                           widget="statusbar"
+                           statusbar_visible="todo,in_progress,done"/>
                 </header>
+
                 <sheet>
-                    <!-- Titre -->
+                    <widget name="web_ribbon"
+                            title="Overdue"
+                            bg_color="text-bg-danger"
+                            invisible="not is_overdue or status == 'done'"/>
+                    <widget name="web_ribbon"
+                            title="Completed"
+                            bg_color="text-bg-success"
+                            invisible="status != 'done'"/>
+                    <widget name="web_ribbon"
+                            title="Blocked"
+                            bg_color="text-bg-secondary"
+                            invisible="status != 'blocked'"/>
+
                     <div class="oe_title">
-                        <label for="name"/>
+                        <label for="name" string="Action Title"/>
                         <h1>
-                            <field name="name" placeholder="e.g. Action 01"/>
+                            <field name="name"
+                                   readonly="status == 'done'"
+                                   placeholder="e.g. Review Q4 Budget Report"/>
                         </h1>
                     </div>
 
-                    <!-- Informations principales -->
                     <group>
                         <group>
-                            <field name="assignee"/>
-                            <field name="priority"/>
+                            <field name="assignee"
+                                   widget="many2one_avatar_user"
+                                   readonly="status == 'done'"/>
+                            <field name="priority"
+                                   widget="priority"
+                                   readonly="status == 'done'"/>
+                            <field name="dead_line"
+                                   readonly="status == 'done'"/>
                         </group>
                         <group>
-                            <field name="dead_line"/>
-                            <field name="meeting_id" readonly="1"/>
+                            <field name="meeting_id"
+                                   readonly="status == 'done'"/>
+                            <field name="parent_id"
+                                   readonly="status == 'done'"/>
+                            <field name="session_id" invisible="1"/>
                         </group>
                     </group>
-                    <!-- Sous-tâches -->
+
+                    <group string="Completion Details" invisible="status != 'done'" class="bg-light p-2">
+                        <group>
+                            <field name="completed_date"/>
+                        </group>
+                        <group>
+                            <field name="completed_by" widget="many2one_avatar_user"/>
+                        </group>
+                    </group>
+
+                    <group>
+                        <field name="description"
+                               readonly="status == 'done'"
+                               placeholder="Describe the action in detail..."
+                               rows="3"/>
+                    </group>
+
+                    <group invisible="1">
+                        <field name="is_overdue"/>
+                        <field name="deadline_status"/>
+                        <field name="days_until_deadline"/>
+                        <field name="subtask_count"/>
+                        <field name="subtask_done_count"/>
+                        <field name="subtask_progress"/>
+                        <field name="color"/>
+                        <field name="is_my_action"/>
+                    </group>
+
                     <notebook>
-                        <page string="Tasks">
-                            <field name="task_ids">
-                                <list>
+                        <page string="Sub-tasks" name="subtasks">
+                            <field name="task_ids" readonly="status == 'done'">
+                                <list editable="bottom"
+                                      decoration-success="status == 'done'"
+                                      decoration-muted="status == 'done'"
+                                      decoration-danger="is_overdue">
+                                    <field name="priority" widget="priority" optional="show"/>
                                     <field name="name"/>
-                                    <field name="assignee"/>
-                                    <field name="priority"/>
-                                    <field name="status"/>
-                                    <field name="dead_line"/>
+                                    <field name="assignee" widget="many2one_avatar_user" optional="show"/>
+                                    <field name="dead_line" optional="show"/>
+                                    <field name="status" widget="badge"
+                                           decoration-info="status == 'todo'"
+                                           decoration-warning="status == 'in_progress'"
+                                           decoration-success="status == 'done'"
+                                           decoration-danger="status == 'blocked'"/>
+                                    <field name="is_overdue" column_invisible="1"/>
                                 </list>
                             </field>
                         </page>
-                        <page string="requirements">
-                            <field name="requirements"/>
+
+                        <page string="Requirements" name="requirements">
+                            <field name="requirements" readonly="status == 'done'">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="description"/>
+                                    <field name="status" widget="badge"/>
+                                </list>
+                            </field>
                         </page>
                     </notebook>
                 </sheet>
+
                 <chatter/>
             </form>
         </field>
     </record>
 
+    <!-- ========== CALENDAR VIEW ========== -->
+    <record id="dw_actions_view_calendar" model="ir.ui.view">
+        <field name="name">dw.actions.view.calendar</field>
+        <field name="model">dw.actions</field>
+        <field name="arch" type="xml">
+            <calendar string="Actions Calendar"
+                      date_start="dead_line"
+                      color="assignee"
+                      event_open_popup="1"
+                      quick_create="1"
+                      mode="month">
+                <field name="name"/>
+                <field name="assignee"/>
+                <field name="status"/>
+                <field name="priority"/>
+            </calendar>
+        </field>
+    </record>
+
+    <!-- ========== SEARCH VIEW ========== -->
     <record id="dw_actions_view_search" model="ir.ui.view">
         <field name="name">dw.actions.view.search</field>
         <field name="model">dw.actions</field>
         <field name="arch" type="xml">
             <search>
-                <field name="name"/>
+                <!-- Search Fields -->
+                <field name="name"
+                       string="Action"
+                       filter_domain="[('name', 'ilike', self)]"/>
                 <field name="assignee"/>
-                <field name="priority"/>
+                <field name="meeting_id"/>
+                <field name="description"/>
+
+                <!-- Quick Filters -->
+                <separator/>
+                <filter string="My Actions"
+                        name="my_actions"
+                        domain="[('is_my_action', '=', True)]"/>
+                <filter string="Unassigned"
+                        name="unassigned"
+                        domain="[('assignee', '=', False)]"/>
+
+                <separator/>
+                <filter string="To Do"
+                        name="todo"
+                        domain="[('status', '=', 'todo')]"/>
+                <filter string="In Progress"
+                        name="in_progress"
+                        domain="[('status', '=', 'in_progress')]"/>
+                <filter string="Done"
+                        name="done"
+                        domain="[('status', '=', 'done')]"/>
+                <filter string="Blocked"
+                        name="blocked"
+                        domain="[('status', '=', 'blocked')]"/>
+                <filter string="Not Done"
+                        name="not_done"
+                        domain="[('status', '!=', 'done')]"/>
+
+                <separator/>
+                <filter string="Overdue"
+                        name="overdue"
+                        domain="[('is_overdue', '=', True), ('status', '!=', 'done')]"/>
+                <filter string="Due Today"
+                        name="due_today"
+                        domain="[('deadline_status', '=', 'today')]"/>
+                <filter string="Due This Week"
+                        name="due_week"
+                        domain="[('dead_line', '&gt;=', context_today().strftime('%Y-%m-%d')),
+                                 ('dead_line', '&lt;=', (context_today() + datetime.timedelta(days=7)).strftime('%Y-%m-%d'))]"/>
+                <filter string="No Deadline"
+                        name="no_deadline"
+                        domain="[('dead_line', '=', False)]"/>
+
+                <separator/>
+                <filter string="Urgent"
+                        name="urgent"
+                        domain="[('priority', '=', 'urgent')]"/>
+                <filter string="High Priority"
+                        name="high"
+                        domain="[('priority', '=', 'high')]"/>
+
+                <separator/>
+                <filter string="With Meeting"
+                        name="with_meeting"
+                        domain="[('meeting_id', '!=', False)]"/>
+                <filter string="With Subtasks"
+                        name="with_subtasks"
+                        domain="[('subtask_count', '&gt;', 0)]"/>
+                <filter string="Parent Actions"
+                        name="parent_actions"
+                        domain="[('parent_id', '=', False)]"/>
+
+                <!-- Group By -->
+                <group expand="0" string="Group By">
+                    <filter string="Status"
+                            name="group_status"
+                            context="{'group_by': 'status'}"/>
+                    <filter string="Assignee"
+                            name="group_assignee"
+                            context="{'group_by': 'assignee'}"/>
+                    <filter string="Priority"
+                            name="group_priority"
+                            context="{'group_by': 'priority'}"/>
+                    <filter string="Deadline Status"
+                            name="group_deadline"
+                            context="{'group_by': 'deadline_status'}"/>
+                    <separator/>
+                    <filter string="Meeting"
+                            name="group_meeting"
+                            context="{'group_by': 'meeting_id'}"/>
+                    <filter string="Parent Action"
+                            name="group_parent"
+                            context="{'group_by': 'parent_id'}"/>
+                    <separator/>
+                    <filter string="Due Date"
+                            name="group_deadline_date"
+                            context="{'group_by': 'dead_line'}"/>
+                    <filter string="Completion Date"
+                            name="group_completed"
+                            context="{'group_by': 'completed_date'}"/>
+                </group>
             </search>
         </field>
     </record>
 
+    <!-- ========== ACTIONS ========== -->
     <record id="dw_actions_action" model="ir.actions.act_window">
         <field name="name">Actions</field>
         <field name="res_model">dw.actions</field>
-        <field name="view_mode">list,form</field>
-        <field name="context">{'group_by': 'meeting_id'}</field>
+        <field name="view_mode">kanban,list,form,calendar</field>
+        <field name="context">{
+            'search_default_my_actions': 1,
+            'search_default_not_done': 1,
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first action
+            </p>
+            <p>
+                Track tasks and action items from your meetings.<br/>
+                Assign responsibilities, set deadlines, and monitor progress.
+            </p>
+        </field>
     </record>
+
+    <!-- Additional Action Views -->
+    <record id="dw_actions_action_overdue" model="ir.actions.act_window">
+        <field name="name">Overdue Actions</field>
+        <field name="res_model">dw.actions</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="domain">[('is_overdue', '=', True), ('status', '!=', 'done')]</field>
+        <field name="context">{'create': False}</field>
+    </record>
+
+    <record id="dw_actions_action_today" model="ir.actions.act_window">
+        <field name="name">Due Today</field>
+        <field name="res_model">dw.actions</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="domain">[('deadline_status', '=', 'today')]</field>
+    </record>
+
 </smartdz>
