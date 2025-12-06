@@ -64,7 +64,7 @@ export class MeetingSessionView extends Component {
       activeParticipants: 0,
       waitingParticipants: [],
       meetingDuration: "00:00:00",
-      activeMainTab: 'agenda',
+      activeMainTab: 'video', // Default to video tab
       notes: "",
       actions: [],
       availableAssignees: [],
@@ -74,14 +74,17 @@ export class MeetingSessionView extends Component {
       meetingTypeName: "",
       jitsiRoomId: null,
       pv: "",
+      jitsiInitialized: false, // Track if Jitsi is initialized
     });
 
     this.sessionId = null;
     this.planificationId = null;
     this.meetingId = null;
     this.durationInterval = null;
+    this.statusInterval = null;
     this.startTime = null;
     this._updateTimeout = null;
+    this.jitsiApi = null; // Store Jitsi API instance
 
     // Bind methods
     this.goBack = this.goBack.bind(this);
@@ -99,6 +102,7 @@ export class MeetingSessionView extends Component {
     this.leaveMeeting = this.leaveMeeting.bind(this);
     this.endMeeting = this.endMeeting.bind(this);
     this.retryConnection = this.retryConnection.bind(this);
+    this.onTabChange = this.onTabChange.bind(this); // New method for tab changes
 
     this.loadPvTemplate = this.loadPvTemplate.bind(this);
     this.startBlankPv = this.startBlankPv.bind(this);
@@ -131,23 +135,54 @@ export class MeetingSessionView extends Component {
         await this.initializeJitsi();
         this.startDurationTimer();
       }
+  this.statusInterval = setInterval(async () => {
+    await this.refreshParticipantStatus();
+  }, 10000); // 10 seconds
+
+  // Also call it once immediately to get initial status
+  await this.refreshParticipantStatus();
     });
 
     onWillUnmount(() => {
-      if (this.state.jitsiAPI) {
-        try {
-          this.state.jitsiAPI.dispose();
-        } catch (e) {
-          console.warn("Error disposing Jitsi API:", e);
-        }
-      }
+      this.cleanupJitsi();
       if (this.durationInterval) {
         clearInterval(this.durationInterval);
       }
       if (this._updateTimeout) {
         clearTimeout(this._updateTimeout);
       }
+      if (this.statusInterval) {
+      clearInterval(this.statusInterval);
+      }
     });
+  }
+
+  // -------------------- Helper methods for datetime handling --------------------
+  // Format a JS Date (or parseable value) to Odoo DB string "YYYY-MM-DD HH:MM:SS" using UTC
+  formatOdooDatetimeUTC(dateLike) {
+    const d = dateLike instanceof Date ? dateLike : new Date(dateLike);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+  }
+
+  // Parse server datetime into JS Date
+  // Accepts ISO strings with 'T' or Odoo DB format 'YYYY-MM-DD HH:MM:SS'
+  parseOdooDatetimeToDate(s) {
+    if (!s) return null;
+    if (typeof s !== "string") return new Date(s);
+    // If it contains 'T' assume ISO
+    if (s.includes("T")) {
+      return new Date(s);
+    }
+    // Match DB format
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+    if (m) {
+      const [_, Y, M, D, h, mi, sec] = m;
+      // Treat DB values as UTC to avoid timezone 'Z' issues — change if your server uses local time
+      return new Date(Date.UTC(+Y, +M - 1, +D, +h, +mi, +sec));
+    }
+    // Fallback to Date constructor
+    return new Date(s);
   }
 
   async rpcCall(route, params) {
@@ -204,9 +239,10 @@ export class MeetingSessionView extends Component {
           "actual_start_datetime",
           "display_camera",
           "actual_duration",
-          "has_remote_participants",
+          "has_remote_participants"
         ]
       );
+      console.log("Loaded session_id:", this.sessionId);
       console.log("Loaded session data:", sessions);
 
       if (!sessions || sessions.length === 0) {
@@ -267,10 +303,12 @@ export class MeetingSessionView extends Component {
         const participantRecords = await this.orm.read(
           'dw.participant',
           sessionData.participant_ids,
-          ['id', 'name']
+          ['id', 'name', 'attendance_status']
         );
         this.state.session.participants = participantRecords;
         this.state.session.participant_ids = participantRecords.map(p => p.id);
+        console.log("Loaded participants:", this.state.session.participants);
+        console.log("Loaded participant_ids:", this.state.session.participant_ids);
       }
 
       if (sessionData.subject_order && sessionData.subject_order.length > 0) {
@@ -336,7 +374,6 @@ export class MeetingSessionView extends Component {
         }
       }
 
-
       this.state.loading = false;
     } catch (error) {
       console.error("Failed to load session data:", error);
@@ -346,6 +383,17 @@ export class MeetingSessionView extends Component {
         type: "danger",
       });
     }
+  }
+
+  getStatusLabel(status) {
+        const labels = {
+            'present': 'Present',
+            'late': 'Late',
+            'absent': 'Absent',
+            'excused': 'Excused',
+            'default': 'Awaiting'
+        };
+        return labels[status] || 'Unknown';
   }
 
   async loadActions() {
@@ -388,6 +436,13 @@ export class MeetingSessionView extends Component {
   }
 
   async initializeJitsi() {
+    // Prevent multiple initializations
+    if (this.jitsiApi && this.state.jitsiInitialized) {
+      this.state.jitsiLoaded = true;
+      this.resumeJitsi();
+      return;
+    }
+
     if (!window.JitsiMeetExternalAPI) {
       this.state.error = "Jitsi API not loaded";
       return;
@@ -411,7 +466,11 @@ export class MeetingSessionView extends Component {
       if (!container) {
         throw new Error("Jitsi container not found");
       }
-      container.innerHTML = "";
+
+      // Clear container only if not already initialized
+      if (!this.state.jitsiInitialized) {
+        container.innerHTML = "";
+      }
 
       const options = {
         roomName: room_name,
@@ -436,7 +495,9 @@ export class MeetingSessionView extends Component {
         },
       };
 
-      this.state.jitsiAPI = new JitsiMeetExternalAPI(domain, options);
+      this.jitsiApi = new JitsiMeetExternalAPI(domain, options);
+      this.state.jitsiAPI = this.jitsiApi;
+      this.state.jitsiInitialized = true;
       this.setupJitsiEvents();
 
       this.notification.add("Connecting to video conference...", {
@@ -452,7 +513,7 @@ export class MeetingSessionView extends Component {
   }
 
   setupJitsiEvents() {
-    const api = this.state.jitsiAPI;
+    const api = this.jitsiApi;
     if (!api) return;
 
     api.addEventListener("videoConferenceJoined", (event) => {
@@ -462,11 +523,15 @@ export class MeetingSessionView extends Component {
       this.state.loading = false;
       this.state.error = null;
 
-      // Update session join time
-      this.orm.write("dw.meeting.session", [this.sessionId], {
-        is_connected: true,
-        join_datetime: new Date().toISOString(),
-      });
+      // Update session join time (format to Odoo DB format)
+      try {
+        this.orm.write("dw.meeting.session", [this.sessionId], {
+          is_connected: true,
+          join_datetime: this.formatOdooDatetimeUTC(new Date()),
+        });
+      } catch (e) {
+        console.warn('Failed to write join_datetime:', e);
+      }
 
       this.notification.add("Connected to video conference", {
         type: "success",
@@ -503,11 +568,15 @@ export class MeetingSessionView extends Component {
 
     api.addEventListener("videoConferenceLeft", () => {
       console.log("👋 Left conference");
-      // Update session leave time
-      this.orm.write("dw.meeting.session", [this.sessionId], {
-        is_connected: false,
-        actual_end_datetime: new Date().toISOString(),
-      });
+      // Update session leave time (format to Odoo DB format)
+      try {
+        this.orm.write("dw.meeting.session", [this.sessionId], {
+          is_connected: false,
+          actual_end_datetime: this.formatOdooDatetimeUTC(new Date()),
+        });
+      } catch (e) {
+        console.warn('Failed to write actual_end_datetime:', e);
+      }
       this.goBack();
     });
 
@@ -517,8 +586,70 @@ export class MeetingSessionView extends Component {
     });
   }
 
+  // New method to handle tab changes
+  onTabChange(tabName) {
+    const previousTab = this.state.activeMainTab;
+    this.state.activeMainTab = tabName;
+
+    // If switching to video tab and Jitsi was already initialized
+    if (tabName === 'video' && this.jitsiApi && !this.state.jitsiLoaded) {
+      this.reconnectJitsi();
+    }
+
+    // If switching away from video, don't destroy Jitsi, just hide it
+    if (previousTab === 'video' && tabName !== 'video') {
+      this.pauseJitsi();
+    }
+  }
+
+  pauseJitsi() {
+    // Instead of destroying Jitsi, just mute audio/video when switching tabs
+    if (this.jitsiApi) {
+      try {
+        this.jitsiApi.executeCommand('toggleAudio', false);
+        this.jitsiApi.executeCommand('toggleVideo', false);
+      } catch (e) {
+        console.warn('Could not pause Jitsi:', e);
+      }
+    }
+  }
+
+  resumeJitsi() {
+    // Resume audio/video when returning to video tab
+    if (this.jitsiApi) {
+      try {
+        this.jitsiApi.executeCommand('toggleAudio', true);
+        this.jitsiApi.executeCommand('toggleVideo', true);
+      } catch (e) {
+        console.warn('Could not resume Jitsi:', e);
+      }
+    }
+  }
+
+  reconnectJitsi() {
+    // Re-establish connection if needed
+    if (this.jitsiApi && !this.state.jitsiLoaded) {
+      this.state.jitsiLoaded = true;
+      this.resumeJitsi();
+    }
+  }
+
+  cleanupJitsi() {
+    // Only destroy Jitsi when component is completely unmounted
+    if (this.jitsiApi) {
+      try {
+        this.jitsiApi.dispose();
+      } catch (e) {
+        console.warn('Error disposing Jitsi:', e);
+      }
+      this.jitsiApi = null;
+    }
+    this.state.jitsiInitialized = false;
+    this.state.jitsiLoaded = false;
+  }
+
   refreshParticipants() {
-    const api = this.state.jitsiAPI;
+    const api = this.jitsiApi;
     if (!api || typeof api.getParticipantsInfo !== "function") return;
 
     try {
@@ -537,7 +668,7 @@ export class MeetingSessionView extends Component {
       return;
     }
 
-    const api = this.state.jitsiAPI;
+    const api = this.jitsiApi;
     if (api && typeof api.executeCommand === "function") {
       try {
         api.executeCommand("answerKnockingParticipant", participantId, true);
@@ -554,7 +685,7 @@ export class MeetingSessionView extends Component {
   rejectParticipant(participantId) {
     if (!this.state.session.is_host) return;
 
-    const api = this.state.jitsiAPI;
+    const api = this.jitsiApi;
     if (api && typeof api.executeCommand === "function") {
       try {
         api.executeCommand("answerKnockingParticipant", participantId, false);
@@ -567,9 +698,40 @@ export class MeetingSessionView extends Component {
     }
   }
 
+async refreshParticipantStatus() {
+  console.log("🔄 Refreshing participant status...");
+  console.log("Participant IDs:", this.state.session.participant_ids);
+
+  if (this.state.session.participant_ids?.length > 0) {
+    try {
+      const participantRecords = await this.orm.read(
+        'dw.participant',
+        this.state.session.participant_ids,
+        ['id', 'name', 'attendance_status']
+      );
+
+      console.log("✅ Fetched participant records:", participantRecords);
+
+      // Update participants while preserving reactivity
+      this.state.session.participants = participantRecords;
+      console.log("✅ Updated state.session.participants");
+
+    } catch (error) {
+      console.error("❌ Error refreshing participant status:", error);
+    }
+  } else {
+    console.log("⚠️ No participant IDs to refresh");
+  }
+}
+
   startDurationTimer() {
-//    this.startTime = Date.now();
-    this.startTime = new Date(this.state.session.actual_start_datetime + "Z").getTime();
+    // Use robust parsing helper instead of appending 'Z'
+    const parsedStart = this.parseOdooDatetimeToDate(this.state.session.actual_start_datetime);
+    if (parsedStart) {
+      this.startTime = parsedStart.getTime();
+    } else {
+      this.startTime = Date.now();
+    }
     console.log("Meeting started at:", new Date(this.startTime).toISOString());
     this.durationInterval = setInterval(() => {
       const elapsed = Date.now() - this.startTime;
@@ -592,29 +754,17 @@ export class MeetingSessionView extends Component {
     }
   }
 
-//  toggleNotes() {
-//    this.state.showNotes = !this.state.showNotes;
-//    if (this.state.showNotes) {
-//      this.state.showActions = false;
-//    }
-//  }
-    toggleNotes() {
-        this.state.activeMainTab = this.state.activeMainTab === 'notes' ? 'video' : 'notes';
-    }
+  toggleNotes() {
+    this.onTabChange(this.state.activeMainTab === 'notes' ? 'video' : 'notes');
+  }
 
-//  toggleActions() {
-//    this.state.showActions = !this.state.showActions;
-//    if (this.state.showActions) {
-//      this.state.showNotes = false;
-//    }
-//  }
-    toggleActions() {
-    this.state.activeMainTab = this.state.activeMainTab === 'actions' ? 'video' : 'actions';
-    }
+  toggleActions() {
+    this.onTabChange(this.state.activeMainTab === 'actions' ? 'video' : 'actions');
+  }
 
-    toggleAgenda() {
-    this.state.activeMainTab = this.state.activeMainTab === 'actions' ? 'video' : 'actions';
-    }
+  toggleAgenda() {
+    this.onTabChange(this.state.activeMainTab === 'agenda' ? 'video' : 'agenda');
+  }
 
   async toggleCamera() {
     this.state.session.display_camera = !this.state.session.display_camera;
@@ -622,7 +772,7 @@ export class MeetingSessionView extends Component {
     await this.orm.write("dw.meeting.session", [this.sessionId], {
         display_camera: this.state.session.display_camera,
     });
-}
+  }
 
   async saveNotes() {
     try {
@@ -639,28 +789,30 @@ export class MeetingSessionView extends Component {
       });
     }
   }
-    async savePv() {
-        try {
-          if (!this.meetingId) {
-            throw new Error("No meeting ID available");
-          }
 
-          await this.orm.write("dw.meeting", [this.meetingId], {
-            pv: this.state.pv,
-          });
+  async savePv() {
+    try {
+      if (!this.meetingId) {
+        throw new Error("No meeting ID available");
+      }
 
-          console.log("Saved PV:", this.state.pv);
-          this.notification.add("PV saved successfully", {
-            type: "success",
-          });
-        } catch (error) {
-          console.error("Failed to save PV:", error);
-          this.notification.add("Failed to save PV", {
-            type: "danger",
-          });
-        }
+      await this.orm.write("dw.meeting", [this.meetingId], {
+        pv: this.state.pv,
+      });
+
+      console.log("Saved PV:", this.state.pv);
+      this.notification.add("PV saved successfully", {
+        type: "success",
+      });
+    } catch (error) {
+      console.error("Failed to save PV:", error);
+      this.notification.add("Failed to save PV", {
+        type: "danger",
+      });
     }
-    async loadPvTemplate() {
+  }
+
+  async loadPvTemplate() {
     try {
       // Generate PV template with meeting data
       const template = this.generatePvTemplate();
@@ -675,8 +827,9 @@ export class MeetingSessionView extends Component {
         type: "danger",
       });
     }
-    }
-    generatePvTemplate() {
+  }
+
+  generatePvTemplate() {
     const meetingDate = this.state.session.actual_start_datetime
       ? new Date(this.state.session.actual_start_datetime).toLocaleDateString('fr-FR', {
           weekday: 'long',
@@ -806,9 +959,9 @@ Signatures :
 ═══════════════════════════════════════════════════════════════
 Document généré le ${new Date().toLocaleString('fr-FR')}
 ═══════════════════════════════════════════════════════════════`;
-}
+  }
 
-async startBlankPv() {
+  async startBlankPv() {
     const confirmed = this.state.pv
       ? confirm("Cela effacera le contenu actuel du PV. Continuer ?")
       : true;
@@ -823,9 +976,7 @@ async startBlankPv() {
           this.state.pv = meetings[0].pv || "";
         }
     }
-}
-
-
+  }
 
   async addNewAction() {
     try {
@@ -905,8 +1056,8 @@ async startBlankPv() {
   async leaveMeeting() {
     const confirmed = confirm("Are you sure you want to leave this meeting?");
     if (confirmed) {
-      if (this.state.jitsiAPI) {
-        this.state.jitsiAPI.executeCommand("hangup");
+      if (this.jitsiApi) {
+        this.jitsiApi.executeCommand("hangup");
       } else {
         this.goBack();
       }
@@ -928,25 +1079,39 @@ async startBlankPv() {
     if (!confirmed) return;
 
     try {
-
       this.stopDurationTimer();
 
       const durationStr = this.state.meetingDuration;
       const [h, m, s] = durationStr.split(":").map(Number);
       const durationHours = h + m/60 + s/3600;
-      // 1. Update session state to 'done'
-      await this.orm.write("dw.meeting.session", [this.sessionId], {
-        state: "done",
-        is_connected: false,
-        actual_end_datetime: new Date().toISOString().slice(0, 19).replace("T", " "),
-        actual_duration: durationHours,
-      });
+
+//      // 1. Update session state to 'done'
+//      await this.orm.write("dw.meeting.session", [this.sessionId], {
+//        state: "done",
+//        is_connected: false,
+//        actual_end_datetime: this.formatOdooDatetimeUTC(new Date()),
+//        actual_duration: durationHours,
+//      });
+        // 1. Get all session IDs for this planification
+        const sessionIds = await this.orm.search("dw.meeting.session", [
+            ["planification_id", "=", this.planificationId]
+        ]);
+
+        // 2. Write to all found sessions
+        if (sessionIds.length > 0) {
+            await this.orm.write("dw.meeting.session", sessionIds, {
+                state: "done",
+                is_connected: false,
+                actual_end_datetime: this.formatOdooDatetimeUTC(new Date()),
+                actual_duration: durationHours,
+            });
+        }
 
       // 2. Update planification state to 'done'
       if (this.planificationId) {
         await this.orm.write("dw.planification.meeting", [this.planificationId], {
           state: "done",
-          actual_end_datetime: new Date().toISOString().slice(0, 19).replace("T", " "),
+          actual_end_datetime: this.formatOdooDatetimeUTC(new Date()),
           actual_duration: durationHours,
         });
       }
@@ -955,13 +1120,13 @@ async startBlankPv() {
       if (this.meetingId) {
         await this.orm.write("dw.meeting", [this.meetingId], {
           state: "done",
-          actual_end_datetime: new Date().toISOString().slice(0, 19).replace("T", " "),
+          actual_end_datetime: this.formatOdooDatetimeUTC(new Date()),
           actual_duration: durationHours,
         });
       }
 
       // 4. Kick all participants from Jitsi
-      const api = this.state.jitsiAPI;
+      const api = this.jitsiApi;
       if (api && typeof api.executeCommand === "function") {
         try {
           // Get all participants
@@ -985,8 +1150,8 @@ async startBlankPv() {
 
       // 6. Wait a moment for notifications to show, then leave
       setTimeout(() => {
-        if (this.state.jitsiAPI) {
-          this.state.jitsiAPI.executeCommand("hangup");
+        if (this.jitsiApi) {
+          this.jitsiApi.executeCommand("hangup");
         } else {
           this.goBack();
         }
@@ -1002,14 +1167,7 @@ async startBlankPv() {
 
   async retryConnection() {
     this.state.error = null;
-    if (this.state.jitsiAPI) {
-      try {
-        this.state.jitsiAPI.dispose();
-      } catch (e) {
-        console.warn("Error disposing API:", e);
-      }
-      this.state.jitsiAPI = null;
-    }
+    this.cleanupJitsi();
     await this.initializeJitsi();
   }
 

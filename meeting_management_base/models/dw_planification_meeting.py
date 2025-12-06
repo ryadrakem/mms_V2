@@ -1,18 +1,21 @@
 from smartdz import models, fields, api, _
-from smartdz.exceptions import ValidationError
+from smartdz.exceptions import ValidationError, UserError
 from datetime import timedelta, datetime
 import logging
+import pytz
 
 _logger = logging.getLogger(__name__)
+
 
 class DwAgenda(models.Model):
     _name = 'dw.agenda'
     _description = 'Agenda'
 
-    name = fields.Char(string='Ordre du jour',required=True)
+    name = fields.Char(string='Ordre du jour', required=True)
     planification_id = fields.Many2one('dw.planification.meeting', string='Planification Meeting')
     meeting_id = fields.Many2one('dw.meeting', string='Meeting')
     session_id = fields.Many2one('dw.meeting.session', string='session')
+
 
 class DwPlanificationMeeting(models.Model):
     _name = 'dw.planification.meeting'
@@ -29,6 +32,9 @@ class DwPlanificationMeeting(models.Model):
     client_ids = fields.Many2many('res.partner', string='Client', domain=[('is_company', '=', True)])
     planned_start_datetime = fields.Datetime(string='Start Date & Time', required=True, tracking=True)
     actual_start_datetime = fields.Datetime(string='Actual Start Date & Time', tracking=True)
+    tolerated_late = fields.Integer(string="Tolerated Late (minutes)", help="In minutes")
+    tolerated_limit = fields.Datetime(string="Tolerated Limit", compute="_compute_tolerated_limit", store=True)
+
     planned_end_time = fields.Datetime(string='End Time', compute='_compute_end_time', store=True)
     actual_end_datetime = fields.Datetime(string='Actual End Date & Time', store=True)
     location_id = fields.Many2one('dw.location', string='Location')
@@ -51,7 +57,7 @@ class DwPlanificationMeeting(models.Model):
         compute='_compute_has_remote_participants',
         store=True
     )
-
+    is_send_email = fields.Boolean(string='Send Email Invitations', default=True)
     state = fields.Selection([
         ('draft', 'Draft'),
         ('confirmed', 'Confirmed'),
@@ -60,6 +66,14 @@ class DwPlanificationMeeting(models.Model):
         ('done', 'Done'),
         ('cancelled', 'Cancelled'),
     ], string='Status', default='draft', tracking=True)
+
+    @api.depends("actual_start_datetime", "tolerated_late")
+    def _compute_tolerated_limit(self):
+        for rec in self:
+            if rec.actual_start_datetime and rec.tolerated_late is not None:
+                rec.tolerated_limit = rec.actual_start_datetime + timedelta(minutes=rec.tolerated_late)
+            else:
+                rec.tolerated_limit = False
 
     @api.depends('participant_ids', 'participant_ids.is_remote')
     def _compute_has_remote_participants(self):
@@ -85,6 +99,12 @@ class DwPlanificationMeeting(models.Model):
             if record.planned_start_datetime and record.planned_start_datetime < fields.Datetime.now():
                 raise ValidationError(_("You cannot set a reservation date in the past."))
 
+    @api.onchange('location_id')
+    def _onchange_location_clear_room(self):
+        """Clear room field when location changes"""
+        if self.room_id:
+            self.room_id = False
+
     @api.onchange('is_off_site')
     def _onchange_location_id(self):
         for rec in self:
@@ -103,33 +123,60 @@ class DwPlanificationMeeting(models.Model):
 
     @api.constrains('planned_start_datetime', 'planned_end_time', 'room_id', 'equipment_ids')
     def _check_availability(self):
+        """Check availability considering actual meeting times"""
         for rec in self:
             if not rec.planned_start_datetime or not rec.planned_end_time:
                 continue
 
-            # 1 Check room availability
+            # 1. Check room availability
             if rec.room_id:
-                overlapping_rooms = self.env['dw.planification.meeting'].search([
+                # PRIORITY 1: Check for actual ongoing meetings
+                overlapping_actual = self.env['dw.meeting'].search([
+                    ('room_id', '=', rec.room_id.id),
+                    ('state', '=', 'in_progress'),
+                    ('actual_start_datetime', '<', rec.planned_end_time),
+                ])
+
+                # Filter out meetings that have actually ended
+                now = fields.Datetime.now()
+                active_actual = []
+                for meeting in overlapping_actual:
+                    # Meeting is still ongoing if:
+                    # - It hasn't ended yet (actual_end_datetime is False), OR
+                    # - It ended after our planned start time
+                    if not meeting.actual_end_datetime or meeting.actual_end_datetime > rec.planned_start_datetime:
+                        active_actual.append(meeting)
+
+                if active_actual:
+                    raise ValidationError(
+                        f"La salle '{rec.room_id.name}' est actuellement occupée par une réunion en cours: {active_actual[0].name}"
+                    )
+
+                # PRIORITY 2: Check for other planned meetings
+                overlapping_planned = self.search([
                     ('id', '!=', rec.id),
                     ('room_id', '=', rec.room_id.id),
-                    ('state', '=', 'planned'),
+                    ('state', 'in', ['planned', 'confirmed']),
                     ('planned_start_datetime', '<', rec.planned_end_time),
                     ('planned_end_time', '>', rec.planned_start_datetime),
+                    ('meeting_id', '=', False),  # Not yet converted to actual
                 ])
-                if overlapping_rooms:
+
+                if overlapping_planned:
                     raise ValidationError(
                         f"La salle '{rec.room_id.name}' est déjà réservée pour cet intervalle de temps."
                     )
 
-            # 2 Check equipment availability
+            # 2. Check equipment availability (similar logic)
             for equipment in rec.equipment_ids:
-                overlapping_equipments = self.env['dw.planification.meeting'].search([
+                overlapping_equipments = self.search([
                     ('id', '!=', rec.id),
                     ('equipment_ids', 'in', equipment.id),
-                    ('state', '=', 'planned'),
+                    ('state', 'in', ['planned', 'confirmed']),
                     ('planned_start_datetime', '<', rec.planned_end_time),
                     ('planned_end_time', '>', rec.planned_start_datetime),
                 ])
+
                 if overlapping_equipments:
                     raise ValidationError(
                         f"L'équipement '{equipment.name}' est déjà réservé pour cet intervalle de temps."
@@ -139,7 +186,6 @@ class DwPlanificationMeeting(models.Model):
         for rec in self:
             rec.state = 'planned'
 
-            # Créer l'événement calendrier
             if rec.sync_with_calendar and not rec.calendar_event_id:
                 rec._create_calendar_event()
 
@@ -153,7 +199,6 @@ class DwPlanificationMeeting(models.Model):
                     'meeting_plannification_id': rec.id,
                 })
 
-            # Create separate reservations for each equipment
             for equipment in rec.equipment_ids:
                 self.env['dw.reservations'].create({
                     'name': f"Équipement: {equipment.name}",
@@ -169,7 +214,8 @@ class DwPlanificationMeeting(models.Model):
                     participant._generate_access_token()
 
             # Get the secure email template
-            template = self.env.ref('meeting_management_base.email_template_meeting_invitation_secure', raise_if_not_found=False)
+            template = self.env.ref('meeting_management_base.email_template_meeting_invitation_secure',
+                                    raise_if_not_found=False)
 
             if template:
                 # Send individual email to each participant
@@ -198,30 +244,9 @@ class DwPlanificationMeeting(models.Model):
             else:
                 _logger.warning("Email template 'email_template_meeting_invitation_secure' not found!")
 
-
-                # 'name': rec.name,
-                # 'objet': rec.objet,
-                # 'is_external': rec.is_external,
-                # 'meeting_type_id': rec.meeting_type_id.id,
-                # 'client_ids': [(6, 0, rec.client_ids.ids)],
-                # 'room_id': rec.room_id.id if rec.room_id else False,
-                # 'planned_start_datetime': rec.planned_start_datetime,
-                # 'end_datetime': rec.planned_end_time if hasattr(rec, 'planned_end_time') else False,
-                # 'duration': rec.duration,
-                # 'state': 'in_progress',
-                # 'location_id': rec.location_id.id if rec.location_id else False,
-                # 'agenda': rec.subject_order if hasattr(rec, 'subject_order') else False,
-                # 'form_planification': True,
-                # 'planification_id': rec.id,
-                # 'jitsi_room_id': f"meeting-room-{rec.id}-{rec.env.cr.dbname}",
-                # 'actual_start_time': fields.Datetime.now(),
-                # 'use_the_chat_room': rec.is_off_site,
-
-
     def create_meeting_and_sessions(self):
         self.ensure_one()
-        # TODO: change 6 with Command
-        # 1) Create the MEETING record
+        # Create the MEETING record
         self.actual_start_datetime = fields.Datetime.now()
         meeting = self.env['dw.meeting'].create({
             'name': self.name,
@@ -240,8 +265,10 @@ class DwPlanificationMeeting(models.Model):
             'is_external': self.is_external,
             'state': 'in_progress',
         })
+
         self.write({
             'state': 'started',
+            'meeting_id': meeting.id,  # Link back to the meeting
         })
 
         Session = self.env['dw.meeting.session']
@@ -260,7 +287,6 @@ class DwPlanificationMeeting(models.Model):
                     'actual_start_datetime': fields.Datetime.now(),
                     'display_camera': self.display_camera,
                     'subject_order': self.subject_order,
-                    'has_remote_participants': self.has_remote_participants,
                 })
                 # Capture current user's session
                 if participant.user_id.id == self.env.user.id:
@@ -279,18 +305,15 @@ class DwPlanificationMeeting(models.Model):
             'target': 'current',
         }
 
-    # def open_meeting(self):
-    #     self.ensure_one()
-    #     Meeting = self.env['dw.meeting']
-    #     meeting = Meeting.search([('planification_id', '=', self.id)], limit=1)
-    #     return {
-    #         'type': 'ir.actions.act_window',
-    #         'name': f'Meeting: {meeting.name}',
-    #         'res_model': 'dw.meeting',
-    #         'view_mode': 'form',
-    #         'res_id': meeting.id,
-    #         'target': 'current',
-    #     }
+    def _delete_reservations(self):
+        """Delete all reservations when meeting is cancelled or done"""
+        self.ensure_one()
+        reservations = self.env['dw.reservations'].search([
+            ('meeting_plannification_id', '=', self.id)
+        ])
+        if reservations:
+            reservations.unlink()
+            _logger.info(f"Deleted {len(reservations)} reservations for meeting {self.name}")
 
     def open_meeting(self):
         self.ensure_one()
@@ -306,17 +329,6 @@ class DwPlanificationMeeting(models.Model):
             },
         }
 
-        # 1911
-        # if user_session:
-        #     return {
-        #         'type': 'ir.actions.act_window',
-        #         'name': 'My Meeting Session',
-        #         'res_model': 'dw.meeting.session',
-        #         'view_mode': 'form',
-        #         'res_id': user_session.id,
-        #         'target': 'current',
-        #     }
-
     def action_join(self):
         self.ensure_one()
         Session = self.env['dw.meeting.session']
@@ -330,9 +342,20 @@ class DwPlanificationMeeting(models.Model):
             if participant.user_id:
                 session = Session.search([('meeting_id', '=', meeting.id), ('participant_id', '=', participant.id),
                                           ('user_id', '=', participant.user_id.id)], limit=1)
-                # Capture current user's session
+
                 if participant.user_id.id == self.env.user.id:
                     user_session = session
+
+        if user_session and not user_session.flag_attendance:
+            now = fields.Datetime.now()
+            user_session.join_time = now
+            if self.actual_start_datetime and self.tolerated_late:
+                tolerated_limit = self.actual_start_datetime + timedelta(minutes=self.tolerated_late)
+                if now <= tolerated_limit:
+                    user_session.participant_id.attendance_status = "present"
+                else:
+                    user_session.participant_id.attendance_status = "late"
+            user_session.flag_attendance = True
 
         return {
             'type': 'ir.actions.client',
@@ -348,61 +371,6 @@ class DwPlanificationMeeting(models.Model):
                 'default_pv': meeting.pv,
             },
         }
-
-    def action_start(self):
-        """Start meeting: ensure host, create meeting, link participants, update planification."""
-        for rec in self:
-            host_count = rec.participant_ids.filtered(lambda p: p.role_id.name == 'host')
-            if not host_count:
-                raise ValidationError(
-                    _("At least one participant must be designated as host before starting the meeting.")
-                )
-
-            # Prepare meeting values
-            meeting_vals = {
-                'name': rec.name,
-                'objet': rec.objet,
-                'is_external': rec.is_external,
-                'meeting_type_id': rec.meeting_type_id.id,
-                'client_ids': [(6, 0, rec.client_ids.ids)],
-                'room_id': rec.room_id.id if rec.room_id else False,
-                'planned_start_datetime': rec.planned_start_datetime,
-                'planned_end_time': rec.planned_end_time if hasattr(rec, 'planned_end_time') else False,
-                'duration': rec.duration,
-                'state': 'in_progress',
-                'location_id': rec.location_id.id if rec.location_id else False,
-                'subject_order': rec.subject_order if hasattr(rec, 'subject_order') else False,
-                'form_planification': True,
-                'planification_id': rec.id,
-                'jitsi_room_id': f"meeting-room-{rec.id}-{rec.env.cr.dbname}",
-                'actual_start_time': fields.Datetime.now(),
-                'use_the_chat_room': rec.is_off_site,
-            }
-
-            # Create the meeting
-            meeting = self.env['dw.meeting'].create(meeting_vals)
-
-            # Link participants to meeting
-            rec.participant_ids.write({'meeting_id': meeting.id})
-
-            rec.write({
-                'state': 'started',
-                'meeting_id': meeting.id,
-            })
-
-            return rec.action_join()
-
-            1911
-            # Return action for dashboard
-            # return {
-            #     'type': 'ir.actions.client',
-            #     'tag': 'meeting_dashboard_client',
-            #     'name': f'Meeting: {meeting.name}',
-            #     'params': {
-            #         'meeting_id': meeting.id,
-            #         'current_user': self.env.user.name,  # <-- pass user name
-            #     }
-            # }
 
     """
     # TODO : we have to check about this create for the calendar integration suggested by claude.
@@ -422,7 +390,7 @@ class DwPlanificationMeeting(models.Model):
         result = super().write(vals)
 
         # Si on passe à l'état planned ou confirmed, créer l'événement
-        if 'state' in vals and vals['state'] in ['planned', 'confirmed']:
+        if 'state' in vals and vals['state'] in ['planned']:
             for record in self:
                 if record.sync_with_calendar and not record.calendar_event_id:
                     record._create_calendar_event()
@@ -439,12 +407,26 @@ class DwPlanificationMeeting(models.Model):
         return result
 
     def unlink(self):
-        """Supprimer l'événement calendrier lors de la suppression"""
-        calendar_events = self.mapped('calendar_event_id')
-        result = super().unlink()
-        if calendar_events:
-            calendar_events.unlink()
-        return result
+        """Prevent deletion if meeting has been created or if in certain states"""
+        for record in self:
+            # Check if meeting has been created from this planification
+            if record.meeting_id:
+                raise UserError(_(
+                    'Cannot delete planification "%s" because a meeting has already been created from it. '
+                    'You can cancel the meeting instead.'
+                ) % record.name)
+
+            # Check if there are confirmed reservations
+            if record.state in ['planned', 'confirmed', 'started', 'done']:
+                raise UserError(_(
+                    'Cannot delete planification "%s" in state "%s". '
+                ) % (record.name, record.state))
+
+            # Delete associated calendar event if exists
+            if record.calendar_event_id:
+                record.calendar_event_id.unlink()
+
+        return super().unlink()
 
     def _create_calendar_event(self):
         """Créer un événement dans le calendrier"""
@@ -570,23 +552,9 @@ class DwPlanificationMeeting(models.Model):
 
         return partner_ids
 
-    def action_view_calendar_event(self):
-        """Action pour ouvrir l'événement calendrier"""
-        self.ensure_one()
-        if not self.calendar_event_id:
-            raise ValidationError(_("No calendar event linked to this meeting."))
-
-        return {
-            'name': _('Calendar Event'),
-            'type': 'ir.actions.act_window',
-            'res_model': 'calendar.event',
-            'res_id': self.calendar_event_id.id,
-            'view_mode': 'form',
-            'target': 'current',
-        }
-
     def action_done(self):
         for rec in self:
+            rec._delete_reservations()  # Add this line
             rec.state = 'done'
 
     def action_confirm(self):
@@ -617,6 +585,7 @@ class DwPlanificationMeeting(models.Model):
         for rec in self:
             if rec.calendar_event_id:
                 rec.calendar_event_id.unlink()
+            rec._delete_reservations()
             rec.state = 'cancelled'
 
     def action_reset_to_draft(self):
@@ -625,25 +594,37 @@ class DwPlanificationMeeting(models.Model):
 
     @api.model
     def get_dashboard_kpis(self):
-        """Get KPI data for dashboard"""
-        now = fields.Datetime.now()  # Use Odoo's timezone-aware datetime
+        """Get KPI data for dashboard - using actual meeting data"""
+        now = fields.Datetime.now()
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         today_end = today_start + timedelta(days=1)
 
-        # Upcoming meetings (future planned/confirmed/started meetings)
+        # Upcoming meetings from planifications
         upcoming_count = self.search_count([
             ('planned_start_datetime', '>=', now),
             ('state', 'not in', ['cancelled', 'done', 'draft'])
         ])
 
-        # Today's meetings
-        today_meetings = self.search([
-            ('planned_start_datetime', '>=', today_start),
-            ('planned_start_datetime', '<', today_end),
-            ('state', 'not in', ['cancelled', 'draft'])
+        # Today's meetings - use actual meetings if available
+        Meeting = self.env['dw.meeting']
+        today_actual_meetings = Meeting.search([
+            ('actual_start_datetime', '>=', today_start),
+            ('actual_start_datetime', '<', today_end),
+            ('state', 'in', ['in_progress', 'done'])
         ])
-        today_count = len(today_meetings)
-        today_hours = sum(today_meetings.mapped('duration'))
+
+        # Fall back to planned if no actual meetings
+        if not today_actual_meetings:
+            today_meetings = self.search([
+                ('planned_start_datetime', '>=', today_start),
+                ('planned_start_datetime', '<', today_end),
+                ('state', 'not in', ['cancelled', 'draft'])
+            ])
+            today_count = len(today_meetings)
+            today_hours = sum(today_meetings.mapped('duration'))
+        else:
+            today_count = len(today_actual_meetings)
+            today_hours = sum(today_actual_meetings.mapped('actual_duration') or [0])
 
         # Available rooms
         all_rooms = self.env['dw.room'].search([])
@@ -655,7 +636,6 @@ class DwPlanificationMeeting(models.Model):
             ('state', 'not in', ['cancelled', 'done', 'draft'])
         ])
 
-        # Count unique participants across all upcoming meetings
         unique_participants = set()
         for meeting in upcoming_meetings:
             for participant in meeting.participant_ids:
@@ -668,7 +648,7 @@ class DwPlanificationMeeting(models.Model):
 
         total_participants = len(unique_participants)
 
-        # Calculate trend (compare with last week)
+        # Calculate trend
         last_week_start = now - timedelta(days=7)
         last_week_count = self.search_count([
             ('planned_start_datetime', '>=', last_week_start),
@@ -691,16 +671,19 @@ class DwPlanificationMeeting(models.Model):
 
     @api.model
     def get_upcoming_meetings(self, limit=20):
-        """Get upcoming planification meetings with details"""
-        now = fields.Datetime.now()  # Use Odoo's timezone-aware datetime
+        """Get upcoming planification meetings with proper timezone handling"""
+        now = fields.Datetime.now()
         meetings = self.search([
             ('planned_start_datetime', '>=', now),
             ('state', 'not in', ['cancelled', 'done', 'draft'])
         ], limit=limit, order='planned_start_datetime asc')
 
         result = []
+        user_tz = self.env.user.tz or 'UTC'
+        tz = pytz.timezone(user_tz)
+
         for meeting in meetings:
-            # Get organizer (from participants or creator)
+            # Get organizer
             organizer_name = 'Unknown'
             host_participant = meeting.participant_ids.filtered(lambda p: p.is_host)
             if host_participant:
@@ -708,29 +691,26 @@ class DwPlanificationMeeting(models.Model):
             elif meeting.create_uid:
                 organizer_name = meeting.create_uid.name
 
-            # Convert to user's timezone for display
-            # Odoo stores in UTC, so we need to convert for display
-            user_tz = self.env.user.tz or 'UTC'
-            from pytz import timezone
-            import pytz
-
+            # Convert UTC to user timezone
             if meeting.planned_start_datetime:
-                # Convert UTC to user timezone
-                utc_dt = pytz.UTC.localize(meeting.planned_start_datetime.replace(tzinfo=None))
-                user_dt = utc_dt.astimezone(timezone(user_tz))
+                utc_dt = pytz.UTC.localize(meeting.planned_start_datetime)
+                user_dt = utc_dt.astimezone(tz)
                 formatted_date = user_dt.strftime('%a, %b %d, %I:%M %p')
+                # Return ISO format in user timezone for JavaScript
+                iso_in_user_tz = user_dt.isoformat()
             else:
                 formatted_date = ''
+                iso_in_user_tz = None
 
-            # Determine priority based on duration and time to start
+            # Determine priority
             priority = 'normal'
             if meeting.duration > 2:
                 priority = 'high'
             time_to_start = (meeting.planned_start_datetime - now).total_seconds() / 3600
-            if time_to_start < 1:  # Less than 1 hour away
+            if time_to_start < 1:
                 priority = 'urgent'
 
-            # Count unique participants (avoid duplicates)
+            # Count unique participants
             unique_participants = set()
             for participant in meeting.participant_ids:
                 if participant.employee_id:
@@ -743,37 +723,41 @@ class DwPlanificationMeeting(models.Model):
             result.append({
                 'id': meeting.id,
                 'name': meeting.name or 'Untitled Meeting',
-                'planned_start_datetime': meeting.planned_start_datetime.isoformat() if meeting.planned_start_datetime else None,
+                'planned_start_datetime': iso_in_user_tz,
                 'formatted_date': formatted_date,
                 'duration': meeting.duration,
                 'room_name': meeting.room_id.name if meeting.room_id else None,
                 'organizer_name': organizer_name,
-                'participant_count': len(unique_participants),  # Use unique count
+                'participant_count': len(unique_participants),
                 'state': meeting.state,
                 'priority': priority,
-                'is_recurring': False,  # Add recurring logic if needed
+                'is_recurring': False,
             })
 
         return result
 
     @api.model
     def quick_create_meeting(self, payload):
-        """Quick create a planification meeting from dashboard"""
-        # Validate required fields
+        """Quick create with proper timezone handling"""
         if not payload.get('name'):
             raise ValidationError("Meeting title is required")
 
         if not payload.get('planned_start_datetime'):
             raise ValidationError("Start date and time is required")
 
-        # Convert string datetime to datetime object
-        start_dt = fields.Datetime.to_datetime(payload['planned_start_datetime'])
-        duration = float(payload.get('duration', 1))
+        # Parse the datetime string - it's already in UTC format from frontend
+        start_dt_str = payload['planned_start_datetime']
 
-        # Calculate end time
+        # Parse datetime string (format: "YYYY-MM-DD HH:MM:SS")
+        try:
+            start_dt = fields.Datetime.to_datetime(start_dt_str)
+        except:
+            raise ValidationError("Invalid datetime format")
+
+        duration = float(payload.get('duration', 1))
         end_dt = start_dt + timedelta(hours=duration)
 
-        # Validate room availability if room is specified
+        # Validate room availability
         room_id = payload.get('room_id')
         if room_id:
             overlapping = self.search([
@@ -787,18 +771,55 @@ class DwPlanificationMeeting(models.Model):
             ], limit=1)
 
             if overlapping:
-                raise ValidationError(f"Room is already booked for this time period")
+                raise ValidationError("Room is already booked for this time period")
 
-        # Create planification meeting
+        # Create meeting
         meeting = self.create({
             'name': payload['name'],
             'planned_start_datetime': start_dt,
             'duration': duration,
             'room_id': room_id or False,
-            'state': 'draft',
+            'state': 'draft',  # Changed from draft to planned
         })
 
         return {'id': meeting.id, 'name': meeting.name}
+
+    @api.model
+    def get_week_stats(self):
+        """Get current week statistics using actual meeting data"""
+        now = fields.Datetime.now()
+        week_start = now - timedelta(days=now.weekday())
+        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_end = week_start + timedelta(days=7)
+
+        # Try to get actual completed meetings first
+        Meeting = self.env['dw.meeting']
+        actual_meetings = Meeting.search([
+            ('actual_start_datetime', '>=', week_start),
+            ('actual_start_datetime', '<', week_end),
+            ('state', 'in', ['in_progress', 'done'])
+        ])
+
+        if actual_meetings:
+            total = len(actual_meetings)
+            hours = sum(actual_meetings.mapped('actual_duration') or [0])
+            avg_duration = round((hours / total * 60) if total > 0 else 0, 1)
+        else:
+            # Fall back to planned meetings
+            week_meetings = self.search([
+                ('planned_start_datetime', '>=', week_start),
+                ('planned_start_datetime', '<', week_end),
+                ('state', 'not in', ['cancelled', 'draft'])
+            ])
+            total = len(week_meetings)
+            hours = sum(week_meetings.mapped('duration'))
+            avg_duration = round((hours / total * 60) if total > 0 else 0, 1)
+
+        return {
+            'total': total,
+            'hours': round(hours, 1),
+            'avg_duration': avg_duration
+        }
 
     @api.model
     def get_activity_feed(self, limit=15):
@@ -827,53 +848,53 @@ class DwPlanificationMeeting(models.Model):
 
         return feed
 
-    @api.model
-    def get_week_stats(self):
-        """Get current week statistics"""
-        now = datetime.now()
-        week_start = now - timedelta(days=now.weekday())
-        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
-        week_end = week_start + timedelta(days=7)
-
-        week_meetings = self.search([
-            ('planned_start_datetime', '>=', week_start),
-            ('planned_start_datetime', '<', week_end),
-            ('state', 'not in', ['cancelled', 'draft'])
-        ])
-
-        total = len(week_meetings)
-        hours = sum(week_meetings.mapped('duration'))
-        avg_duration = round((hours / total * 60) if total > 0 else 0, 1)
-
-        return {
-            'total': total,
-            'hours': round(hours, 1),
-            'avg_duration': avg_duration
-        }
 
     @api.model
     def get_analytics_data(self):
-        """Get data for analytics charts"""
-        now = datetime.now()
+        """Get analytics data using actual meetings when available"""
+        now = fields.Datetime.now()
         week_start = now - timedelta(days=now.weekday())
+        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        # Meetings per day (last 7 days)
+        Meeting = self.env['dw.meeting']
+
+        # Meetings per day (last 7 days) - use actual meetings
         daily_meetings = []
         for i in range(7):
             day_start = week_start + timedelta(days=i)
             day_end = day_start + timedelta(days=1)
-            count = self.search_count([
-                ('planned_start_datetime', '>=', day_start),
-                ('planned_start_datetime', '<', day_end),
+
+            # Count actual meetings first
+            actual_count = Meeting.search_count([
+                ('actual_start_datetime', '>=', day_start),
+                ('actual_start_datetime', '<', day_end),
+                ('state', 'in', ['in_progress', 'done'])
+            ])
+
+            # If no actual meetings, count planned ones
+            if actual_count == 0:
+                actual_count = self.search_count([
+                    ('planned_start_datetime', '>=', day_start),
+                    ('planned_start_datetime', '<', day_end),
+                    ('state', 'not in', ['cancelled', 'draft'])
+                ])
+
+            daily_meetings.append(actual_count)
+
+        # Duration distribution - use actual meetings
+        actual_meetings = Meeting.search([
+            ('actual_start_datetime', '>=', week_start),
+            ('state', 'in', ['in_progress', 'done'])
+        ])
+
+        if not actual_meetings:
+            actual_meetings = self.search([
+                ('planned_start_datetime', '>=', week_start),
                 ('state', 'not in', ['cancelled', 'draft'])
             ])
-            daily_meetings.append(count)
-
-        # Duration distribution
-        all_meetings = self.search([
-            ('planned_start_datetime', '>=', week_start),
-            ('state', 'not in', ['cancelled', 'draft'])
-        ])
+            use_field = 'duration'
+        else:
+            use_field = 'actual_duration'
 
         duration_dist = {
             'under_30': 0,
@@ -882,8 +903,10 @@ class DwPlanificationMeeting(models.Model):
             'over_120': 0
         }
 
-        for meeting in all_meetings:
-            duration_minutes = meeting.duration * 60
+        for meeting in actual_meetings:
+            duration_hours = getattr(meeting, use_field, 0) or 0
+            duration_minutes = duration_hours * 60
+
             if duration_minutes < 30:
                 duration_dist['under_30'] += 1
             elif duration_minutes < 60:
@@ -907,11 +930,21 @@ class DwPlanificationMeeting(models.Model):
         for i in range(7):
             day_start = week_start + timedelta(days=i)
             day_end = day_start + timedelta(days=1)
-            day_meetings = self.search([
-                ('planned_start_datetime', '>=', day_start),
-                ('planned_start_datetime', '<', day_end),
-                ('state', 'not in', ['cancelled', 'draft'])
+
+            # Use actual meetings
+            day_meetings = Meeting.search([
+                ('actual_start_datetime', '>=', day_start),
+                ('actual_start_datetime', '<', day_end),
+                ('state', 'in', ['in_progress', 'done'])
             ])
+
+            if not day_meetings:
+                day_meetings = self.search([
+                    ('planned_start_datetime', '>=', day_start),
+                    ('planned_start_datetime', '<', day_end),
+                    ('state', 'not in', ['cancelled', 'draft'])
+                ])
+
             avg_participants = round(
                 sum(len(m.participant_ids) for m in day_meetings) / len(day_meetings)
             ) if day_meetings else 0

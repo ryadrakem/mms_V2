@@ -40,6 +40,8 @@ class DwMeetingSession(models.Model):
     leave_datetime = fields.Datetime(string="Leave Time")
     join_datetime = fields.Datetime(string="Join Time")
     view_state = fields.Json(string="User View State")
+    flag_attendance = fields.Boolean(string="Already checked in", default=False)
+    join_time = fields.Datetime(string="Join Time")
 
     state = fields.Selection([
         ('in_progress', 'In Progress'),
@@ -63,3 +65,14 @@ class DwMeetingSession(models.Model):
                 )
             else:
                 session.participant_ids = self.env['dw.participant']
+
+    def write(self, vals):
+        res = super().write(vals)
+
+        for session in self:
+            if vals.get('state') == 'done':
+                if not session.flag_attendance:
+                    if session.participant_id:
+                        session.participant_id.attendance_status = "absent"
+
+        return res

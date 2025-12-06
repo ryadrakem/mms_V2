@@ -16,8 +16,7 @@ class DwEquipment(models.Model):
         ('maintenance', 'Maintenance')
     ], string='Statut', default='available')
 
-    equipment_type_id = fields.Many2one('dw.equipment.type',
-                                        string='Equipment Type')
+    equipment_type_id = fields.Many2one('dw.equipment.type',string='Equipment Type',required=True)
 
     reservation_ids = fields.One2many(
         'dw.reservations',
@@ -29,7 +28,8 @@ class DwEquipment(models.Model):
 
     @api.depends()
     def _compute_reservations(self):
+        dw_reseravtions = self.env['dw.reservations']
         for eq in self:
-            eq.reservation_ids = self.env['dw.reservations'].search([
+            eq.reservation_ids = dw_reseravtions.search([
                 ('equipment_ids', 'in', eq.id)
             ])

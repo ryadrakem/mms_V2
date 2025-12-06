@@ -12,15 +12,9 @@
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,confirmed,planned,started,done"/>
                     <!-- Boutons d'action selon l'état -->
-                    <button name="action_view_calendar_event"
-                            string="View in Calendar"
-                            type="object"
-                            icon="fa-calendar"
-                            invisible="not calendar_event_id"
-                            class="btn-primary"/>
                     <button name="action_reset_to_draft" string="Set to Draft"
                             type="object"
-                            invisible="state in ('cancelled','planned','done','draft','started')"
+                            invisible="state in ('cancelled','confirmed','planned','done','draft','started')"
                             class="btn-secondary"/>
                     <button name="action_confirm" string="Confirm"
                             type="object"
@@ -49,8 +43,6 @@
 
                 <sheet>
                     <!-- En-tête stylé -->
-                    <widget name="web_ribbon" title="Synced with Calendar" bg_color="text-bg-success"
-                            invisible="not calendar_event_id"/>
                     <widget name="web_ribbon" title="Cancelled" bg_color="text-bg-danger"
                             invisible="state != 'cancelled'"/>
                     <div style="padding:15px; background:#f5f7fa; border-radius:10px; margin-bottom:20px;">
@@ -61,23 +53,35 @@
                         <!-- Cartes d'information -->
                         <div style="display:flex; gap:20px; flex-wrap:wrap;">
                             <div invisible="not is_external"
-                                 style="background:#e1f5fe; padding:10px 15px; border-radius:8px; flex:1; min-width:180px;">
-                                <strong style="font-size:14px; color:#0277bd;">Client(s):</strong>
-                                <div>
-                                    <field name="client_ids" widget="many2many_tags" readonly="state != 'draft'"/>
+                                 style="background:#e1f5fe; padding:15px; border-radius:8px; flex:1; min-width:250px;">
+                                <strong style="font-size:14px; color:#0277bd; display:block; margin-bottom:8px;">
+                                    Client(s):
+                                </strong>
+                                <div style="width:100%;">
+                                    <field name="client_ids"
+                                           widget="many2many_tags"
+                                           readonly="state != 'draft'"
+                                           style="width:100%; min-width:200px;"/>
                                 </div>
                             </div>
-                            <div style="background:#fff3e0; padding:10px 15px; border-radius:8px; flex:1; min-width:180px;">
-                                <strong style="font-size:14px; color:#f57c00;">Type de réunion:</strong>
-                                <div>
-                                    <field name="meeting_type_id" readonly="state != 'draft'"/>
+                            <div style="background:#fff3e0; padding:15px; border-radius:8px; flex:1; min-width:250px;">
+                                <strong style="font-size:14px; color:#f57c00; display:block; margin-bottom:8px;">Reunion
+                                    Type:
+                                </strong>
+                                <div style="width:100%;">
+                                    <field name="meeting_type_id"
+                                           readonly="state != 'draft'"
+                                           style="width:100%; min-width:200px;"/>
                                 </div>
                             </div>
-                            <div style="background:#e8f5e9; padding:10px 15px; border-radius:8px; flex:1; min-width:180px;">
-                                <strong style="font-size:14px; color:#388e3c;">Durée:</strong>
-                                <div>
-                                    <field name="duration" widget="float_time" readonly="1"/>
-                                    h
+                            <div style="background:#e8f5e9; padding:15px; border-radius:8px; flex:1; min-width:250px;">
+                                <strong style="font-size:14px; color:#388e3c; display:block; margin-bottom:8px;">
+                                    Object:
+                                </strong>
+                                <div style="width:100%;">
+                                    <field name="objet"
+                                           readonly="state != 'draft'"
+                                           style="width:100%; min-width:200px;"/>
                                 </div>
                             </div>
                         </div>
@@ -88,7 +92,7 @@
                         <group>
                             <group>
                                 <field name="use_the_chat_room" readonly="state != 'draft'"/>
-                                <field name="sync_with_calendar" invisible="1"/>
+                                <field name="sync_with_calendar"/>
                             </group>
                             <group>
                                 <field name="is_off_site" readonly="state != 'draft'"/>
@@ -101,14 +105,16 @@
                             </group>
                             <group>
                                 <field name="has_pv" readonly="state != 'draft'"/>
+                                <field name="is_send_email" readonly="state not in ('draft','confirmed')"/>
                             </group>
                         </group>
 
                     </group>
                     <group>
                         <group>
-                            <field name="objet" readonly="state != 'draft'"/>
+                            <!--                            <field name="objet" readonly="state != 'draft'"/>-->
                             <field name="planned_start_datetime" readonly="state != 'draft'"/>
+                            <field name="tolerated_late" readonly="state != 'draft'"/>
                             <field name="duration" widget="float_time" readonly="state != 'draft'"/>
                             <field name="planned_end_time"/>
                         </group>
@@ -135,7 +141,7 @@
                                 </list>
                             </field>
                         </page>
-                        <page string="Meeting Outcome">
+                        <page string="Meeting Outcome" invisible="state not in ('done','cancelled')">
                             <group>
                                 <group>
                                     <field name="actual_start_datetime" readonly="1"/>
@@ -332,7 +338,7 @@
 
                             <!-- FOOTER -->
                             <div style="margin-top:8px; font-size:12px; color:#777;">
-                                <strong>Durée:</strong>
+                                <strong>Duration:</strong>
                                 <field name="duration" widget="float_time"/>
                                 h
                             </div>
@@ -373,13 +379,13 @@
         </field>
     </record>
 
-<!--    <record id="action_calendar_all_meetings" model="ir.actions.act_window">-->
-<!--        <field name="name">All Calendar Events</field>-->
-<!--        <field name="res_model">calendar.event</field>-->
-<!--        <field name="view_mode">calendar,form</field>-->
-<!--        <field name="domain">[]</field>-->
-<!--        <field name="context">{'search_default_mymeetings': 1}</field>-->
-<!--    </record>-->
+    <!--    <record id="action_calendar_all_meetings" model="ir.actions.act_window">-->
+    <!--        <field name="name">All Calendar Events</field>-->
+    <!--        <field name="res_model">calendar.event</field>-->
+    <!--        <field name="view_mode">calendar,form</field>-->
+    <!--        <field name="domain">[]</field>-->
+    <!--        <field name="context">{'search_default_mymeetings': 1}</field>-->
+    <!--    </record>-->
 
 
 </smartdz>

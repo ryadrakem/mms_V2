@@ -4,6 +4,7 @@
     "summary": "Manage meetings, schedules, and appointments efficiently.",
     "author": "DIGIWAVES - ALGERIA",
     "website": "https://digiwaves.io/",
+    "maintainer": "MES-TEAM",
     "category": "Management/Meetings",
     "depends": ['hr', 'contacts', 'calendar'],
     "data": [
@@ -29,6 +30,7 @@
         # security
         "security/ir.model.access.csv",
         "security/dw_meeting_rules.xml",
+        "views/email_templates.xml",
         # menus
         "menus.xml",
 

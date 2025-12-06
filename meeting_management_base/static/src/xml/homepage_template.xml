@@ -447,7 +447,13 @@
                                                     <t t-esc="r.is_free ? 'Free until' : 'Busy until'"/>
                                                 </small>
                                                 <div class="room-next-time">
-                                                    <t t-esc="r.display_free_until || r.free_until_local || r.free_until || '—'"/>
+                                                    <!-- IMPROVED: Better fallback handling -->
+                                                    <t t-if="r.is_free">
+                                                        <t t-esc="r.free_until || r.display_free_until || 'End of day'"/>
+                                                    </t>
+                                                    <t t-else="">
+                                                        <t t-esc="r.busy_until || r.display_free_until || 'Unknown'"/>
+                                                    </t>
                                                 </div>
                                             </div>
                                             <div class="room-capacity" t-if="r.capacity">

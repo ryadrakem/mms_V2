@@ -1,21 +1,36 @@
 <smartdz>
     <data noupdate="1">
+        <!-- Planification Meeting -->
+        <record id="dw_planification_meeting_admin_rule" model="ir.rule">
+            <field name="name">Planification Meeting: Admin See All</field>
+            <field name="model_id" ref="model_dw_planification_meeting"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('base.group_erp_manager'))]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
 
-        <!-- Rule for regular users: only see meetings they participate in -->
-        <record id="dw_meeting_participant_rule_2" model="ir.rule">
-            <field name="name">Meeting: Participant Only</field>
-            <field name="model_id" ref="model_dw_meeting"/>
-            <field name="domain_force">[('participant_ids.user_id', '=', user.id)]</field>
+        <record id="dw_planification_meeting_user_rule" model="ir.rule">
+            <field name="name">Planification Meeting: User Own or Participant</field>
+            <field name="model_id" ref="model_dw_planification_meeting"/>
+            <field name="domain_force">[
+                '|',
+                ('create_uid', '=', user.id),
+                ('participant_ids.user_id', '=', user.id)
+                ]
+            </field>
             <field name="groups" eval="[(4, ref('base.group_user'))]"/>
             <field name="perm_read" eval="True"/>
             <field name="perm_write" eval="False"/>
-            <field name="perm_create" eval="False"/>
+            <field name="perm_create" eval="True"/>
             <field name="perm_unlink" eval="False"/>
         </record>
 
-        <!-- Rule for managers: see all meetings -->
-        <record id="dw_meeting_manager_all_rule_2" model="ir.rule">
-            <field name="name">Meeting: Managers See All</field>
+        <!-- Meeting -->
+        <record id="dw_meeting_admin_rule" model="ir.rule">
+            <field name="name">Meeting: Admin See All</field>
             <field name="model_id" ref="model_dw_meeting"/>
             <field name="domain_force">[(1, '=', 1)]</field>
             <field name="groups" eval="[(4, ref('base.group_erp_manager'))]"/>
@@ -25,13 +40,43 @@
             <field name="perm_unlink" eval="True"/>
         </record>
 
-        <record id="dw_meeting_session_user_rule" model="ir.rule">
-            <field name="name">Meeting Session: Own Records Only</field>
-            <field name="model_id" ref="model_dw_meeting_session"/>
-            <field name="domain_force">[('user_id', '=', user.id)]</field>
-            <field name="groups" eval="[]"/>
+        <record id="dw_meeting_user_rule" model="ir.rule">
+            <field name="name">Meeting: User Own or Participant</field>
+            <field name="model_id" ref="model_dw_meeting"/>
+            <field name="domain_force">[
+                '|',
+                ('create_uid', '=', user.id),
+                ('participant_ids.user_id', '=', user.id)
+                ]
+            </field>
+            <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="False"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="False"/>
         </record>
 
+        <!-- Actions -->
+        <record id="dw_actions_admin_rule" model="ir.rule">
+            <field name="name">Actions: Admin See All</field>
+            <field name="model_id" ref="model_dw_actions"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+            <field name="groups" eval="[(4, ref('base.group_erp_manager'))]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
 
+        <record id="dw_actions_user_rule" model="ir.rule">
+            <field name="name">Actions: User Assigned Only</field>
+            <field name="model_id" ref="model_dw_actions"/>
+            <field name="domain_force">[('assignee', '=', user.id)]</field>
+            <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
     </data>
 </smartdz>
