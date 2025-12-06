@@ -25,21 +25,19 @@
                         <span class="status-dot"/>
                         <t t-esc="state.session.state.charAt(0).toUpperCase() + state.session.state.slice(1).replace('_', ' ')"/>
                     </span>
-                    <button class="btn-action danger" t-if="state.session.state !== 'done'" t-on-click="leaveMeeting" title="Leave">
+                    <button class="btn-action danger" t-if="state.session.state !== 'done'" t-on-click="leaveMeeting"
+                            title="Leave">
                         <i class="fa fa-sign-out"/>
                     </button>
-                    <button class="btn-action danger" t-if="state.session.is_host and state.session.state !== 'done'" t-on-click="endMeeting"
+                    <button class="btn-action danger" t-if="state.session.is_host and state.session.state !== 'done'"
+                            t-on-click="endMeeting"
                             title="End Meeting for All">
                         <i class="fa fa-power-off"/>
                     </button>
-<!--                    <button class="btn-action primary" t-on-click="toggleCamera" title="Toggle Camera">-->
-<!--                        <i t-att-class="state.session.display_camera ? 'fa fa-eye-slash' : 'fa fa-eye'"/>-->
-<!--                    </button>-->
                 </div>
             </header>
 
-            <!-- Content Grid -->
-            <div class="meeting-content-grid" t-att-class="{'has-video-sidebar': state.showVideoPip &amp;&amp; state.activeMainTab !== 'video'}">
+            <div class="meeting-content-grid">
                 <!-- Left Sidebar: Participants -->
                 <aside class="meeting-sidebar meeting-sidebar-left">
                     <div class="sidebar-card">
@@ -57,7 +55,7 @@
                                             <div class="participant-avatar">
                                                 <t t-esc="p.name.slice(0, 2).toUpperCase()"/>
                                                 <span t-att-class="'status-badge status-' + (p.attendance_status || 'default')"
-                                          t-att-title="getStatusLabel(p.attendance_status)"/>
+                                                      t-att-title="getStatusLabel(p.attendance_status)"/>
                                             </div>
                                             <div class="participant-info">
                                                 <div class="participant-name">
@@ -66,19 +64,24 @@
                                             </div>
                                             <div class="participant-status">
                                                 <t t-if="p.attendance_status === 'present'">
-                                                    <i class="fa fa-circle text-success"/> Present
+                                                    <i class="fa fa-circle text-success"/>
+                                                    Present
                                                 </t>
                                                 <t t-elif="p.attendance_status === 'late'">
-                                                    <i class="fa fa-circle text-warning"/> Late
+                                                    <i class="fa fa-circle text-warning"/>
+                                                    Late
                                                 </t>
                                                 <t t-elif="p.attendance_status === 'absent'">
-                                                    <i class="fa fa-circle text-danger"/> Absent
+                                                    <i class="fa fa-circle text-danger"/>
+                                                    Absent
                                                 </t>
                                                 <t t-elif="p.attendance_status === 'excused'">
-                                                    <i class="fa fa-circle text-muted"/> Excused
+                                                    <i class="fa fa-circle text-muted"/>
+                                                    Excused
                                                 </t>
                                                 <t t-else="">
-                                                    <i class="fa fa-circle text-secondary"/> Awaiting
+                                                    <i class="fa fa-circle text-secondary"/>
+                                                    Awaiting
                                                 </t>
                                             </div>
                                         </div>
@@ -94,7 +97,7 @@
                         </div>
                     </div>
 
-                    <!-- Waiting Participants (only for hosts) -->
+                    <!-- Waiting Participants -->
                     <div class="sidebar-card" t-if="state.session.is_host &amp;&amp; state.waitingParticipants.length">
                         <div class="card-header">
                             <h3>
@@ -184,19 +187,17 @@
                     </div>
                 </aside>
 
-                <!-- Main: Tabbed Content with Navigation -->
+                <!-- Main Content -->
                 <main class="meeting-main">
-                    <!-- Tab Navigation Bar -->
+                    <!-- Tab Navigation -->
                     <div class="main-tab-navigation">
-                        <button
-                                class="tab-nav-button"
+                        <button class="tab-nav-button"
                                 t-att-class="{ 'active': state.activeMainTab === 'agenda' }"
                                 t-on-click="() => onTabChange('agenda')">
                             <i class="fa fa-file-text-o"/>
                             <span>Agenda</span>
                         </button>
-                        <button
-                                class="tab-nav-button"
+                        <button class="tab-nav-button"
                                 t-att-class="{ 'active': state.activeMainTab === 'actions' }"
                                 t-if="state.session.is_action_assigner"
                                 t-on-click="() => onTabChange('actions')">
@@ -204,23 +205,20 @@
                             <span>Actions (<t t-esc="state.actions.length"/>)
                             </span>
                         </button>
-                        <button
-                                class="tab-nav-button"
+                        <button class="tab-nav-button"
                                 t-att-class="{ 'active': state.activeMainTab === 'notes' }"
                                 t-on-click="() => onTabChange('notes')">
                             <i class="fa fa-file-text-o"/>
                             <span>My Notes</span>
                         </button>
-                        <button
-                                class="tab-nav-button"
+                        <button class="tab-nav-button"
                                 t-att-class="{ 'active': state.activeMainTab === 'pv' }"
                                 t-if="state.session.is_pv"
                                 t-on-click="() => onTabChange('pv')">
                             <i class="fa fa-file-text-o"/>
                             <span>PV</span>
                         </button>
-                        <button
-                                class="tab-nav-button"
+                        <button class="tab-nav-button"
                                 t-att-class="{ 'active': state.activeMainTab === 'video' }"
                                 t-on-click="() => onTabChange('video')">
                             <i class="fa fa-video-camera"/>
@@ -228,48 +226,54 @@
                         </button>
                     </div>
 
-                    <!-- Video Conference Section - Full size when active tab -->
-                    <div class="main-tab-content" t-if="state.activeMainTab === 'video'">
-                        <div class="video-conference-container">
-                            <!-- Jitsi container -->
-                            <div id="jitsi-meet-container" class="jitsi-container"/>
+                    <div class="video-conference-container" t-if="state.session.display_camera">
+                        <div id="jitsi-meet-container" class="jitsi-container"/>
 
-                            <!-- Loading -->
-                            <div class="video-loading" t-if="state.loading &amp;&amp; !state.error">
-                                <div class="loading-spinner">
-                                    <div class="spinner-ring"/>
-                                </div>
-                                <p>Loading meeting session...</p>
+                        <!-- Loading -->
+                        <div class="video-loading" t-if="state.loading &amp;&amp; !state.error">
+                            <div class="loading-spinner">
+                                <div class="spinner-ring"/>
                             </div>
+                            <p>Loading meeting session...</p>
+                        </div>
 
-                            <!-- Error -->
-                            <div class="video-error" t-if="state.error">
-                                <div class="error-icon">
-                                    <i class="fa fa-exclamation-triangle"/>
-                                </div>
-                                <h3>Connection Error</h3>
-                                <p t-esc="state.error"/>
-                                <div class="error-actions">
-                                    <button class="btn-retry" t-on-click="retryConnection">
-                                        <i class="fa fa-refresh"/>
-                                        Retry
-                                    </button>
-                                    <button class="btn-secondary" t-on-click="goBack">
-                                        <i class="fa fa-arrow-left"/>
-                                        Back
-                                    </button>
-                                </div>
+                        <!-- Error -->
+                        <div class="video-error" t-if="state.error">
+                            <div class="error-icon">
+                                <i class="fa fa-exclamation-triangle"/>
                             </div>
+                            <h3>Connection Error</h3>
+                            <p t-esc="state.error"/>
+                            <div class="error-actions">
+                                <button class="btn-retry" t-on-click="retryConnection">
+                                    <i class="fa fa-refresh"/>
+                                    Retry
+                                </button>
+                                <button class="btn-secondary" t-on-click="goBack">
+                                    <i class="fa fa-arrow-left"/>
+                                    Back
+                                </button>
+                            </div>
+                        </div>
 
-                            <!-- Timer -->
-                            <div class="meeting-timer">
-                                <i class="fa fa-circle recording-indicator"/>
-                                <span t-esc="state.meetingDuration"/>
-                            </div>
+                        <!-- Timer -->
+                        <div class="meeting-timer">
+                            <i class="fa fa-circle recording-indicator"/>
+                            <span t-esc="state.meetingDuration"/>
+                        </div>
+
+                        <!-- PiP Controls (only visible in PiP mode) -->
+                        <div class="pip-controls" t-if="state.showVideoPip">
+                            <button t-on-click="() => onTabChange('video')" title="Expand to full size">
+                                <i class="fa fa-expand"/>
+                            </button>
+                            <button t-on-click="closeVideoPip" title="Hide video">
+                                <i class="fa fa-times"/>
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Agenda Section -->
+                    <!-- Tab Content Areas -->
                     <div class="main-tab-content" t-if="state.activeMainTab === 'agenda'">
                         <div class="meeting-actions-section">
                             <div class="actions-header">
@@ -299,9 +303,9 @@
                             </div>
                         </div>
                     </div>
-
                     <!-- Actions Section -->
                     <div class="main-tab-content" t-if="state.activeMainTab === 'actions' and state.session.is_action_assigner">
+
                         <div class="meeting-actions-section">
                             <div class="actions-header">
                                 <h3>
@@ -407,7 +411,6 @@
                             </div>
                         </div>
                     </div>
-
                     <!-- Notes Section -->
                     <div class="main-tab-content" t-if="state.activeMainTab === 'notes'">
                         <div class="meeting-notes-section">
@@ -431,7 +434,6 @@
                             </div>
                         </div>
                     </div>
-
                     <!-- PV Section -->
                     <div class="main-tab-content" t-if="state.activeMainTab === 'pv' and state.session.is_pv">
                         <div class="meeting-notes-section">
@@ -482,54 +484,6 @@
                         </div>
                     </div>
                 </main>
-
-                <!-- Right Sidebar: Video (only visible when not on video tab and video is enabled) -->
-                <aside class="meeting-sidebar meeting-sidebar-right"
-                       t-if="state.showVideoPip &amp;&amp; state.activeMainTab !== 'video'">
-                    <div class="sidebar-card video-sidebar-card">
-                        <div class="card-header">
-                            <h3>
-                                <i class="fa fa-video-camera"/>
-                                Video Conference
-                            </h3>
-                            <div class="video-sidebar-controls">
-                                <button class="btn-icon-sm"
-                                        t-on-click="() => onTabChange('video')"
-                                        title="Expand to full size">
-                                    <i class="fa fa-expand"/>
-                                </button>
-                                <button class="btn-icon-sm"
-                                        t-on-click="closeVideoPip"
-                                        title="Hide video">
-                                    <i class="fa fa-times"/>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="card-body video-sidebar-body">
-                            <div class="video-sidebar-container">
-                                <!-- Jitsi iframe will be moved here -->
-                                <div id="jitsi-sidebar-container" class="jitsi-sidebar"/>
-
-                                <!-- Timer in sidebar -->
-                                <div class="video-sidebar-timer">
-                                    <i class="fa fa-circle recording-indicator"/>
-                                    <span t-esc="state.meetingDuration"/>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Show Video Button (when video is hidden) -->
-                    <div class="show-video-sidebar-btn"
-                         t-if="!state.showVideoPip">
-                        <button class="btn-show-video-sidebar"
-                                t-on-click="showVideoPip"
-                                title="Show video in sidebar">
-                            <i class="fa fa-video-camera"/>
-                            <span>Show Video</span>
-                        </button>
-                    </div>
-                </aside>
             </div>
         </div>
     </t>

@@ -75,8 +75,7 @@ export class MeetingSessionView extends Component {
       meetingTypeName: "",
       jitsiRoomId: null,
       pv: "",
-      jitsiInitialized: false,
-      showVideoPip: false,
+      jitsiInitialized: false, // Track if Jitsi is initialized
     });
 
     this.sessionId = null;
@@ -110,8 +109,6 @@ export class MeetingSessionView extends Component {
     this.startBlankPv = this.startBlankPv.bind(this);
     this.generatePvTemplate = this.generatePvTemplate.bind(this);
 
-    this.moveJitsiToSidebar = this.moveJitsiToSidebar.bind(this);
-    this.moveJitsiToMain = this.moveJitsiToMain.bind(this);
     this.closeVideoPip = this.closeVideoPip.bind(this);
     this.showVideoPip = this.showVideoPip.bind(this);
 
@@ -455,7 +452,7 @@ export class MeetingSessionView extends Component {
     }
   }
 
-  async initializeJitsi() {
+async initializeJitsi() {
     // Prevent multiple initializations
     if (this.jitsiApi && this.state.jitsiInitialized) {
       this.state.jitsiLoaded = true;
@@ -519,6 +516,16 @@ export class MeetingSessionView extends Component {
       this.state.jitsiAPI = this.jitsiApi;
       this.state.jitsiInitialized = true;
       this.setupJitsiEvents();
+
+      // ✅ Set initial CSS class for video container
+      setTimeout(() => {
+        const videoContainer = document.querySelector('.video-conference-container');
+        if (videoContainer) {
+            if (this.state.activeMainTab === 'video') {
+                videoContainer.classList.add('main-mode');
+            }
+        }
+      }, 100);
 
       this.notification.add("Connecting to video conference...", {
         type: "info",
@@ -606,51 +613,48 @@ export class MeetingSessionView extends Component {
     });
   }
 
-  // New method to handle tab changes
-    onTabChange(tabName) {
-        const previousTab = this.state.activeMainTab;
-        this.state.activeMainTab = tabName;
+onTabChange(tabName) {
+    this.state.activeMainTab = tabName;
 
-        // If switching away from video tab to another tab, automatically show video in sidebar
-        if (previousTab === 'video' && tabName !== 'video') {
-            this.state.showVideoPip = true;
-            // Move Jitsi to sidebar after a short delay to ensure DOM is ready
-            setTimeout(() => this.moveJitsiToSidebar(), 100);
-        }
+    const videoContainer = document.querySelector('.video-conference-container');
 
-        // If switching to video tab, hide sidebar and move Jitsi back to main
-        if (tabName === 'video') {
-            this.state.showVideoPip = false;
-            setTimeout(() => this.moveJitsiToMain(), 100);
-        }
+    if (!videoContainer) return;
+
+    if (tabName === 'video') {
+        // Show video in main view
+        videoContainer.classList.remove('pip-mode');
+        videoContainer.classList.add('main-mode');
+        this.state.showVideoPip = false;
+    } else if (this.state.session.display_camera) {
+        // Show video in PiP mode
+        videoContainer.classList.remove('main-mode');
+        videoContainer.classList.add('pip-mode');
+        this.state.showVideoPip = true;
+    } else {
+        // Hide video completely
+        videoContainer.classList.remove('main-mode', 'pip-mode');
+        this.state.showVideoPip = false;
     }
+}
 
-    // Method to move Jitsi iframe to sidebar
-    moveJitsiToSidebar() {
-        const jitsiContainer = document.getElementById('jitsi-meet-container');
-        const sidebarContainer = document.getElementById('jitsi-sidebar-container');
-
-        if (jitsiContainer && sidebarContainer && jitsiContainer.firstChild) {
-            // Move the iframe from main container to sidebar
-            while (jitsiContainer.firstChild) {
-                sidebarContainer.appendChild(jitsiContainer.firstChild);
-            }
-        }
+// ========== REPLACE showVideoPip method ==========
+showVideoPip() {
+    this.state.showVideoPip = true;
+    const videoContainer = document.querySelector('.video-conference-container');
+    if (videoContainer && this.state.activeMainTab !== 'video') {
+        videoContainer.classList.add('pip-mode');
+        videoContainer.classList.remove('main-mode');
     }
+}
 
-// Method to move Jitsi iframe back to main container
-    moveJitsiToMain() {
-        const jitsiContainer = document.getElementById('jitsi-meet-container');
-        const sidebarContainer = document.getElementById('jitsi-sidebar-container');
-
-        if (jitsiContainer && sidebarContainer && sidebarContainer.firstChild) {
-            // Move the iframe from sidebar back to main container
-            while (sidebarContainer.firstChild) {
-                jitsiContainer.appendChild(sidebarContainer.firstChild);
-            }
-        }
+// ========== REPLACE closeVideoPip method ==========
+closeVideoPip() {
+    this.state.showVideoPip = false;
+    const videoContainer = document.querySelector('.video-conference-container');
+    if (videoContainer) {
+        videoContainer.classList.remove('pip-mode', 'main-mode');
     }
-
+}
   pauseJitsi() {
     // Instead of destroying Jitsi, just mute audio/video when switching tabs
     if (this.jitsiApi) {
@@ -815,14 +819,9 @@ async refreshParticipantStatus() {
     this.onTabChange(this.state.activeMainTab === 'agenda' ? 'video' : 'agenda');
   }
 
-  showVideoPip() {
-        this.state.showVideoPip = true;
-        setTimeout(() => this.moveJitsiToSidebar(), 100);
-  }
 
-  closeVideoPip() {
-        this.state.showVideoPip = false;
-  }
+
+
 
   async toggleCamera() {
     this.state.session.display_camera = !this.state.session.display_camera;
