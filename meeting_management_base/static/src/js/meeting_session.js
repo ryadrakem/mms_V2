@@ -2,6 +2,7 @@
 import { registry } from "@web/core/registry";
 import { Component, useState, onWillStart, onMounted, onWillUnmount } from "@smartdz/owl";
 import { loadJS } from "@web/core/assets";
+import VoicePVRecorder from './voice_pv_recorder';
 
 export class MeetingSessionView extends Component {
   static template = "meeting_management_base.MeetingSessionView";
@@ -65,7 +66,7 @@ export class MeetingSessionView extends Component {
       activeParticipants: 0,
       waitingParticipants: [],
       meetingDuration: "00:00:00",
-      activeMainTab: 'video', // Default to video tab
+      activeMainTab: 'video',
       notes: "",
       actions: [],
       availableAssignees: [],
@@ -85,7 +86,8 @@ export class MeetingSessionView extends Component {
     this.statusInterval = null;
     this.startTime = null;
     this._updateTimeout = null;
-    this.jitsiApi = null; // Store Jitsi API instance
+    this.jitsiApi = null;
+    this.voiceRecorder = null;
 
     // Bind methods
     this.goBack = this.goBack.bind(this);
@@ -103,15 +105,12 @@ export class MeetingSessionView extends Component {
     this.leaveMeeting = this.leaveMeeting.bind(this);
     this.endMeeting = this.endMeeting.bind(this);
     this.retryConnection = this.retryConnection.bind(this);
-    this.onTabChange = this.onTabChange.bind(this); // New method for tab changes
-
+    this.onTabChange = this.onTabChange.bind(this);
     this.loadPvTemplate = this.loadPvTemplate.bind(this);
     this.startBlankPv = this.startBlankPv.bind(this);
     this.generatePvTemplate = this.generatePvTemplate.bind(this);
-
     this.closeVideoPip = this.closeVideoPip.bind(this);
     this.showVideoPip = this.showVideoPip.bind(this);
-
 
     onWillStart(async () => {
       const context = this.props.action?.context || {};
@@ -140,12 +139,14 @@ export class MeetingSessionView extends Component {
         await this.initializeJitsi();
         this.startDurationTimer();
       }
-  this.statusInterval = setInterval(async () => {
-    await this.refreshParticipantStatus();
-  }, 10000); // 10 seconds
+      if (this.state.session.is_pv) {
+        await this._initializeVoiceRecorder();
+      }
+      this.statusInterval = setInterval(async () => {
+        await this.refreshParticipantStatus();
+      }, 10000);
 
-  // Also call it once immediately to get initial status
-  await this.refreshParticipantStatus();
+      await this.refreshParticipantStatus();
     });
 
     onWillUnmount(() => {
@@ -157,36 +158,99 @@ export class MeetingSessionView extends Component {
         clearTimeout(this._updateTimeout);
       }
       if (this.statusInterval) {
-      clearInterval(this.statusInterval);
+        clearInterval(this.statusInterval);
+      }
+      if (this.voiceRecorder) {
+        try {
+          if (this.voiceRecorder.isRecording) {
+            this.voiceRecorder.stopRecording();
+          }
+        } catch (e) {
+          console.warn('Error cleaning up voice recorder:', e);
+        }
       }
     });
   }
 
-  // -------------------- Helper methods for datetime handling --------------------
-  // Format a JS Date (or parseable value) to Odoo DB string "YYYY-MM-DD HH:MM:SS" using UTC
+  // ================== MÉTHODES DE CLASSE (EN DEHORS DE setup()) ==================
+
+  /**
+   * Initialize voice recorder for PV editing
+   */
+  async _initializeVoiceRecorder() {
+    try {
+        // Attendre que le textarea soit disponible dans le DOM
+        let pvTextarea = null;
+        let retries = 0;
+
+        while (!pvTextarea && retries < 10) {
+            pvTextarea = document.querySelector('.pv-textarea');
+            if (!pvTextarea) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                retries++;
+            }
+        }
+
+        if (!pvTextarea) {
+            console.error('PV textarea not found after retries');
+            this.notification.add('Voice recorder failed to initialize', { type: 'danger' });
+            return;
+        }
+
+        console.log('✅ PV textarea found, initializing voice recorder...');
+
+        this.voiceRecorder = new VoicePVRecorder(
+            pvTextarea,
+            this.meetingId,
+            this.notification
+        );
+
+        this.voiceRecorder.initializeControls(pvTextarea.parentNode);
+        console.log('✅ Voice recorder initialized for PV');
+
+    } catch (error) {
+        console.error('❌ Failed to initialize voice recorder:', error);
+        this.notification.add('Voice recorder initialization failed: ' + error.message, {
+            type: 'danger'
+        });
+    }
+   }
+
+  /**
+   * Check browser support for voice features
+   */
+  _checkVoiceSupport() {
+    const hasSpeechAPI = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    const hasMediaRecorder = !!(window.MediaRecorder);
+    const hasGetUserMedia = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+
+    return {
+      speechAPI: hasSpeechAPI,
+      mediaRecorder: hasMediaRecorder,
+      microphone: hasGetUserMedia,
+      supported: hasSpeechAPI || (hasMediaRecorder && hasGetUserMedia)
+    };
+  }
+
+  // ================== DATETIME HELPERS ==================
+
   formatOdooDatetimeUTC(dateLike) {
     const d = dateLike instanceof Date ? dateLike : new Date(dateLike);
     const pad = (n) => String(n).padStart(2, "0");
     return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
   }
 
-  // Parse server datetime into JS Date
-  // Accepts ISO strings with 'T' or Odoo DB format 'YYYY-MM-DD HH:MM:SS'
   parseOdooDatetimeToDate(s) {
     if (!s) return null;
     if (typeof s !== "string") return new Date(s);
-    // If it contains 'T' assume ISO
     if (s.includes("T")) {
       return new Date(s);
     }
-    // Match DB format
     const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
     if (m) {
       const [_, Y, M, D, h, mi, sec] = m;
-      // Treat DB values as UTC to avoid timezone 'Z' issues — change if your server uses local time
       return new Date(Date.UTC(+Y, +M - 1, +D, +h, +mi, +sec));
     }
-    // Fallback to Date constructor
     return new Date(s);
   }
 
@@ -210,6 +274,8 @@ export class MeetingSessionView extends Component {
 
     return data.result;
   }
+
+  // ================== DATA LOADING ==================
 
   async loadSessionData() {
     try {
@@ -359,26 +425,16 @@ export class MeetingSessionView extends Component {
       }
 
       this.state.sessionDuration = sessionData.duration || 0;
-
       this.state.notes = sessionData.personal_notes || "";
 
       const meetings = await this.orm.read(
         "dw.meeting",
         [this.meetingId],
-        ["jitsi_room_id"]
+        ["jitsi_room_id", "pv"]
       );
       if (meetings && meetings.length > 0) {
         this.state.jitsiRoomId = meetings[0].jitsi_room_id;
-      }
-      if (this.meetingId) {
-        const meetings = await this.orm.read(
-                  "dw.meeting",
-                  [this.meetingId],
-                  ["pv"]
-                );
-        if (meetings && meetings.length > 0) {
-          this.state.pv = meetings[0].pv || "";
-        }
+        this.state.pv = meetings[0].pv || "";
       }
 
       this.state.loading = false;
@@ -393,24 +449,25 @@ export class MeetingSessionView extends Component {
   }
 
   getStatusLabel(status) {
-        const labels = {
-            'present': 'Present',
-            'late': 'Late',
-            'absent': 'Absent',
-            'excused': 'Excused',
-            'default': 'Awaiting'
-        };
-        return labels[status] || 'Unknown';
+    const labels = {
+      'present': 'Present',
+      'late': 'Late',
+      'absent': 'Absent',
+      'excused': 'Excused',
+      'default': 'Awaiting'
+    };
+    return labels[status] || 'Unknown';
   }
+
   getPriorityLabel(priority) {
-  const labels = {
-    '0': 'Normal',
-    '1': 'Low',
-    '2': 'High',
-    '3': 'Urgent'
-  };
-  return labels[priority] || 'Normal';
-}
+    const labels = {
+      '0': 'Normal',
+      '1': 'Low',
+      '2': 'High',
+      '3': 'Urgent'
+    };
+    return labels[priority] || 'Normal';
+  }
 
   async loadActions() {
     try {
@@ -432,7 +489,6 @@ export class MeetingSessionView extends Component {
 
   async loadAvailableAssignees() {
     try {
-      // Get all participants from the meeting
       if (this.state.session.participant_ids && this.state.session.participant_ids.length > 0) {
         const participants = await this.orm.read(
           "dw.participant",
@@ -484,7 +540,6 @@ async initializeJitsi() {
         throw new Error("Jitsi container not found");
       }
 
-      // Clear container only if not already initialized
       if (!this.state.jitsiInitialized) {
         container.innerHTML = "";
       }
@@ -550,7 +605,6 @@ async initializeJitsi() {
       this.state.loading = false;
       this.state.error = null;
 
-      // Update session join time (format to Odoo DB format)
       try {
         this.orm.write("dw.meeting.session", [this.sessionId], {
           is_connected: true,
@@ -595,7 +649,6 @@ async initializeJitsi() {
 
     api.addEventListener("videoConferenceLeft", () => {
       console.log("👋 Left conference");
-      // Update session leave time (format to Odoo DB format)
       try {
         this.orm.write("dw.meeting.session", [this.sessionId], {
           is_connected: false,
@@ -656,7 +709,6 @@ closeVideoPip() {
     }
 }
   pauseJitsi() {
-    // Instead of destroying Jitsi, just mute audio/video when switching tabs
     if (this.jitsiApi) {
       try {
         this.jitsiApi.executeCommand('toggleAudio', false);
@@ -668,7 +720,6 @@ closeVideoPip() {
   }
 
   resumeJitsi() {
-    // Resume audio/video when returning to video tab
     if (this.jitsiApi) {
       try {
         this.jitsiApi.executeCommand('toggleAudio', true);
@@ -680,7 +731,6 @@ closeVideoPip() {
   }
 
   reconnectJitsi() {
-    // Re-establish connection if needed
     if (this.jitsiApi && !this.state.jitsiLoaded) {
       this.state.jitsiLoaded = true;
       this.resumeJitsi();
@@ -688,7 +738,6 @@ closeVideoPip() {
   }
 
   cleanupJitsi() {
-    // Only destroy Jitsi when component is completely unmounted
     if (this.jitsiApi) {
       try {
         this.jitsiApi.dispose();
@@ -751,34 +800,31 @@ closeVideoPip() {
     }
   }
 
-async refreshParticipantStatus() {
-  console.log("🔄 Refreshing participant status...");
-  console.log("Participant IDs:", this.state.session.participant_ids);
+  async refreshParticipantStatus() {
+    console.log("🔄 Refreshing participant status...");
+    console.log("Participant IDs:", this.state.session.participant_ids);
 
-  if (this.state.session.participant_ids?.length > 0) {
-    try {
-      const participantRecords = await this.orm.read(
-        'dw.participant',
-        this.state.session.participant_ids,
-        ['id', 'name', 'attendance_status']
-      );
+    if (this.state.session.participant_ids?.length > 0) {
+      try {
+        const participantRecords = await this.orm.read(
+          'dw.participant',
+          this.state.session.participant_ids,
+          ['id', 'name', 'attendance_status']
+        );
 
-      console.log("✅ Fetched participant records:", participantRecords);
+        console.log("✅ Fetched participant records:", participantRecords);
+        this.state.session.participants = participantRecords;
+        console.log("✅ Updated state.session.participants");
 
-      // Update participants while preserving reactivity
-      this.state.session.participants = participantRecords;
-      console.log("✅ Updated state.session.participants");
-
-    } catch (error) {
-      console.error("❌ Error refreshing participant status:", error);
+      } catch (error) {
+        console.error("❌ Error refreshing participant status:", error);
+      }
+    } else {
+      console.log("⚠️ No participant IDs to refresh");
     }
-  } else {
-    console.log("⚠️ No participant IDs to refresh");
   }
-}
 
   startDurationTimer() {
-    // Use robust parsing helper instead of appending 'Z'
     const parsedStart = this.parseOdooDatetimeToDate(this.state.session.actual_start_datetime);
     if (parsedStart) {
       this.startTime = parsedStart.getTime();
@@ -802,10 +848,12 @@ async refreshParticipantStatus() {
 
   stopDurationTimer() {
     if (this.durationInterval) {
-        clearInterval(this.durationInterval);
-        this.durationInterval = null;
+      clearInterval(this.durationInterval);
+      this.durationInterval = null;
     }
   }
+
+  // ================== UI TOGGLES ==================
 
   toggleNotes() {
     this.onTabChange(this.state.activeMainTab === 'notes' ? 'video' : 'notes');
@@ -827,9 +875,11 @@ async refreshParticipantStatus() {
     this.state.session.display_camera = !this.state.session.display_camera;
 
     await this.orm.write("dw.meeting.session", [this.sessionId], {
-        display_camera: this.state.session.display_camera,
+      display_camera: this.state.session.display_camera,
     });
   }
+
+  // ================== SAVE OPERATIONS ==================
 
   async saveNotes() {
     try {
@@ -869,9 +919,10 @@ async refreshParticipantStatus() {
     }
   }
 
+  // ================== PV TEMPLATE METHODS ==================
+
   async loadPvTemplate() {
     try {
-      // Generate PV template with meeting data
       const template = this.generatePvTemplate();
       this.state.pv = template;
 
@@ -889,27 +940,27 @@ async refreshParticipantStatus() {
   generatePvTemplate() {
     const meetingDate = this.state.session.actual_start_datetime
       ? new Date(this.state.session.actual_start_datetime).toLocaleDateString('fr-FR', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        })
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
       : new Date().toLocaleDateString('fr-FR', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
 
     const meetingTime = this.state.session.actual_start_datetime
       ? new Date(this.state.session.actual_start_datetime).toLocaleTimeString('fr-FR', {
-          hour: '2-digit',
-          minute: '2-digit'
-        })
+        hour: '2-digit',
+        minute: '2-digit'
+      })
       : new Date().toLocaleTimeString('fr-FR', {
-          hour: '2-digit',
-          minute: '2-digit'
-        });
+        hour: '2-digit',
+        minute: '2-digit'
+      });
 
     const participants = this.state.session.participants || [];
     const participantsList = participants.map(p => `  - ${p.name}`).join('\n');
@@ -924,7 +975,7 @@ async refreshParticipantStatus() {
       const assignee = this.state.availableAssignees.find(a => a.id === action.assignee_id);
       const assigneeName = assignee ? assignee.name : 'Non assigné';
       const deadline = action.dead_line ? ` (échéance: ${action.dead_line})` : '';
-      return `${index + 1}. ${action.name} - Assigné à: ${assigneeName}${deadline}`;
+      return `${index + 1}. ${action.name} - Assigné à : ${assigneeName}${deadline}`;
     }).join('\n');
 
     return `PROCÈS-VERBAL DE RÉUNION
@@ -970,7 +1021,7 @@ DÉROULEMENT DE LA RÉUNION
 2. POINTS DISCUTÉS
    ${agendaItems.length > 0 ? agendaItems.map(item => `
    ${item.name}
-   ───────────────────────────────────────────────────────────
+   ────────────────────────────────────────────────────────────
    Discussion :
    [À compléter]
 
@@ -1024,88 +1075,88 @@ Document généré le ${new Date().toLocaleString('fr-FR')}
       : true;
 
     if (confirmed) {
-        const meetings = await this.orm.read(
-                  "dw.meeting",
-                  [this.meetingId],
-                  ["pv"]
-                );
-        if (meetings && meetings.length > 0) {
-          this.state.pv = meetings[0].pv || "";
-        }
+      const meetings = await this.orm.read(
+        "dw.meeting",
+        [this.meetingId],
+        ["pv"]
+      );
+      if (meetings && meetings.length > 0) {
+        this.state.pv = meetings[0].pv || "";
+      }
     }
   }
 
-async addNewAction() {
-  try {
-    const newActionId = await this.orm.create("dw.actions", [{
-      name: "New Action",
-      session_id: this.sessionId,
-      meeting_id: this.meetingId,
-      status: "todo",
-      priority: "0",  // ✅ Changed from "medium" to "0"
-    }]);
+  // ================== ACTIONS ==================
 
-    this.state.actions.push({
-      id: newActionId[0],
-      name: "New Action",
-      assignee_id: "",
-      dead_line: "",
-      priority: "0",  // ✅ Changed from "medium" to "0"
-      status: "todo",
-      description: "",
-    });
+  async addNewAction() {
+    try {
+      const newActionId = await this.orm.create("dw.actions", [{
+        name: "New Action",
+        session_id: this.sessionId,
+        meeting_id: this.meetingId,
+        status: "todo",
+        priority: "0",
+      }]);
 
-    this.notification.add("Action item created", { type: "success" });
-  } catch (error) {
-    console.error("Failed to create action:", error);
-    this.notification.add("Failed to create action", { type: "danger" });
+      this.state.actions.push({
+        id: newActionId[0],
+        name: "New Action",
+        assignee_id: "",
+        dead_line: "",
+        priority: "0",
+        status: "todo",
+        description: "",
+      });
+
+      this.notification.add("Action item created", { type: "success" });
+    } catch (error) {
+      console.error("Failed to create action:", error);
+      this.notification.add("Failed to create action", { type: "danger" });
+    }
   }
-}
 
   async updateAction(action) {
-  if (!action.id) return;
+    if (!action.id) return;
 
-  try {
-    const updateData = {
-      name: action.name,
-      status: action.status,
-      priority: action.priority,
-    };
+    try {
+      const updateData = {
+        name: action.name,
+        status: action.status,
+        priority: action.priority,
+      };
 
-    if (action.assignee_id) {
-      // Make sure it's a number
-      const assigneeId = typeof action.assignee_id === 'string'
-        ? parseInt(action.assignee_id, 10)
-        : action.assignee_id;
+      if (action.assignee_id) {
+        const assigneeId = typeof action.assignee_id === 'string'
+          ? parseInt(action.assignee_id, 10)
+          : action.assignee_id;
 
-      if (!isNaN(assigneeId) && assigneeId > 0) {
-        updateData.assignee = assigneeId;
+        if (!isNaN(assigneeId) && assigneeId > 0) {
+          updateData.assignee = assigneeId;
+        }
+      } else {
+        updateData.assignee = false;
       }
-    } else {
-      // If assignee_id is empty, set assignee to false to clear it
-      updateData.assignee = false;
+
+      if (action.dead_line) {
+        updateData.dead_line = action.dead_line;
+      }
+
+      console.log("Updating action with data:", updateData);
+
+      await this.orm.write("dw.actions", [action.id], updateData);
+
+      if (this._updateTimeout) clearTimeout(this._updateTimeout);
+      this._updateTimeout = setTimeout(() => {
+        this.notification.add("Action updated", {
+          type: "success",
+          timeout: 1000
+        });
+      }, 500);
+    } catch (error) {
+      console.error("Failed to update action:", error);
+      this.notification.add("Failed to update action", { type: "danger" });
     }
-
-    if (action.dead_line) {
-      updateData.dead_line = action.dead_line;
-    }
-
-    console.log("Updating action with data:", updateData);
-
-    await this.orm.write("dw.actions", [action.id], updateData);
-
-    if (this._updateTimeout) clearTimeout(this._updateTimeout);
-    this._updateTimeout = setTimeout(() => {
-      this.notification.add("Action updated", {
-        type: "success",
-        timeout: 1000
-      });
-    }, 500);
-  } catch (error) {
-    console.error("Failed to update action:", error);
-    this.notification.add("Failed to update action", { type: "danger" });
   }
-}
 
   async deleteAction(action) {
     if (!action.id) return;
@@ -1122,6 +1173,8 @@ async addNewAction() {
       this.notification.add("Failed to delete action", { type: "danger" });
     }
   }
+
+  // ================== MEETING CONTROL ==================
 
   async leaveMeeting() {
     const confirmed = confirm("Are you sure you want to leave this meeting?");
@@ -1153,31 +1206,21 @@ async addNewAction() {
 
       const durationStr = this.state.meetingDuration;
       const [h, m, s] = durationStr.split(":").map(Number);
-      const durationHours = h + m/60 + s/3600;
+      const durationHours = h + m / 60 + s / 3600;
 
-//      // 1. Update session state to 'done'
-//      await this.orm.write("dw.meeting.session", [this.sessionId], {
-//        state: "done",
-//        is_connected: false,
-//        actual_end_datetime: this.formatOdooDatetimeUTC(new Date()),
-//        actual_duration: durationHours,
-//      });
-        // 1. Get all session IDs for this planification
-        const sessionIds = await this.orm.search("dw.meeting.session", [
-            ["planification_id", "=", this.planificationId]
-        ]);
+      const sessionIds = await this.orm.search("dw.meeting.session", [
+        ["planification_id", "=", this.planificationId]
+      ]);
 
-        // 2. Write to all found sessions
-        if (sessionIds.length > 0) {
-            await this.orm.write("dw.meeting.session", sessionIds, {
-                state: "done",
-                is_connected: false,
-                actual_end_datetime: this.formatOdooDatetimeUTC(new Date()),
-                actual_duration: durationHours,
-            });
-        }
+      if (sessionIds.length > 0) {
+        await this.orm.write("dw.meeting.session", sessionIds, {
+          state: "done",
+          is_connected: false,
+          actual_end_datetime: this.formatOdooDatetimeUTC(new Date()),
+          actual_duration: durationHours,
+        });
+      }
 
-      // 2. Update planification state to 'done'
       if (this.planificationId) {
         await this.orm.write("dw.planification.meeting", [this.planificationId], {
           state: "done",
@@ -1186,7 +1229,6 @@ async addNewAction() {
         });
       }
 
-      // 3. Update meeting state to 'done'
       if (this.meetingId) {
         await this.orm.write("dw.meeting", [this.meetingId], {
           state: "done",
@@ -1195,14 +1237,10 @@ async addNewAction() {
         });
       }
 
-      // 4. Kick all participants from Jitsi
       const api = this.jitsiApi;
       if (api && typeof api.executeCommand === "function") {
         try {
-          // Get all participants
           const participants = api.getParticipantsInfo() || [];
-
-          // Kick each participant
           for (const participant of participants) {
             if (participant.participantId !== this.state.localParticipantId) {
               api.executeCommand("kickParticipant", participant.participantId);
@@ -1213,12 +1251,10 @@ async addNewAction() {
         }
       }
 
-      // 5. Show success notification
       this.notification.add("Meeting ended successfully", {
         type: "success",
       });
 
-      // 6. Wait a moment for notifications to show, then leave
       setTimeout(() => {
         if (this.jitsiApi) {
           this.jitsiApi.executeCommand("hangup");

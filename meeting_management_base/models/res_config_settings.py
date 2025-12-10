@@ -38,7 +38,6 @@ class ResConfigSettings(models.TransientModel):
         help='Your RSA public key (upload this to 8x8 dashboard)'
     )
 
-
     ai_provider = fields.Selection([
         ('gemini', 'Google Gemini (FREE - Recommended)'),
         ('openrouter', 'OpenRouter (FREE - Multiple Models)'),
@@ -73,6 +72,146 @@ class ResConfigSettings(models.TransientModel):
         help='Get free at: https://huggingface.co/settings/tokens'
     )
 
+    speech_provider = fields.Selection([
+        ('none', '🎤 Aucun (Utiliser Web Speech API gratuit du navigateur)'),
+        ('google_cloud', '🔵 Google Cloud Speech-to-Text (Payant)'),
+        ('deepgram', '🟢 Deepgram (Recommandé - Gratuit 300min/mois)'),
+        ('assembly', '🟣 AssemblyAI (Gratuit 10h/mois)'),
+    ],
+        string='Service de Reconnaissance Vocale',
+        config_parameter='meeting_management_base.speech_provider',
+        default='none',
+        help='''
+        Choisissez un service pour la reconnaissance vocale avancée.
+
+        ✅ GRATUIT (par défaut): Web Speech API - Fonctionnalité gratuite du navigateur
+        (Fonctionne hors ligne, aucune clé API requise, français supporté)
+
+        💰 PAYANT: Utilisez les options ci-dessous pour une meilleure précision
+        '''
+    )
+
+    # Google Cloud Configuration
+    google_speech_key = fields.Char(
+        string='Google Cloud Speech-to-Text API Key',
+        config_parameter='meeting_management_base.google_speech_key',
+        help='''
+            Clé API pour Google Cloud Speech-to-Text
+
+            Obtenir une clé:
+            1. Aller sur https://console.cloud.google.com
+            2. Créer un nouveau projet
+            3. Activer "Cloud Speech-to-Text API"
+            4. Créer une clé API (Type: Compte de service)
+            5. Copier la clé ici
+
+            Tarification: $0.024 par 15 secondes d'audio
+            '''
+    )
+
+    # Deepgram Configuration
+    deepgram_key = fields.Char(
+        string='Deepgram API Key',
+        config_parameter='meeting_management_base.deepgram_key',
+        help='''
+            Clé API pour Deepgram (RECOMMANDÉ pour commencer)
+
+            Avantages:
+            ✅ Gratuit: 300 minutes/mois
+            ✅ Très rapide et précis
+            ✅ Support du français excellent
+            ✅ Démarrage facile
+
+            Obtenir une clé gratuite:
+            1. Aller sur https://console.deepgram.com
+            2. S'inscrire (gratuit, pas de CB)
+            3. Aller dans "API Keys"
+            4. Créer une nouvelle clé
+            5. Copier et coller ici
+
+            Plan gratuit: 300 minutes/mois
+            Plans payants: À partir de $12/mois
+            '''
+    )
+
+    # AssemblyAI Configuration
+    assembly_key = fields.Char(
+        string='AssemblyAI API Key',
+        config_parameter='meeting_management_base.assembly_key',
+        help='''
+            Clé API pour AssemblyAI
+
+            Avantages:
+            ✅ Gratuit: 10 heures/mois
+            ✅ Reconnaissance d'entités automatique
+            ✅ Résumé automatique possible
+
+            Obtenir une clé gratuite:
+            1. Aller sur https://assemblyai.com
+            2. S'inscrire (gratuit)
+            3. Aller dans "Compte" > "API Tokens"
+            4. Copier votre token
+            5. Coller ici
+
+            Plan gratuit: 10 heures/mois
+            Plans payants: À partir de $10/mois
+            '''
+    )
+
+    @api.onchange('speech_provider')
+    def _onchange_speech_provider(self):
+        """Show helper message when provider changes"""
+        provider_info = {
+            'none': '''
+                ✅ Web Speech API (Gratuit & Gratuit)
+
+                Avantages:
+                • Complètement GRATUIT
+                • Aucune clé API à configurer
+                • Fonctionne hors ligne
+                • Aucune limite
+
+                Désavantages:
+                • Seulement sur Chrome/Edge
+                • Moins précis pour les accents
+                • Pas de formatage automatique
+
+                👉 PARFAIT pour commencer!
+                ''',
+            'deepgram': '''
+                🟢 Deepgram (Recommandé pour petits budgets)
+
+                Plan gratuit: 300 minutes/mois
+                • Très rapide
+                • Support français excellent
+                • API simple
+                • Meilleure qualité qu'API navigateur
+
+                👉 MEILLEUR RAPPORT QUALITÉ/PRIX
+                ''',
+            'assembly': '''
+                🟣 AssemblyAI (Meilleure qualité)
+
+                Plan gratuit: 10 heures/mois
+                • Très haute précision
+                • Reconnaît les locuteurs
+                • Résumés automatiques
+                • Support excellent
+
+                👉 MEILLEURE QUALITÉ GLOBALE
+                ''',
+            'google_cloud': '''
+                🔵 Google Cloud Speech-to-Text
+
+                Plan payant: $0.024 par 15 secondes
+                • Google quality
+                • Très performant
+                • Reconnaissance multilingue
+
+                ⚠️ LE PLUS CHER DES OPTIONS
+                '''
+        }
+
     @api.model
     def get_values(self):
         """Get the current settings values"""
@@ -95,6 +234,10 @@ class ResConfigSettings(models.TransientModel):
             'jitsi_app_id': ICP.get_param('jitsi.app_id', ''),
             'jitsi_kid': ICP.get_param('jitsi.kid', ''),
             'jitsi_private_key': private_key,
+            'speech_provider': ICP.get_param('meeting_management_base.speech_provider', 'none'),
+            'google_speech_key': ICP.get_param('meeting_management_base.google_speech_key', ''),
+            'deepgram_key': ICP.get_param('meeting_management_base.deepgram_key', ''),
+            'assembly_key': ICP.get_param('meeting_management_base.assembly_key', ''),
         })
 
         return res
@@ -111,12 +254,18 @@ class ResConfigSettings(models.TransientModel):
         _logger.info("   - Key ID: %s", self.jitsi_kid)
         _logger.info("   - Private Key Length: %s", len(self.jitsi_private_key or ''))
         _logger.info("   - Public Key Length: %s", len(self.jitsi_public_key or ''))
+        _logger.info("Speech-to-Text configuration updated")
+        _logger.info("Provider: %s", self.speech_provider)
 
         # Set all our parameters
         ICP.set_param('jitsi.domain', self.jitsi_domain or '8x8.vc')
         ICP.set_param('jitsi.app_id', self.jitsi_app_id or '')
         ICP.set_param('jitsi.kid', self.jitsi_kid or '')
         ICP.set_param('jitsi.private_key', self.jitsi_private_key or '')
+        ICP.set_param('meeting_management_base.speech_provider', self.speech_provider or 'none')
+        ICP.set_param('meeting_management_base.google_speech_key', self.google_speech_key or '')
+        ICP.set_param('meeting_management_base.deepgram_key', self.deepgram_key or '')
+        ICP.set_param('meeting_management_base.assembly_key', self.assembly_key or '')
 
     # def action_generate_keys(self):
     #     """Generate RSA key pair for JaaS - ENHANCED VERSION"""
@@ -194,8 +343,6 @@ class ResConfigSettings(models.TransientModel):
     #                 'sticky': True,
     #             }
     #         }
-
-
 
     @api.onchange('ai_provider')
     def _onchange_ai_provider(self):
