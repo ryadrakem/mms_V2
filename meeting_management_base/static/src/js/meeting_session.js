@@ -76,8 +76,7 @@ export class MeetingSessionView extends Component {
       meetingTypeName: "",
       jitsiRoomId: null,
       pv: "",
-      jitsiInitialized: false,
-      showVideoPip: false,
+      jitsiInitialized: false, // Track if Jitsi is initialized
     });
 
     this.sessionId = null;
@@ -110,8 +109,6 @@ export class MeetingSessionView extends Component {
     this.loadPvTemplate = this.loadPvTemplate.bind(this);
     this.startBlankPv = this.startBlankPv.bind(this);
     this.generatePvTemplate = this.generatePvTemplate.bind(this);
-    this.moveJitsiToSidebar = this.moveJitsiToSidebar.bind(this);
-    this.moveJitsiToMain = this.moveJitsiToMain.bind(this);
     this.closeVideoPip = this.closeVideoPip.bind(this);
     this.showVideoPip = this.showVideoPip.bind(this);
 
@@ -511,9 +508,8 @@ export class MeetingSessionView extends Component {
     }
   }
 
-  // ================== JITSI METHODS ==================
-
-  async initializeJitsi() {
+async initializeJitsi() {
+    // Prevent multiple initializations
     if (this.jitsiApi && this.state.jitsiInitialized) {
       this.state.jitsiLoaded = true;
       this.resumeJitsi();
@@ -575,6 +571,16 @@ export class MeetingSessionView extends Component {
       this.state.jitsiAPI = this.jitsiApi;
       this.state.jitsiInitialized = true;
       this.setupJitsiEvents();
+
+      // ✅ Set initial CSS class for video container
+      setTimeout(() => {
+        const videoContainer = document.querySelector('.video-conference-container');
+        if (videoContainer) {
+            if (this.state.activeMainTab === 'video') {
+                videoContainer.classList.add('main-mode');
+            }
+        }
+      }, 100);
 
       this.notification.add("Connecting to video conference...", {
         type: "info",
@@ -660,49 +666,48 @@ export class MeetingSessionView extends Component {
     });
   }
 
-  onTabChange(tabName) {
-    const previousTab = this.state.activeMainTab;
+onTabChange(tabName) {
     this.state.activeMainTab = tabName;
 
-    if (previousTab === 'video' && tabName !== 'video') {
-      this.state.showVideoPip = true;
-      setTimeout(() => this.moveJitsiToSidebar(), 100);
-    }
+    const videoContainer = document.querySelector('.video-conference-container');
+
+    if (!videoContainer) return;
 
     if (tabName === 'video') {
-      this.state.showVideoPip = false;
-      setTimeout(() => this.moveJitsiToMain(), 100);
+        // Show video in main view
+        videoContainer.classList.remove('pip-mode');
+        videoContainer.classList.add('main-mode');
+        this.state.showVideoPip = false;
+    } else if (this.state.session.display_camera) {
+        // Show video in PiP mode
+        videoContainer.classList.remove('main-mode');
+        videoContainer.classList.add('pip-mode');
+        this.state.showVideoPip = true;
+    } else {
+        // Hide video completely
+        videoContainer.classList.remove('main-mode', 'pip-mode');
+        this.state.showVideoPip = false;
     }
+}
 
-    if (tabName === 'pv' && this.state.session.is_pv && !this.voiceRecorder) {
-        setTimeout(() => {
-            this._initializeVoiceRecorder();
-        }, 300);
+// ========== REPLACE showVideoPip method ==========
+showVideoPip() {
+    this.state.showVideoPip = true;
+    const videoContainer = document.querySelector('.video-conference-container');
+    if (videoContainer && this.state.activeMainTab !== 'video') {
+        videoContainer.classList.add('pip-mode');
+        videoContainer.classList.remove('main-mode');
     }
-  }
+}
 
-  moveJitsiToSidebar() {
-    const jitsiContainer = document.getElementById('jitsi-meet-container');
-    const sidebarContainer = document.getElementById('jitsi-sidebar-container');
-
-    if (jitsiContainer && sidebarContainer && jitsiContainer.firstChild) {
-      while (jitsiContainer.firstChild) {
-        sidebarContainer.appendChild(jitsiContainer.firstChild);
-      }
+// ========== REPLACE closeVideoPip method ==========
+closeVideoPip() {
+    this.state.showVideoPip = false;
+    const videoContainer = document.querySelector('.video-conference-container');
+    if (videoContainer) {
+        videoContainer.classList.remove('pip-mode', 'main-mode');
     }
-  }
-
-  moveJitsiToMain() {
-    const jitsiContainer = document.getElementById('jitsi-meet-container');
-    const sidebarContainer = document.getElementById('jitsi-sidebar-container');
-
-    if (jitsiContainer && sidebarContainer && sidebarContainer.firstChild) {
-      while (sidebarContainer.firstChild) {
-        jitsiContainer.appendChild(sidebarContainer.firstChild);
-      }
-    }
-  }
-
+}
   pauseJitsi() {
     if (this.jitsiApi) {
       try {
@@ -862,14 +867,9 @@ export class MeetingSessionView extends Component {
     this.onTabChange(this.state.activeMainTab === 'agenda' ? 'video' : 'agenda');
   }
 
-  showVideoPip() {
-    this.state.showVideoPip = true;
-    setTimeout(() => this.moveJitsiToSidebar(), 100);
-  }
 
-  closeVideoPip() {
-    this.state.showVideoPip = false;
-  }
+
+
 
   async toggleCamera() {
     this.state.session.display_camera = !this.state.session.display_camera;
