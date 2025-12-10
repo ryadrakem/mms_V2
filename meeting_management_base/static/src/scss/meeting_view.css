@@ -824,6 +824,60 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+.pv-textarea {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 14px;
+    line-height: 1.8;
+    min-height: 400px;
+    padding: 20px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    resize: vertical;
+}
+
+.pv-textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.pv-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    border-radius: 0 0 8px 8px;
+    font-size: 13px;
+    color: #64748b;
+}
+
+.pv-stats {
+    display: flex;
+    gap: 20px;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.stat-item i {
+    color: #3b82f6;
+}
+
+.pv-help {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pv-help i {
+    color: #10b981;
+}
+
 /* Responsive Design */
 @media (max-width: 1400px) {
     .meeting-content-grid.has-video-sidebar {

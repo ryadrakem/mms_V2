@@ -5,7 +5,7 @@
             <field name="name">res.config.settings.view.form.inherit.jitsi</field>
             <field name="model">res.config.settings</field>
             <field name="priority" eval="35"/>
-            <field name="inherit_id" ref="base.res_config_settings_view_form" />
+            <field name="inherit_id" ref="base.res_config_settings_view_form"/>
             <field name="arch" type="xml">
                 <xpath expr="//form" position="inside">
                     <app data-string="Jitsi" string="Jitsi" name="jitsi"
@@ -49,7 +49,8 @@
                         <block title="AI-Powered Meeting Summaries (100% FREE Options)">
 
                             <!-- AI Provider Selection -->
-                            <setting string="AI Provider" help="Choose which AI service to use for generating meeting summaries">
+                            <setting string="AI Provider"
+                                     help="Choose which AI service to use for generating meeting summaries">
                                 <field name="ai_provider"/>
                                 <div class="text-muted mt-2">
                                     All providers below offer FREE tiers with no credit card required!
@@ -66,8 +67,10 @@
                                 <div class="text-success mt-2">
                                     ✅ <strong>RECOMMENDED:</strong> 60 requests/minute, completely free forever
                                     <br/>
-                                    <a href="https://aistudio.google.com/app/apikey" target="_blank" class="btn btn-link">
-                                        <i class="fa fa-external-link"/> Get Free API Key
+                                    <a href="https://aistudio.google.com/app/apikey" target="_blank"
+                                       class="btn btn-link">
+                                        <i class="fa fa-external-link"/>
+                                        Get Free API Key
                                     </a>
                                 </div>
                             </setting>
@@ -83,7 +86,8 @@
                                     🎯 Multiple free models: DeepSeek, Qwen, Mistral, and more
                                     <br/>
                                     <a href="https://openrouter.ai/keys" target="_blank" class="btn btn-link">
-                                        <i class="fa fa-external-link"/> Get Free API Key
+                                        <i class="fa fa-external-link"/>
+                                        Get Free API Key
                                     </a>
                                 </div>
                             </setting>
@@ -99,7 +103,8 @@
                                     ⚡ <strong>FASTEST:</strong> Up to 500 tokens/second, 14,400 requests/day
                                     <br/>
                                     <a href="https://console.groq.com/keys" target="_blank" class="btn btn-link">
-                                        <i class="fa fa-external-link"/> Get Free API Key
+                                        <i class="fa fa-external-link"/>
+                                        Get Free API Key
                                     </a>
                                 </div>
                             </setting>
@@ -114,8 +119,10 @@
                                 <div class="text-primary mt-2">
                                     🤗 Access thousands of open-source AI models
                                     <br/>
-                                    <a href="https://huggingface.co/settings/tokens" target="_blank" class="btn btn-link">
-                                        <i class="fa fa-external-link"/> Get Free Token
+                                    <a href="https://huggingface.co/settings/tokens" target="_blank"
+                                       class="btn btn-link">
+                                        <i class="fa fa-external-link"/>
+                                        Get Free Token
                                     </a>
                                 </div>
                             </setting>
@@ -123,13 +130,20 @@
                             <!-- Quick Setup Guide -->
                             <setting>
                                 <div class="alert alert-info">
-                                    <h4><i class="fa fa-info-circle"/> Quick Setup Guide</h4>
+                                    <h4>
+                                        <i class="fa fa-info-circle"/>
+                                        Quick Setup Guide
+                                    </h4>
                                     <ol class="mb-0">
                                         <li>Select an AI provider above (Google Gemini recommended for beginners)</li>
                                         <li>Click the link to get your free API key (takes 2 minutes)</li>
                                         <li>Paste the API key in the field above</li>
-                                        <li>Click <strong>Save</strong></li>
-                                        <li>Go to any meeting and click <strong>Generate AI Summary</strong></li>
+                                        <li>Click
+                                            <strong>Save</strong>
+                                        </li>
+                                        <li>Go to any meeting and click
+                                            <strong>Generate AI Summary</strong>
+                                        </li>
                                     </ol>
                                     <div class="mt-3">
                                         <strong>All providers are 100% FREE with no credit card required!</strong>
@@ -137,6 +151,104 @@
                                 </div>
                             </setting>
 
+                        </block>
+                    </app>
+                </xpath>
+                <xpath expr="//form" position="inside">
+                    <app data-string="Speech-to-Text" string="Speech-to-Text" name="speech_to_text"
+                         logo="/meeting_management_base/static/src/img/microphone.png">
+                        <block title="Service de Reconnaissance Vocale">
+
+                            <!-- Speech Provider Selection -->
+                            <setting string="Service de Reconnaissance Vocale"
+                                     help="Choisissez un service pour la reconnaissance vocale avancée">
+                                <field name="speech_provider"/>
+                                <div class="text-muted mt-2">
+                                    Toutes les options gratuites proposent des plans gratuits sans carte bancaire !
+                                </div>
+                            </setting>
+
+                            <!-- Web Speech API (Default) -->
+                            <setting invisible="speech_provider != 'none'">
+                                <div class="alert alert-success">
+                                    <h5>🎤 Web Speech API (Gratuit &amp; Gratuit)</h5>
+                                    <ul class="mb-0">
+                                        <li>✅ Complètement GRATUIT</li>
+                                        <li>✅ Aucune clé API à configurer</li>
+                                        <li>✅ Fonctionne hors ligne</li>
+                                        <li>✅ Aucune limite</li>
+                                    </ul>
+                                    <p class="mt-2">
+                                        <strong>👉 PARFAIT pour commencer !</strong>
+                                    </p>
+                                </div>
+                            </setting>
+
+                            <!-- Google Cloud Speech-to-Text Configuration -->
+                            <setting string="Google Cloud Speech-to-Text API Key"
+                                     help="Clé API pour Google Cloud Speech-to-Text - Coût: $0.024 par 15 secondes"
+                                     invisible="speech_provider != 'google_cloud'">
+                                <field name="google_speech_key"
+                                       password="True"
+                                       placeholder="AIza..."/>
+                                <div class="text-warning mt-2">
+                                    <strong>Obtenir une clé:</strong>
+                                    <ol>
+                                        <li>Aller sur https://console.cloud.google.com</li>
+                                        <li>Créer un nouveau projet</li>
+                                        <li>Activer "Cloud Speech-to-Text API"</li>
+                                        <li>Créer une clé API</li>
+                                    </ol>
+                                    <a href="https://console.cloud.google.com" target="_blank" class="btn btn-link">
+                                        <i class="fa fa-external-link"/>
+                                        Accès Google Cloud Console
+                                    </a>
+                                </div>
+                            </setting>
+
+                            <!-- Deepgram Configuration -->
+                            <setting string="Deepgram API Key"
+                                     help="Clé API pour Deepgram - 300 minutes/mois GRATUIT"
+                                     invisible="speech_provider != 'deepgram'">
+                                <field name="deepgram_key"
+                                       password="True"
+                                       placeholder="deepgram_api_key..."/>
+                                <div class="text-success mt-2">
+                                    <strong>🟢 Deepgram (RECOMMANDÉ pour petits budgets)</strong>
+                                    <ul class="mb-0">
+                                        <li>✅ Gratuit: 300 minutes/mois</li>
+                                        <li>✅ Très rapide et précis</li>
+                                        <li>✅ Support français excellent</li>
+                                        <li>✅ Démarrage facile</li>
+                                    </ul>
+                                    <a href="https://console.deepgram.com" target="_blank" class="btn btn-link">
+                                        <i class="fa fa-external-link"/>
+                                        Obtenir une clé gratuite
+                                    </a>
+                                </div>
+                            </setting>
+
+                            <!-- AssemblyAI Configuration -->
+                            <setting string="AssemblyAI API Key"
+                                     help="Clé API pour AssemblyAI - 10 heures/mois GRATUIT"
+                                     invisible="speech_provider != 'assembly'">
+                                <field name="assembly_key"
+                                       password="True"
+                                       placeholder="aai_..."/>
+                                <div class="text-primary mt-2">
+                                    <strong>🟣 AssemblyAI (Meilleure qualité)</strong>
+                                    <ul class="mb-0">
+                                        <li>✅ Gratuit: 10 heures/mois</li>
+                                        <li>✅ Très haute précision</li>
+                                        <li>✅ Reconnaissance des locuteurs</li>
+                                        <li>✅ Résumés automatiques</li>
+                                    </ul>
+                                    <a href="https://assemblyai.com" target="_blank" class="btn btn-link">
+                                        <i class="fa fa-external-link"/>
+                                        Obtenir une clé gratuite
+                                    </a>
+                                </div>
+                            </setting>
                         </block>
                     </app>
                 </xpath>
