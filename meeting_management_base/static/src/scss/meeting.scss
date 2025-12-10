@@ -12,11 +12,16 @@
   --radius: 12px;
   --trans: 200ms ease;
 
-  min-height: 100vh;
+//   min-height: 100vh;
   background: var(--bg-primary);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   padding: 0;
   margin: 0;
+    height: 100%;       /* Changed from min-height: 100vh */
+  max-height: 100vh;  /* Ensures it doesn't grow beyond screen */
+  /* CHANGE 2: Enable vertical scrolling on the dashboard element */
+  overflow-y: auto !important; /* Changed from overflow: visible */
+  overflow-x: hidden;
 
   /*  HEADER  */
   .meeting-header {
@@ -981,6 +986,134 @@
     margin: 0 0 16px 0;
     font-size: 0.875rem;
   }
+}.video-conference-container {
+    background: #000;
+    border-radius: var(--radius);
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+    border: 3px solid var(--border-light);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Default: Hidden */
+    display: none;
+
+    /* Main mode: Full size in content area */
+    &.main-mode {
+        display: block;
+        position: relative;
+        width: 100%;
+        min-height: 700px;
+        border: 3px solid var(--border-light);
+    }
+
+    /* PiP mode: Floating sidebar */
+    &.pip-mode {
+        display: block;
+        position: fixed !important;
+        right: 20px;
+        bottom: 20px;
+        width: 400px;
+        height: 280px;
+        min-height: auto;
+        z-index: 9999;
+        border: 3px solid var(--primary);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+
+        .meeting-timer {
+            font-size: 0.7rem;
+            padding: 6px 10px;
+        }
+
+        /* Add resize handle visual */
+        &::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            cursor: se-resize;
+            background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.3) 50%);
+        }
+    }
+
+    /* Jitsi container stays the same */
+    .jitsi-container {
+        width: 100%;
+        height: 100%;
+        background: #000;
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    }
+}
+
+/* PiP Controls overlay */
+.video-conference-container.pip-mode {
+    /* Add gradient overlay for controls */
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 40px;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+        z-index: 1;
+        pointer-events: none;
+    }
+}
+
+/* Responsive PiP sizing */
+@media (max-width: 768px) {
+    .video-conference-container.pip-mode {
+        width: 280px;
+        height: 180px;
+        right: 10px;
+        bottom: 10px;
+    }
+}
+/* PiP Controls styling */
+.pip-controls {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 6px;
+    z-index: 10;
+
+    button {
+        width: 32px;
+        height: 32px;
+        border: none;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(10px);
+        border-radius: 6px;
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+
+        &:hover {
+            background: var(--primary);
+            transform: scale(1.1);
+        }
+    }
+}
+
+/* Update grid to 2 columns */
+.meeting-content-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr; /* Changed from 3 columns to 2 */
+    gap: 16px;
+    padding: 16px;
+    min-height: calc(100vh - 80px);
 }
 }
 /* Participant item styling */
