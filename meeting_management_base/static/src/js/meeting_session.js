@@ -76,7 +76,7 @@ export class MeetingSessionView extends Component {
       meetingTypeName: "",
       jitsiRoomId: null,
       pv: "",
-      jitsiInitialized: false, // Track if Jitsi is initialized
+      jitsiInitialized: false,
     });
 
     this.sessionId = null;
@@ -111,6 +111,8 @@ export class MeetingSessionView extends Component {
     this.generatePvTemplate = this.generatePvTemplate.bind(this);
     this.closeVideoPip = this.closeVideoPip.bind(this);
     this.showVideoPip = this.showVideoPip.bind(this);
+    this._initializeVoiceRecorder = this._initializeVoiceRecorder.bind(this);
+    this._initializeVoiceRecorderOnPVTab = this._initializeVoiceRecorderOnPVTab.bind(this);
 
     onWillStart(async () => {
       const context = this.props.action?.context || {};
@@ -139,9 +141,7 @@ export class MeetingSessionView extends Component {
         await this.initializeJitsi();
         this.startDurationTimer();
       }
-      if (this.state.session.is_pv) {
-        await this._initializeVoiceRecorder();
-      }
+
       this.statusInterval = setInterval(async () => {
         await this.refreshParticipantStatus();
       }, 10000);
@@ -176,45 +176,65 @@ export class MeetingSessionView extends Component {
 
   /**
    * Initialize voice recorder for PV editing
+   * This is now called when PV tab becomes active, not on component mount
    */
-  async _initializeVoiceRecorder() {
-    try {
-        // Attendre que le textarea soit disponible dans le DOM
+    async _initializeVoiceRecorder() {
+      try {
+        console.log('🎤 Attempting to initialize voice recorder...');
+
         let pvTextarea = null;
         let retries = 0;
+        const maxRetries = 30; // 3 seconds total (100ms intervals)
 
-        while (!pvTextarea && retries < 10) {
-            pvTextarea = document.querySelector('.pv-textarea');
-            if (!pvTextarea) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                retries++;
-            }
+        // Wait for the pv-textarea to be in the DOM
+        while (!pvTextarea && retries < maxRetries) {
+          pvTextarea = document.querySelector('.pv-textarea');
+          if (!pvTextarea) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            retries++;
+          }
         }
 
         if (!pvTextarea) {
-            console.error('PV textarea not found after retries');
-            this.notification.add('Voice recorder failed to initialize', { type: 'danger' });
-            return;
+          console.warn('⚠️ PV textarea not found after retries');
+          console.warn('Voice recorder will not be available for this session');
+          return;
         }
 
         console.log('✅ PV textarea found, initializing voice recorder...');
 
+        // Créer une callback pour mettre à jour state.pv
+        const onTextUpdate = (newText) => {
+          this.state.pv = newText;
+          console.log('📝 Updated state.pv:', newText.substring(0, 50) + '...');
+        };
+
+        // Instantiate avec la callback
         this.voiceRecorder = new VoicePVRecorder(
-            pvTextarea,
-            this.meetingId,
-            this.notification
+          pvTextarea,
+          this.meetingId,
+          this.notification,
+          onTextUpdate  // ← PASSER LA CALLBACK
         );
 
         this.voiceRecorder.initializeControls(pvTextarea.parentNode);
         console.log('✅ Voice recorder initialized for PV');
 
-    } catch (error) {
-        console.error('❌ Failed to initialize voice recorder:', error);
-        this.notification.add('Voice recorder initialization failed: ' + error.message, {
-            type: 'danger'
-        });
+      } catch (error) {
+        console.warn('⚠️ Voice recorder initialization failed (non-critical):', error);
+      }
     }
-   }
+
+  /**
+   * Initialize voice recorder when PV tab becomes active
+   * Call this from onTabChange when activeMainTab === 'pv'
+   */
+  _initializeVoiceRecorderOnPVTab() {
+    if (!this.voiceRecorder && this.state.session.is_pv) {
+      console.log('🎤 Initializing voice recorder for PV tab...');
+      this._initializeVoiceRecorder();
+    }
+  }
 
   /**
    * Check browser support for voice features
@@ -508,7 +528,7 @@ export class MeetingSessionView extends Component {
     }
   }
 
-async initializeJitsi() {
+  async initializeJitsi() {
     // Prevent multiple initializations
     if (this.jitsiApi && this.state.jitsiInitialized) {
       this.state.jitsiLoaded = true;
@@ -522,6 +542,32 @@ async initializeJitsi() {
     }
 
     try {
+      // **FIX: Wait for the container to be rendered in the DOM**
+      let container = null;
+      let retries = 0;
+      const maxRetries = 20; // 2 seconds with 100ms intervals
+
+      // Ensure display_camera is true so container is rendered
+      if (!this.state.session.display_camera) {
+        this.state.session.display_camera = true;
+      }
+
+      // Poll for container availability
+      while (!container && retries < maxRetries) {
+        container = document.getElementById("jitsi-meet-container");
+        if (!container) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          retries++;
+        }
+      }
+
+      if (!container) {
+        throw new Error(
+          `Jitsi container not found after ${maxRetries * 100}ms. ` +
+          "Ensure video-conference-container and jitsi-meet-container exist in template."
+        );
+      }
+
       const tokenData = await this.rpcCall("/meeting/jitsi/token", {
         meeting_id: this.meetingId,
         session_id: this.sessionId,
@@ -535,11 +581,7 @@ async initializeJitsi() {
 
       console.log("🎥 Initializing Jitsi:", { domain, room_name, is_moderator });
 
-      const container = document.getElementById("jitsi-meet-container");
-      if (!container) {
-        throw new Error("Jitsi container not found");
-      }
-
+      // Clear container only if not already initialized
       if (!this.state.jitsiInitialized) {
         container.innerHTML = "";
       }
@@ -554,6 +596,7 @@ async initializeJitsi() {
           prejoinPageEnabled: false,
           startWithAudioMuted: false,
           startWithVideoMuted: false,
+          disableReactions: true,
           enableUserRolesBasedOnToken: true,
         },
         interfaceConfigOverwrite: {
@@ -572,7 +615,7 @@ async initializeJitsi() {
       this.state.jitsiInitialized = true;
       this.setupJitsiEvents();
 
-      // ✅ Set initial CSS class for video container
+      // Set initial CSS class for video container
       setTimeout(() => {
         const videoContainer = document.querySelector('.video-conference-container');
         if (videoContainer) {
@@ -666,8 +709,13 @@ async initializeJitsi() {
     });
   }
 
-onTabChange(tabName) {
+  onTabChange(tabName) {
     this.state.activeMainTab = tabName;
+
+    // Initialize voice recorder when switching to PV tab
+    if (tabName === 'pv' && this.state.session.is_pv) {
+      this._initializeVoiceRecorderOnPVTab();
+    }
 
     const videoContainer = document.querySelector('.video-conference-container');
 
@@ -688,26 +736,25 @@ onTabChange(tabName) {
         videoContainer.classList.remove('main-mode', 'pip-mode');
         this.state.showVideoPip = false;
     }
-}
+  }
 
-// ========== REPLACE showVideoPip method ==========
-showVideoPip() {
+  showVideoPip() {
     this.state.showVideoPip = true;
     const videoContainer = document.querySelector('.video-conference-container');
     if (videoContainer && this.state.activeMainTab !== 'video') {
         videoContainer.classList.add('pip-mode');
         videoContainer.classList.remove('main-mode');
     }
-}
+  }
 
-// ========== REPLACE closeVideoPip method ==========
-closeVideoPip() {
+  closeVideoPip() {
     this.state.showVideoPip = false;
     const videoContainer = document.querySelector('.video-conference-container');
     if (videoContainer) {
         videoContainer.classList.remove('pip-mode', 'main-mode');
     }
-}
+  }
+
   pauseJitsi() {
     if (this.jitsiApi) {
       try {
@@ -866,10 +913,6 @@ closeVideoPip() {
   toggleAgenda() {
     this.onTabChange(this.state.activeMainTab === 'agenda' ? 'video' : 'agenda');
   }
-
-
-
-
 
   async toggleCamera() {
     this.state.session.display_camera = !this.state.session.display_camera;

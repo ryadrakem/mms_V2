@@ -226,7 +226,10 @@
                         </button>
                     </div>
 
-                    <div class="video-conference-container" t-if="state.session.display_camera">
+                    <!-- REPLACE this section in your meeting_session_view.xml -->
+                    <!-- Change from t-if to always render, visibility controlled by CSS -->
+
+                    <div class="video-conference-container" t-att-class="{ 'hidden': !state.session.display_camera }">
                         <div id="jitsi-meet-container" class="jitsi-container"/>
 
                         <!-- Loading -->
@@ -304,7 +307,8 @@
                         </div>
                     </div>
                     <!-- Actions Section -->
-                    <div class="main-tab-content" t-if="state.activeMainTab === 'actions' and state.session.is_action_assigner">
+                    <div class="main-tab-content"
+                         t-if="state.activeMainTab === 'actions' and state.session.is_action_assigner">
 
                         <div class="meeting-actions-section">
                             <div class="actions-header">
@@ -443,6 +447,18 @@
                                     Procès-Verbal (PV)
                                 </h3>
                                 <div class="notes-actions">
+                                    <button class="btn-save-notes voice-record-btn"
+                                            type="button"
+                                            title="🎤 Enregistrement LOCAL (fonctionne hors ligne) + Transcription AssemblyAI. Parlez et le texte s'ajoutera au PV">
+                                        <i class="fa fa-microphone"/>
+                                    </button>
+                                    <button class="btn-save-notes voice-add-separator-btn"
+                                            type="button"
+                                            title="Ajouter un séparateur visuel entre les enregistrements">
+                                        <i class="fa fa-minus"/>
+                                        <span>Ajouter Séparation</span>
+                                    </button>
+                                    <div class="voice-status" style="display:none;"></div>
                                     <!-- Template Selection Buttons -->
                                     <button class="btn-save-notes" t-on-click="startBlankPv"
                                             title="Start with blank PV">
@@ -479,6 +495,12 @@
                                 <div class="pv-help">
                                     <i class="fa fa-info-circle"/>
                                     <span>Le PV est automatiquement sauvegardé avec la réunion</span>
+                                </div>
+                                <div class="pv-help">
+                                    <i class="fa fa-info-circle"/>
+                                    <span>💡 Vous pouvez faire plusieurs enregistrements successifs - ils s'ajouteront
+                                        automatiquement. Utilisez "Ajouter Séparation" pour les délimiter visuellement.
+                                    </span>
                                 </div>
                             </div>
                         </div>

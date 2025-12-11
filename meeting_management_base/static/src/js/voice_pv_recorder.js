@@ -4,30 +4,61 @@
  * Voice-to-PV Recorder Module
  * LOCAL RECORDING + AssemblyAI Transcription
  * Works OFFLINE + sends to AssemblyAI when Internet is available
+ * Supports multiple recordings with separators
  */
 
 export class VoicePVRecorder {
-    constructor(pvTextarea, meetingId, notification) {
+    constructor(pvTextarea, meetingId, notification, onTextUpdate = null) {
         this.pvTextarea = pvTextarea;
         this.meetingId = meetingId;
         this.notification = notification;
+        this.onTextUpdate = onTextUpdate; // Callback for Owl state update
 
         // Audio recording state
         this.isRecording = false;
         this.mediaRecorder = null;
         this.audioChunks = [];
         this.stream = null;
+        this.recordingCount = 0; // Compter les enregistrements
 
-        // UI elements
+        // UI elements - will be set in initializeControls
         this.recordButton = null;
         this.statusDisplay = null;
+        this.addSeparatorBtn = null;
 
-        // ✅ ALWAYS use local MediaRecorder (works offline)
+        // ✓ ALWAYS use local MediaRecorder (works offline)
         this.isUsingSpeechAPI = false;
 
-        console.log('🎤 Voice Recorder initialized');
-        console.log('✅ Mode: Local recording + AssemblyAI transcription');
-        console.log('✅ Works OFFLINE + sends when Internet available');
+        console.log('✓ Voice Recorder initialized');
+        console.log('✓ Mode: Local recording + AssemblyAI transcription');
+        console.log('✓ Works OFFLINE + sends when Internet available');
+        console.log('✓ Multiple recordings supported');
+    }
+
+    /**
+     * Update text in both textarea and Owl state
+     */
+    _updatePVText(newText) {
+        // Update DOM
+        this.pvTextarea.value = newText;
+
+        // Update Owl state via callback
+        if (this.onTextUpdate && typeof this.onTextUpdate === 'function') {
+            this.onTextUpdate(newText);
+        }
+    }
+
+    /**
+     * Add a separator between recordings
+     */
+    addSeparator() {
+        const currentText = this.pvTextarea.value;
+        const separator = '\n\n' + '─'.repeat(60) + '\n\n';
+        const newText = currentText ? currentText + separator : '';
+
+        this._updatePVText(newText);
+        this.notification.add('✓ Séparateur ajouté', { type: 'info' });
+        console.log('✓ Separator added');
     }
 
     /**
@@ -36,12 +67,12 @@ export class VoicePVRecorder {
     async startRecording() {
         try {
             if (this.isRecording) {
-                console.log('⚠️ Already recording');
+                console.log('Already recording');
                 this.notification.add('Enregistrement déjà en cours', { type: 'warning' });
                 return;
             }
 
-            console.log('🎤 Starting LOCAL audio recording...');
+            console.log('✓ Starting audio recording...');
             this.audioChunks = [];
 
             // Request microphone access
@@ -54,14 +85,14 @@ export class VoicePVRecorder {
                     }
                 });
 
-                console.log('✅ Microphone access granted');
+                console.log('✓ Microphone access granted');
             } catch (error) {
                 if (error.name === 'NotAllowedError') {
-                    console.error('❌ Microphone permission DENIED');
-                    this.notification.add('❌ Permission microphone refusée! Allez dans les paramètres du navigateur.', { type: 'danger' });
+                    console.error('✗ Microphone permission DENIED');
+                    this.notification.add('✗ Permission microphone refusée! Allez dans les paramètres du navigateur.', { type: 'danger' });
                 } else if (error.name === 'NotFoundError') {
-                    console.error('❌ No microphone found');
-                    this.notification.add('❌ Aucun microphone trouvé', { type: 'danger' });
+                    console.error('✗ No microphone found');
+                    this.notification.add('✗ Aucun microphone trouvé', { type: 'danger' });
                 } else {
                     throw error;
                 }
@@ -76,17 +107,17 @@ export class VoicePVRecorder {
             this.mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
                     this.audioChunks.push(event.data);
-                    console.log(`📊 Audio chunk: ${event.data.size} bytes`);
+                    console.log(`🎙 Audio chunk: ${event.data.size} bytes`);
                 }
             };
 
             this.mediaRecorder.onstop = async () => {
-                console.log('⏹️ Recording stopped, processing audio...');
+                console.log('⏹ Recording stopped, processing audio...');
                 await this._processRecordedAudio();
             };
 
             this.mediaRecorder.onerror = (event) => {
-                console.error('❌ MediaRecorder error:', event.error);
+                console.error('✗ MediaRecorder error:', event.error);
                 this.notification.add(`Erreur d'enregistrement: ${event.error}`, { type: 'danger' });
             };
 
@@ -94,15 +125,15 @@ export class VoicePVRecorder {
             this.mediaRecorder.start();
             this.isRecording = true;
 
-            console.log('✅ LOCAL recording started');
-            this._updateUI('⏹️ Arrêter l\'enregistrement', true);
-            this.notification.add('🎤 Enregistrement vocal démarré (LOCAL)', { type: 'info' });
-            this._updateStatus('🎙️ Enregistrement en cours... (fonctionne hors ligne)');
+            console.log('✓ recording started');
+            this._updateUI(true);
+            this.notification.add('✓ Enregistrement vocal démarré (LOCAL)', { type: 'info' });
+            this._updateStatus('🎙 Enregistrement en cours... (fonctionne hors ligne)');
 
         } catch (error) {
-            console.error('❌ Recording start error:', error);
+            console.error('✗ Recording start error:', error);
             this.isRecording = false;
-            this._updateUI('🎤 Démarrer l\'enregistrement', false);
+            this._updateUI(false);
             this.notification.add(`Erreur: ${error.message}`, { type: 'danger' });
         }
     }
@@ -113,27 +144,27 @@ export class VoicePVRecorder {
     async stopRecording() {
         try {
             if (!this.isRecording || !this.mediaRecorder) {
-                console.log('⚠️ Not recording');
+                console.log('⏸ Not recording');
                 return;
             }
 
-            console.log('⏹️ Stopping recording...');
+            console.log('⏹ Stopping recording...');
             this.mediaRecorder.stop();
             this.isRecording = false;
 
             // Stop all tracks
             if (this.stream) {
                 this.stream.getTracks().forEach(track => track.stop());
-                console.log('✅ Audio stream stopped');
+                console.log('✓ Audio stream stopped');
             }
 
-            this._updateUI('🎤 Démarrer l\'enregistrement', false);
+            this._updateUI(false);
             this._updateStatus('⏳ Traitement de l\'audio...');
 
         } catch (error) {
-            console.error('❌ Recording stop error:', error);
+            console.error('✗ Recording stop error:', error);
             this.isRecording = false;
-            this._updateUI('🎤 Démarrer l\'enregistrement', false);
+            this._updateUI(false);
             this.notification.add(`Erreur: ${error.message}`, { type: 'danger' });
         }
     }
@@ -151,18 +182,19 @@ export class VoicePVRecorder {
 
             if (audioBlob.size === 0) {
                 this.notification.add('Aucun audio enregistré', { type: 'warning' });
+                this._updateStatus('✓ Prêt à enregistrer (hors ligne)');
                 return;
             }
 
-            console.log(`📀 Audio blob size: ${audioBlob.size} bytes`);
+            console.log(`🎙 Audio blob size: ${audioBlob.size} bytes`);
 
             // Convert to base64
             const base64Audio = await this._blobToBase64(audioBlob);
-            console.log(`🔐 Base64 encoded: ${base64Audio.substring(0, 50)}...`);
+            console.log(`🎙 Base64 encoded: ${base64Audio.substring(0, 50)}...`);
 
             // Send to transcription endpoint
-            this._updateStatus('📤 Envoi vers le serveur...', false);
-            console.log('📤 Sending to /meeting/voice/transcribe...');
+            this._updateStatus('🎙🤖 Envoi vers le serveur...', false);
+            console.log('🎙🤖 Sending to /meeting/voice/transcribe...');
 
             const response = await fetch('/meeting/voice/transcribe', {
                 method: 'POST',
@@ -180,14 +212,14 @@ export class VoicePVRecorder {
                 })
             });
 
-            console.log(`📨 Response status: ${response.status}`);
+            console.log(`🎙🨘 Response status: ${response.status}`);
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
             const data = await response.json();
-            console.log('✅ Response received:', data);
+            console.log('✓ Response received:', data);
 
             if (data.error) {
                 throw new Error(data.error.message || 'Transcription failed');
@@ -196,28 +228,30 @@ export class VoicePVRecorder {
             const result = data.result;
 
             if (result && result.success) {
-                console.log(`✅ Transcription réussie (${result.provider})`);
-                this._updateStatus(`✅ Transcription réussie (${result.provider})`, false);
+                this.recordingCount++;
+                console.log(`✓ Transcription réussie (${result.provider})`);
+                this._updateStatus(`✓ Transcription #${this.recordingCount} réussie (${result.provider})`, false);
 
-                // Add transcribed text to PV
+                // Add transcribed text to PV (update both DOM and state)
                 const currentText = this.pvTextarea.value;
                 const newText = currentText + (currentText ? '\n\n' : '') + result.transcript;
-                this.pvTextarea.value = newText;
+                this._updatePVText(newText);
 
-                console.log(`📝 Added ${result.transcript.length} characters to PV`);
+                console.log(`" Added ${result.transcript.length} characters to PV`);
 
                 // Optionally enhance the text with AI
                 if (result.transcript.length > 10) {
                     await this._enhanceText(result.transcript);
                 }
 
-                this.notification.add('✅ Texte ajouté au PV', { type: 'success' });
+                this.notification.add(`✓ Texte #${this.recordingCount} ajouté au PV`, { type: 'success' });
+                this._updateStatus('✓ Prêt à enregistrer à nouveau', false);
             } else {
                 throw new Error(result?.error || 'Transcription failed');
             }
 
         } catch (error) {
-            console.error('❌ Audio processing error:', error);
+            console.error('✓ Audio processing error:', error);
 
             let userMessage = error.message;
 
@@ -229,7 +263,7 @@ export class VoicePVRecorder {
                 userMessage = 'Fournisseur de transcription non configuré. Allez dans Settings.';
             }
 
-            this._updateStatus(`❌ ${userMessage}`, false);
+            this._updateStatus(`✗ ${userMessage}`, false);
             this.notification.add(`Erreur: ${userMessage}`, { type: 'danger' });
         }
     }
@@ -239,7 +273,7 @@ export class VoicePVRecorder {
      */
     async _enhanceText(transcript) {
         try {
-            this._updateStatus('🤖 Amélioration du texte avec l\'AI...', false);
+            this._updateStatus('💬 Amélioration du texte avec l\'AI...', false);
 
             const response = await fetch('/meeting/voice/enhance', {
                 method: 'POST',
@@ -276,16 +310,15 @@ export class VoicePVRecorder {
                     const newText = currentText.substring(0, lastIndex) +
                                    enhancedText +
                                    currentText.substring(lastIndex + transcript.length);
-                    this.pvTextarea.value = newText;
+                    this._updatePVText(newText);
 
-                    this._updateStatus(`✨ Texte amélioré par ${result.provider}`, false);
-                    this.notification.add('✨ Texte amélioré par l\'AI', { type: 'success' });
+                    this._updateStatus(`💨 Texte amélioré par ${result.provider}`, false);
+                    this.notification.add('💨 Texte amélioré par l\'AI', { type: 'success' });
                 }
             }
 
         } catch (error) {
             console.warn('Text enhancement error:', error);
-            // Don't fail if enhancement fails, we already have the transcript
         }
     }
 
@@ -307,14 +340,14 @@ export class VoicePVRecorder {
     /**
      * Update UI button state
      */
-    _updateUI(buttonText, isActive) {
+    _updateUI(isActive) {
         if (this.recordButton) {
-            this.recordButton.textContent = buttonText;
-            this.recordButton.disabled = false;
             if (isActive) {
                 this.recordButton.classList.add('recording-active');
+                this.recordButton.style.animation = 'pulse-record 1s infinite';
             } else {
                 this.recordButton.classList.remove('recording-active');
+                this.recordButton.style.animation = 'none';
             }
         }
     }
@@ -331,44 +364,23 @@ export class VoicePVRecorder {
     }
 
     /**
-     * Initialize UI controls in the form
+     * Initialize UI controls using existing DOM elements
      */
     initializeControls(container) {
-        // Create controls if not already present
-        const controlsHtml = `
-            <div class="voice-controls" style="margin: 15px 0; padding: 15px; background: #f0f9ff; border-radius: 8px; border: 2px solid #3b82f6;">
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                    <button class="btn btn-primary voice-record-btn" type="button" style="flex: 0 0 auto;">
-                        <i class="fa fa-microphone"></i> 🎤 Démarrer l'enregistrement
-                    </button>
-                    <div class="voice-status" style="flex: 1; font-size: 13px; color: #64748b;">
-                        ✅ Prêt à enregistrer (hors ligne)
-                    </div>
-                </div>
-                <div class="voice-info" style="font-size: 12px; color: #64748b; padding-top: 10px; border-top: 1px solid #ddd;">
-                    <p style="margin: 5px 0;">
-                        <strong>💡 Mode:</strong> Enregistrement LOCAL (fonctionne hors ligne) + Transcription AssemblyAI (quand Internet revient)
-                    </p>
-                    <p style="margin: 5px 0;">
-                        <strong>🎯 Processus:</strong>
-                        1️⃣ Parlez et enregistrez
-                        2️⃣ Cliquez "Arrêter"
-                        3️⃣ Envoi automatique à AssemblyAI (si Internet disponible)
-                    </p>
-                </div>
-            </div>
-        `;
+        const parentSection = this.pvTextarea.closest('.main-tab-content');
 
-        // Insert controls before textarea
-        const wrapper = document.createElement('div');
-        wrapper.innerHTML = controlsHtml;
-        this.pvTextarea.parentNode.insertBefore(wrapper, this.pvTextarea);
+        if (parentSection) {
+            this.recordButton = parentSection.querySelector('.voice-record-btn');
+            this.statusDisplay = parentSection.querySelector('.voice-status');
+            this.addSeparatorBtn = parentSection.querySelector('.voice-add-separator-btn');
+        }
 
-        // Get references to controls
-        this.recordButton = wrapper.querySelector('.voice-record-btn');
-        this.statusDisplay = wrapper.querySelector('.voice-status');
+        if (!this.recordButton) {
+            console.warn('⚠️ Voice record button not found in DOM');
+            return;
+        }
 
-        // Setup event listeners
+        // Setup event listener on the main record button
         this.recordButton.addEventListener('click', async (e) => {
             e.preventDefault();
             if (this.isRecording) {
@@ -378,34 +390,72 @@ export class VoicePVRecorder {
             }
         });
 
-        // Add CSS for recording state
-        const style = document.createElement('style');
-        style.textContent = `
-            .recording-active {
-                background-color: #ef4444 !important;
-                border-color: #dc2626 !important;
-                animation: pulse-record 1s infinite;
-            }
+        // Setup event listener on the separator button
+        if (this.addSeparatorBtn) {
+            this.addSeparatorBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.addSeparator();
+            });
+        }
 
-            @keyframes pulse-record {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.7; }
-            }
+        // Add CSS for recording state animation if not already added
+        if (!document.getElementById('voice-recorder-styles')) {
+            const style = document.createElement('style');
+            style.id = 'voice-recorder-styles';
+            style.textContent = `
+                .recording-active {
+                    background-color: #ef4444 !important;
+                    border-color: #dc2626 !important;
+                }
 
-            .voice-controls {
-                transition: all 0.3s ease;
-            }
+                @keyframes pulse-record {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.7; }
+                }
 
-            .voice-record-btn {
-                white-space: nowrap;
-            }
+                .voice-record-btn {
+                    white-space: nowrap;
+                    transition: all 0.3s ease;
+                }
 
-            .voice-record-btn:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-            }
-        `;
-        document.head.appendChild(style);
+                .voice-record-btn:hover:not(.recording-active) {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+                }
+
+                .voice-add-separator-btn {
+                    white-space: nowrap;
+                    transition: all 0.3s ease;
+                }
+
+                .voice-add-separator-btn:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.4);
+                }
+
+                .voice-status {
+                    animation: slide-in 0.3s ease;
+                    font-size: 0.85rem;
+                    color: #666;
+                    margin-top: 8px;
+                }
+
+                @keyframes slide-in {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        console.log('✅ Voice recorder controls initialized');
+        this._updateStatus('✅ Prêt à enregistrer (hors ligne)');
     }
 }
 
