@@ -43,15 +43,14 @@ class DwRoom(models.Model):
             actual_meeting = self.env['dw.meeting'].search([
                 ('room_id', '=', room.id),
                 ('actual_start_datetime', '<=', now),
-                ('state', '=', 'in_progress')
+                ('state', '=', 'in_progress'),
+                '|',
+                ('actual_end_datetime', '=', False),
+                ('actual_end_datetime', '>', now)
             ], limit=1)
 
             if actual_meeting:
-                # Check if meeting has ended based on actual_end_datetime
-                if actual_meeting.actual_end_datetime and actual_meeting.actual_end_datetime <= now:
-                    room.current_reservation_id = False
-                else:
-                    room.current_reservation_id = actual_meeting.id
+                room.current_reservation_id = actual_meeting.id
             else:
                 # PRIORITY 2: Check planned meetings that haven't started yet
                 planned_meeting = self.env['dw.planification.meeting'].search([
@@ -65,7 +64,9 @@ class DwRoom(models.Model):
 
     @api.depends('current_reservation_id')
     def _compute_status(self):
-        """Compute room status based on ACTUAL meetings - FIXED"""
+        """
+        Compute room status based on ACTUAL meetings
+        """
         now = fields.Datetime.now()
 
         for room in self:
@@ -73,15 +74,14 @@ class DwRoom(models.Model):
             active_actual_meeting = self.env['dw.meeting'].search([
                 ('room_id', '=', room.id),
                 ('actual_start_datetime', '<=', now),
-                ('state', '=', 'in_progress')
+                ('state', '=', 'in_progress'),
+                '|',
+                ('actual_end_datetime', '=', False),
+                ('actual_end_datetime', '>', now)
             ], limit=1)
 
             if active_actual_meeting:
-                # Check if meeting has actually ended
-                if active_actual_meeting.actual_end_datetime and active_actual_meeting.actual_end_datetime <= now:
-                    room.status = 'free'
-                else:
-                    room.status = 'reserved'
+                room.status = 'reserved'
             else:
                 # PRIORITY 2: Check for planned meetings that haven't started yet
                 upcoming_planned = self.env['dw.planification.meeting'].search([
@@ -112,13 +112,11 @@ class DwRoom(models.Model):
             current_actual_meeting = Meeting.search([
                 ('room_id', '=', room.id),
                 ('actual_start_datetime', '<=', now),
-                ('state', '=', 'in_progress')
+                ('state', '=', 'in_progress'),
+                '|',
+                ('actual_end_datetime', '=', False),
+                ('actual_end_datetime', '>', now)
             ], limit=1)
-
-            # Check if actual meeting has ended
-            if current_actual_meeting:
-                if current_actual_meeting.actual_end_datetime and current_actual_meeting.actual_end_datetime <= now:
-                    current_actual_meeting = False  # Meeting has ended, room is free
 
             # PRIORITY 2: If no actual meeting, check planned meetings that haven't started
             current_planned_meeting = None
@@ -211,22 +209,23 @@ class DwRoom(models.Model):
         overlapping_actual = self.env['dw.meeting'].search([
             ('room_id', '=', self.id),
             ('actual_start_datetime', '<=', now),
-            ('state', '=', 'in_progress')
+            ('state', '=', 'in_progress'),
+            '|',
+            ('actual_end_datetime', '=', False),
+            ('actual_end_datetime', '>', now)
         ], limit=1)
 
         if overlapping_actual:
-            # Check if meeting has actually ended
-            if not (overlapping_actual.actual_end_datetime and overlapping_actual.actual_end_datetime <= now):
-                return {
-                    'type': 'ir.actions.client',
-                    'tag': 'display_notification',
-                    'params': {
-                        'title': 'Room Not Available',
-                        'message': f'Room is currently occupied by: {overlapping_actual.name}',
-                        'type': 'warning',
-                        'sticky': False,
-                    }
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Room Not Available',
+                    'message': f'Room is currently occupied by: {overlapping_actual.name}',
+                    'type': 'warning',
+                    'sticky': False,
                 }
+            }
 
         # PRIORITY 2: Check planned meetings
         overlapping_planned = self.env['dw.planification.meeting'].search([

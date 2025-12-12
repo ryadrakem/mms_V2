@@ -134,53 +134,93 @@ class DwPlanificationMeeting(models.Model):
             else:
                 rec.planned_end_time = False
 
+    def _format_time_for_user(self, dt):
+        """
+        Convert a UTC datetime to the current user's timezone string.
+        Fixes the 'Time - 1' display issue in error messages.
+        """
+        if not dt:
+            return ""
+
+        # Get user's timezone or default to UTC
+        user_tz_str = self.env.user.tz or 'UTC'
+        try:
+            user_tz = pytz.timezone(user_tz_str)
+            # Odoo datetimes are naive UTC, localize them then convert
+            utc_dt = pytz.utc.localize(dt)
+            local_dt = utc_dt.astimezone(user_tz)
+            return local_dt.strftime('%d/%m/%Y %H:%M')
+        except Exception:
+            # Fallback if timezone conversion fails
+            return dt.strftime('%d/%m/%Y %H:%M')
+
     @api.constrains('planned_start_datetime', 'planned_end_time', 'room_id', 'equipment_ids')
     def _check_availability(self):
-        """Check availability considering actual meeting times"""
+        """
+        Check availability considering ACTUAL meeting times and PLANNED bookings.
+        Validates time slots while allowing future bookings even if room is currently busy.
+        """
         for rec in self:
             if not rec.planned_start_datetime or not rec.planned_end_time:
                 continue
 
-            # 1. Check room availability
+            #  Check room availability
             if rec.room_id:
-                # PRIORITY 1: Check for actual ongoing meetings
-                overlapping_actual = self.env['dw.meeting'].search([
+
+                # --- Check for ACTUAL ONGOING meetings ---
+                ongoing_meetings = self.env['dw.meeting'].search([
                     ('room_id', '=', rec.room_id.id),
                     ('state', '=', 'in_progress'),
+                    # Optimization: Ignore meetings that started AFTER our requested slot ends
                     ('actual_start_datetime', '<', rec.planned_end_time),
                 ])
 
-                # Filter out meetings that have actually ended
-                now = fields.Datetime.now()
-                active_actual = []
-                for meeting in overlapping_actual:
-                    # Meeting is still ongoing if:
-                    # - It hasn't ended yet (actual_end_datetime is False), OR
-                    # - It ended after our planned start time
-                    if not meeting.actual_end_datetime or meeting.actual_end_datetime > rec.planned_start_datetime:
-                        active_actual.append(meeting)
+                for ongoing in ongoing_meetings:
+                    # Calculate effective end time
+                    if ongoing.actual_end_datetime:
+                        ongoing_end = ongoing.actual_end_datetime
+                    else:
+                        # If running, assume: Start + Duration + 15min Buffer
+                        duration_hours = ongoing.duration if ongoing.duration > 0 else 1.0
+                        ongoing_end = ongoing.actual_start_datetime + timedelta(hours=duration_hours) + timedelta(
+                            minutes=15)
 
-                if active_actual:
-                    raise ValidationError(
-                        f"La salle '{rec.room_id.name}' est actuellement occupée par une réunion en cours: {active_actual[0].name}"
-                    )
+                    # Strict Overlap Check: (StartA < EndB) and (EndA > StartB)
+                    if rec.planned_start_datetime < ongoing_end and rec.planned_end_time > ongoing.actual_start_datetime:
+                        start_str = self._format_time_for_user(ongoing.actual_start_datetime)
+                        end_str = self._format_time_for_user(ongoing_end)
 
-                # PRIORITY 2: Check for other planned meetings
+                        raise ValidationError(
+                            f"❌ Room '{rec.room_id.name}' is currently occupied.\n\n"
+                            f"🔴 Current meeting: {ongoing.name}\n"
+                            f"⏰ Occupied from: {start_str}\n"
+                            f"⌛ Estimated end: {end_str}\n"
+                            f"💡 Your meeting starts: {self._format_time_for_user(rec.planned_start_datetime)}\n\n"
+                            f"Please choose a later time."
+                        )
+
+                # --- B. Check for PLANNED meetings ---
                 overlapping_planned = self.search([
                     ('id', '!=', rec.id),
                     ('room_id', '=', rec.room_id.id),
                     ('state', 'in', ['planned', 'confirmed']),
                     ('planned_start_datetime', '<', rec.planned_end_time),
                     ('planned_end_time', '>', rec.planned_start_datetime),
-                    ('meeting_id', '=', False),  # Not yet converted to actual
-                ])
+                    ('meeting_id', '=', False),  # Not yet started
+                ], limit=1)
 
                 if overlapping_planned:
+                    start_str = self._format_time_for_user(overlapping_planned.planned_start_datetime)
+                    end_str = self._format_time_for_user(overlapping_planned.planned_end_time)
+
                     raise ValidationError(
-                        f"La salle '{rec.room_id.name}' est déjà réservée pour cet intervalle de temps."
+                        f"📅 Room '{rec.room_id.name}' is already booked.\n\n"
+                        f"📌 Conflict: {overlapping_planned.name}\n"
+                        f"⏰ Time slot: {start_str} - {end_str}\n\n"
+                        f"Please choose a different time."
                     )
 
-            # 2. Check equipment availability (similar logic)
+            # 2. Check equipment availability
             for equipment in rec.equipment_ids:
                 overlapping_equipments = self.search([
                     ('id', '!=', rec.id),
@@ -188,13 +228,12 @@ class DwPlanificationMeeting(models.Model):
                     ('state', 'in', ['planned', 'confirmed']),
                     ('planned_start_datetime', '<', rec.planned_end_time),
                     ('planned_end_time', '>', rec.planned_start_datetime),
-                ])
+                ], limit=1)
 
                 if overlapping_equipments:
                     raise ValidationError(
-                        f"L'équipement '{equipment.name}' est déjà réservé pour cet intervalle de temps."
+                        f"Equipment '{equipment.name}' is already reserved for this time period."
                     )
-
     def action_plan(self):
         for rec in self:
             rec.state = 'planned'
@@ -259,6 +298,19 @@ class DwPlanificationMeeting(models.Model):
 
     def create_meeting_and_sessions(self):
         self.ensure_one()
+
+        # Check for overrun conflicts before creating meeting
+        # Pass ignore_time_window=True to force immediate check
+        if self.room_id and self._handle_meeting_overrun(ignore_time_window=True):
+            self.env.cr.commit()
+
+            raise ValidationError(
+                "⚠️ Cannot start meeting - room is still occupied.\n\n"
+                "The previous meeting is still in progress.\n"
+                "Notifications have been sent to both meeting hosts.\n\n"
+                "Please wait a few minutes and try again."
+            )
+
         # Create the MEETING record
         self.actual_start_datetime = fields.Datetime.now()
         meeting = self.env['dw.meeting'].create({
@@ -281,7 +333,7 @@ class DwPlanificationMeeting(models.Model):
 
         self.write({
             'state': 'started',
-            'meeting_id': meeting.id,  # Link back to the meeting
+            'meeting_id': meeting.id,
         })
 
         Session = self.env['dw.meeting.session']
@@ -302,14 +354,13 @@ class DwPlanificationMeeting(models.Model):
                     'display_camera': self.display_camera,
                     'subject_order': self.subject_order,
                 })
-                # Capture current user's session
+
                 if participant.user_id.id == self.env.user.id:
                     user_session = session
 
         if user_session:
             return self.action_join()
 
-        # Else open the main meeting
         return {
             'type': 'ir.actions.act_window',
             'name': 'Meeting',
@@ -995,3 +1046,199 @@ class DwPlanificationMeeting(models.Model):
             return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
         else:
             return "Just now"
+
+    def _handle_meeting_overrun(self, ignore_time_window=False):
+        """
+        Handle the case where a previous meeting is still running.
+        :param ignore_time_window: If True, checks room status regardless of planned time (for manual start).
+        """
+        self.ensure_one()
+
+        if self.state not in ['planned', 'confirmed']:
+            return False
+
+        now = fields.Datetime.now()
+
+        _logger.info(f"🔍 CHECKING OVERRUN: {self.name} (Planned: {self.planned_start_datetime})")
+
+        #  TIME WINDOW CHECK
+        if not ignore_time_window:
+            time_until_start = (self.planned_start_datetime - now).total_seconds() / 60
+            _logger.info(f"   ⏱️ Minutes until start: {time_until_start}")
+
+            if time_until_start > 30 or time_until_start < -240:
+                _logger.info("   ❌ Stopped: Outside time window (+30 to -240 mins)")
+                return False
+
+        # ROOM OCCUPANCY CHECK
+        ongoing_meeting = self.env['dw.meeting'].search([
+            ('room_id', '=', self.room_id.id),
+            ('state', '=', 'in_progress'),
+            ('actual_start_datetime', '<', now),
+            '|',
+            ('actual_end_datetime', '=', False),
+            ('actual_end_datetime', '>', now)
+        ], limit=1)
+
+        if ongoing_meeting:
+            _logger.info(f"   ✅ CONFLICT FOUND with: {ongoing_meeting.name}")
+            self._send_in_app_notifications(ongoing_meeting)
+            return True
+
+        _logger.info("   🟢 No conflict found.")
+        return False
+
+    def _send_in_app_notifications(self, ongoing_meeting):
+        """
+        Send in-app notifications.
+        - Ongoing Meeting: Host ONLY.
+        - Waiting Meeting: All Participants (Host gets specific message, others get general).
+        """
+        self.ensure_one()
+
+        # Get hosts
+        ongoing_host = ongoing_meeting.participant_ids.filtered(lambda p: p.is_host)[:1]
+        waiting_host = self.participant_ids.filtered(lambda p: p.is_host)[:1]
+
+        # Calculate times
+        if ongoing_meeting.actual_end_datetime:
+            estimated_end = ongoing_meeting.actual_end_datetime
+        else:
+            estimated_end = ongoing_meeting.actual_start_datetime + timedelta(
+                hours=ongoing_meeting.duration if ongoing_meeting.duration > 0 else 1.0
+            )
+        estimated_end_str = estimated_end.strftime('%H:%M')
+        current_time = fields.Datetime.now().strftime('%H:%M')
+
+        if ongoing_host and ongoing_host.user_id:
+            try:
+                self._send_notification_to_user(
+                    user=ongoing_host.user_id,
+                    title='⚠️ URGENT: Meeting Overrun!',
+                    message=f'Your meeting is overrunning! Next meeting is waiting.',
+                    notification_type='warning',
+                    sticky=True
+                )
+
+                # Inbox Message
+                ongoing_meeting.message_post(
+                    body=f"""
+                        <div style="background-color:#fff3cd; padding:15px; border-left: 5px solid #ffc107;">
+                            <h3 style="color:#856404; margin-top:0;">⚠️ YOUR MEETING IS OVERRUNNING!</h3>
+                            <p><strong>Scheduled End:</strong> {ongoing_meeting.planned_end_time.strftime('%H:%M')}</p>
+                            <p style="color:#856404;"><strong>🔴 NEXT MEETING WAITING:</strong> {self.name}</p>
+                            <p>Please wrap up immediately.</p>
+                        </div>
+                    """,
+                    subject='⚠️ URGENT: Meeting Overrun Alert',
+                    message_type='notification',
+                    partner_ids=[ongoing_host.user_id.partner_id.id],
+                    subtype_xmlid='mail.mt_comment',
+                )
+            except Exception as e:
+                _logger.error(f"❌ Failed to notify ongoing host: {e}")
+
+
+        if waiting_host and waiting_host.user_id:
+            try:
+                self._send_notification_to_user(
+                    user=waiting_host.user_id,
+                    title='⏰ Room Delay',
+                    message=f'Room {self.room_id.name} occupied. Est delay: 15-30 min.',
+                    notification_type='info',
+                    sticky=True
+                )
+
+                self.message_post(
+                    body=f"""
+                        <div style="background-color:#d1ecf1; padding:15px; border-left: 5px solid #17a2b8;">
+                            <h3 style="color:#0c5460; margin-top:0;">⏰ ROOM DELAY NOTIFICATION</h3>
+                            <p><strong>Room:</strong> {self.room_id.name}</p>
+                            <p><strong>Occupied By:</strong> {ongoing_meeting.name}</p>
+                            <p><strong>Est. Available:</strong> {estimated_end_str}</p>
+                        </div>
+                    """,
+                    subject='⏰ Room Delay Notification',
+                    message_type='notification',
+                    partner_ids=[waiting_host.user_id.partner_id.id],
+                    subtype_xmlid='mail.mt_comment',
+                )
+            except Exception as e:
+                _logger.error(f"❌ Failed to notify waiting host: {e}")
+
+
+        other_participants = self.participant_ids.filtered(
+            lambda p: p.user_id and not p.is_host
+        )
+
+        if other_participants:
+            # Send Popups
+            for participant in other_participants:
+                try:
+                    self._send_notification_to_user(
+                        user=participant.user_id,
+                        title='📢 Meeting Delayed',
+                        message=f'"{self.name}" delayed. Room occupied.',
+                        notification_type='danger',
+                        sticky=True
+                    )
+                except Exception as e:
+                    _logger.error(f"Failed to popup {participant.name}: {e}")
+
+            partner_ids = [p.user_id.partner_id.id for p in other_participants]
+            try:
+                self.message_post(
+                    body=f"""
+                        <div style="background-color:#f8d7da; padding:15px; border-left: 5px solid #dc3545;">
+                            <h3 style="color:#721c24; margin-top:0;">📢 MEETING DELAYED</h3>
+                            <p><strong>Meeting:</strong> {self.name}</p>
+                            <p><strong>Reason:</strong> Room {self.room_id.name} is still occupied.</p>
+                            <p><strong>Delay:</strong> Approx 15-30 minutes.</p>
+                        </div>
+                    """,
+                    subject='📢 Meeting Delay Notification',
+                    message_type='notification',
+                    partner_ids=partner_ids,
+                    subtype_xmlid='mail.mt_comment',
+                )
+            except Exception as e:
+                _logger.error(f"❌ Failed to notify participants: {e}")
+
+    def _send_notification_to_user(self, user, title, message, notification_type='info', sticky=False):
+        """
+        Send browser notification (toast popup)
+        """
+        try:
+            partner = user.partner_id
+            payload = {
+                'type': notification_type,
+                'title': title,
+                'message': message,
+                'sticky': sticky,
+            }
+            # Odoo 18 Bus Call
+            self.env['bus.bus']._sendone(partner, 'simple_notification', payload)
+            _logger.info(f"   🚀 POPUP SENT to {user.name}")
+
+        except Exception as e:
+            _logger.error(f"   ❌ FAILED to send popup: {e}")
+
+    @api.model
+    def _cron_check_overruns(self):
+        """
+        Scheduled action to check for meetings that should have started
+        but room is occupied (run every 5 minutes)
+        """
+        now = fields.Datetime.now()
+        waiting_meetings = self.search([
+            ('state', '=', 'planned'),
+            ('planned_start_datetime', '>=', now - timedelta(minutes=15)),
+            ('planned_start_datetime', '<=', now + timedelta(minutes=5)),
+            ('room_id', '!=', False),
+        ])
+
+        for meeting in waiting_meetings:
+            try:
+                meeting._handle_meeting_overrun(ignore_time_window=False)
+            except Exception as e:
+                _logger.error(f"Error checking overrun for meeting {meeting.id}: {e}")

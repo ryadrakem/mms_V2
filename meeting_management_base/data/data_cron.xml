@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<smartdz>
+    <data noupdate="1">
+        <!-- Scheduled action to check for meeting overruns -->
+        <record id="ir_cron_check_meeting_overruns" model="ir.cron">
+            <field name="name">Check Meeting Overruns</field>
+            <field name="model_id" ref="model_dw_planification_meeting"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_check_overruns()</field>
+            <field name="interval_number">5</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</smartdz>
