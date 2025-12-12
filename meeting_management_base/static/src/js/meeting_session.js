@@ -410,15 +410,42 @@ export class MeetingSessionView extends Component {
         this.state.session.participant_ids = participantRecords.map(p => p.id);
       }
 
-      if (sessionData.subject_order && sessionData.subject_order.length > 0) {
-        const subject_orderRecords = await this.orm.read(
-          'dw.agenda',
-          sessionData.subject_order,
-          ['name']
-        );
-        this.state.session.subject_order = subject_orderRecords;
-        this.state.session.subject_order_names = subject_orderRecords.map(p => p.id);
-      }
+              // ✅ CHANGÉ: Charger l'agenda depuis le SESSION d'abord, sinon depuis le MEETING
+        console.log('📋 Chargement de l\'agenda...');
+        let agendaIds = sessionData.subject_order || [];
+
+        // Si la session n'a pas d'agenda, charger depuis le meeting
+        if (!agendaIds || agendaIds.length === 0) {
+          console.warn('⚠️ Pas d\'agenda dans la session, chargement depuis le meeting...');
+          const meetingData = await this.orm.read(
+            "dw.meeting",
+            [this.meetingId],
+            ["subject_order"]
+          );
+          if (meetingData && meetingData.length > 0 && meetingData[0].subject_order) {
+            agendaIds = meetingData[0].subject_order;
+            console.log('✅ Agenda trouvé dans le meeting:', agendaIds);
+          }
+        }
+
+        // Charger les détails de l'agenda
+        if (agendaIds && agendaIds.length > 0) {
+          try {
+            const subject_orderRecords = await this.orm.read(
+              'dw.agenda',
+              agendaIds,
+              ['id', 'name']
+            );
+            this.state.session.subject_order = subject_orderRecords;
+            console.log('✅ Agenda chargé avec succès:', subject_orderRecords.length, 'items');
+          } catch (error) {
+            console.warn('⚠️ Erreur lors du chargement de l\'agenda:', error);
+            this.state.session.subject_order = [];
+          }
+        } else {
+          console.log('ℹ️ Aucun agenda disponible');
+          this.state.session.subject_order = [];
+        }
 
       if (sessionData.planned_start_datetime) {
         const date = new Date(sessionData.planned_start_datetime);
