@@ -220,6 +220,7 @@
                         </button>
                         <button class="tab-nav-button"
                                 t-att-class="{ 'active': state.activeMainTab === 'video' }"
+                                t-if="state.session.state !== 'done' and state.session.use_vc"
                                 t-on-click="() => onTabChange('video')">
                             <i class="fa fa-video-camera"/>
                             <span>Video Conference</span>
@@ -229,7 +230,7 @@
                     <!-- REPLACE this section in your meeting_session_view.xml -->
                     <!-- Change from t-if to always render, visibility controlled by CSS -->
 
-                    <div class="video-conference-container" t-att-class="{ 'hidden': !state.session.display_camera }">
+                    <div class="video-conference-container" t-if="state.session.state !== 'done' and state.session.use_vc" t-att-class="{ 'hidden': !state.session.display_camera }">
                         <div id="jitsi-meet-container" class="jitsi-container"/>
 
                         <!-- Loading -->
@@ -335,6 +336,7 @@
                                                             t-model="action.name"
                                                             placeholder="Action title..."
                                                             t-on-change="() => updateAction(action)"/>
+
                                                     <button class="btn-delete-action"
                                                             t-on-click="() => deleteAction(action)">
                                                         <i class="fa fa-trash"/>
@@ -342,6 +344,25 @@
                                                 </div>
                                                 <div class="action-item-body">
                                                     <div class="action-fields-grid">
+                                                        <div class="action-field">
+                                                            <label>
+                                                                <i class="fa fa-briefcase"/>
+                                                                Project:
+                                                            </label>
+                                                            <select
+                                                                t-model="action.project_id"
+                                                                t-on-change="() => updateAction(action)"
+                                                                class="form-select">
+                                                                <option value="">Select project...</option>
+                                                                <t t-foreach="state.availableProjects" t-as="project"
+                                                                   t-key="project.id">
+                                                                    <option t-att-value="project.id"
+                                                                            t-att-selected="action.project_id == project.id">
+                                                                        <t t-esc="project.name"/>
+                                                                    </option>
+                                                                </t>
+                                                            </select>
+                                                        </div>
                                                         <div class="action-field">
                                                             <label>
                                                                 <i class="fa fa-user"/>

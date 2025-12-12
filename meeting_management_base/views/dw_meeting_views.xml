@@ -8,6 +8,7 @@
             <list duplicate="false" create="false" delete="true" edit="false">
                 <field name="name"/>
                 <field name="objet"/>
+                <field name="project_id"/>
                 <field name="planned_start_datetime"/>
                 <field name="state"/>
                 <button name="open_meeting"
@@ -142,7 +143,7 @@
                             <t t-esc="meeting.name"/>
                         </h3>
 
-                        <div class="info-box text-start mx-auto" style="max-width: 420px;">
+                        <div class="info-box text-center mx-auto" style="max-width: 420px;">
                             <p class="mb-2">
                                 <strong>Date:</strong>
                                 <t t-esc="meeting.planned_start_datetime"/>
@@ -645,6 +646,7 @@
                                    readonly="form_planification"/>
                             <field name="summary"/>
                             <field name="pv"/>
+                            <field name="project_id"/>
                         </group>
                     </group>
 

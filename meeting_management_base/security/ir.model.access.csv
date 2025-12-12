@@ -47,5 +47,9 @@ access_dw_meeting_session_admin,access.dw.meeting.session.admin,model_dw_meeting
 access_dw_meeting_summary_user,access.dw.meeting.summary.user,model_dw_meeting_summary,base.group_user,1,1,1,1
 access_dw_meeting_summary_admin,access.dw.meeting.summary.admin,model_dw_meeting_summary,base.group_erp_manager,1,1,1,1
 
-access_dw_agenda_user,access_dw_agenda.user,model_dw_agenda,base.group_user,1,1,1,1
-access_dw_agenda_admin,access_dw_agenda.admin,model_dw_agenda,base.group_erp_manager,1,1,1,1
+access_dw_agenda_user,access_dw_agenda_user,model_dw_agenda,base.group_user,1,1,1,1
+access_dw_agenda_admin,access_dw_agenda_admin,model_dw_agenda,base.group_erp_manager,1,1,1,1
+
+access_dw_project,access_dw_project,model_dw_project,base.group_user,1,1,1,1
+
+access_dw_project_stage,access_dw_project_stage,model_dw_project_stage,base.group_user,1,1,1,1

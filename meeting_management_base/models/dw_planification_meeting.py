@@ -46,12 +46,14 @@ class DwPlanificationMeeting(models.Model):
     # specific to planification
     equipment_ids = fields.Many2many('dw.equipment', string='Equipements')
     meeting_id = fields.Many2one('dw.meeting', string='Meetings', ondelete='cascade')
+    project_id = fields.Many2one('dw.project', string='Project', domain=lambda self: self._get_allowed_projects_domain())
     use_the_chat_room = fields.Boolean(string='Use the chat room', default=False)
     display_camera = fields.Boolean(string='Display the cameras in the meeting', default=False)
     is_current_user_host = fields.Boolean(string="Is Current User Host", compute="_compute_is_current_user_host")
     is_current_user_participant = fields.Boolean(string="Is Current User Participant", compute="_compute_is_current_user_participant")
     calendar_event_id = fields.Many2one('calendar.event', string='Calendar Event', readonly=True, copy=False)
     sync_with_calendar = fields.Boolean(string='Sync with Calendar', default=True)
+    use_vc = fields.Boolean(string='Video Conference', default=True)
     has_pv = fields.Boolean(string='PV', default=True)
     has_remote_participants = fields.Boolean(
         string='Has Remote Participants',
@@ -67,6 +69,13 @@ class DwPlanificationMeeting(models.Model):
         ('done', 'Done'),
         ('cancelled', 'Cancelled'),
     ], string='Status', default='draft', tracking=True)
+
+    @api.model
+    def _get_allowed_projects_domain(self):
+        return [
+            ('status', 'not in', ['cancelled', 'done']),
+            ('users_allowed_to_see', 'in', [self.env.user.id])
+        ]
 
     @api.depends("actual_start_datetime", "tolerated_late")
     def _compute_tolerated_limit(self):
@@ -328,6 +337,7 @@ class DwPlanificationMeeting(models.Model):
             'room_id': self.room_id.id if self.room_id else False,
             'location_id': self.location_id.id if self.location_id else False,
             'is_external': self.is_external,
+            'project_id': self.project_id.id,
             'state': 'in_progress',
         })
 
@@ -349,10 +359,12 @@ class DwPlanificationMeeting(models.Model):
                     'planification_id': self.id,
                     'is_host': participant.is_host,
                     'is_pv': participant.is_pv,
+                    'use_vc': self.use_vc,
                     'is_action_assigner': participant.is_action_assigner,
                     'actual_start_datetime': fields.Datetime.now(),
                     'display_camera': self.display_camera,
                     'subject_order': self.subject_order,
+                    'project_id': self.project_id.id,
                 })
 
                 if participant.user_id.id == self.env.user.id:

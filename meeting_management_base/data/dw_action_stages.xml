@@ -1,0 +1,21 @@
+<smartdz>
+    <record id="dw_project_stage_planning" model="dw.project.stage">
+        <field name="name">Planning</field>
+        <field name="sequence">1</field>
+    </record>
+
+    <record id="dw_project_stage_ongoing" model="dw.project.stage">
+        <field name="name">Ongoing</field>
+        <field name="sequence">2</field>
+    </record>
+
+    <record id="dw_project_stage_on_hold" model="dw.project.stage">
+        <field name="name">On Hold</field>
+        <field name="sequence">3</field>
+    </record>
+
+    <record id="dw_project_stage_done" model="dw.project.stage">
+        <field name="name">Done</field>
+        <field name="sequence">4</field>
+    </record>
+</smartdz>

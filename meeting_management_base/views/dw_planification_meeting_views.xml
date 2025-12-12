@@ -102,6 +102,7 @@
                         <group>
                             <group>
                                 <field name="is_external" readonly="state != 'draft'"/>
+                                <field name="use_vc" readonly="state != 'draft'"/>
                             </group>
                             <group>
                                 <field name="has_pv" readonly="state != 'draft'"/>
@@ -126,6 +127,7 @@
                             <field name="room_id" domain="[('location_id', '=', location_id)]"
                                    readonly="state != 'draft'"/>
                             <field name="equipment_ids" widget="many2many_tags" readonly="state != 'draft'"/>
+                            <field name="project_id" readonly="state != 'draft'"/>
                         </group>
                     </group>
 
@@ -263,6 +265,7 @@
             <list string="Planification Meetings" default_order="planned_start_datetime desc">
                 <field name="name"/>
                 <field name="meeting_type_id"/>
+                <field name="project_id"/>
                 <field name="planned_start_datetime"/>
                 <field name="planned_end_time"/>
                 <field name="duration" widget="float_time"/>
@@ -279,6 +282,7 @@
             <kanban class="o_kanban_small_column">
                 <field name="name"/>
                 <field name="meeting_type_id"/>
+                <field name="project_id"/>
                 <field name="planned_start_datetime"/>
                 <field name="planned_end_time"/>
                 <field name="room_id"/>
@@ -362,6 +366,7 @@
                       quick_create="0">
                 <field name="name"/>
                 <field name="objet"/>
+                <field name="project_id"/>
                 <field name="participant_ids"/>
                 <field name="room_id"/>
                 <field name="location_id"/>

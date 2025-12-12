@@ -11,6 +11,7 @@
         # data
         "data/dw_meeting_type_data.xml",
         "data/dw_participant_role_data.xml",
+        "data/dw_action_stages.xml",
         # views
         "views/dw_actions_views.xml",
         "views/dw_equipment_type_views.xml",
@@ -27,11 +28,11 @@
         "views/dw_meeting_session_view.xml",
         "views/res_config_settings_view.xml",
         "views/dw_meeting_summary.xml",
+        "views/dw_project_views.xml",
         # security
         "security/ir.model.access.csv",
         "security/dw_meeting_rules.xml",
         "views/email_templates.xml",
-        "data/data_cron.xml",
         # menus
         "menus.xml",
 

@@ -4,11 +4,11 @@
         <field name="name">dw.requirements.view.list</field>
         <field name="model">dw.requirements</field>
         <field name="arch" type="xml">
-            <list>
+            <list editable="bottom">
                 <field name="name"/>
                 <field name="description"/>
                 <field name="seq"/>
-                <field name="status"/>
+                <field name="is_done"/>
             </list>
         </field>
     </record>
@@ -28,7 +28,7 @@
                     <group>
                         <field name="description"/>
                         <field name="seq"/>
-                        <field name="status"/>
+                        <field name="is_done"/>
                     </group>
                 </sheet>
             </form>

@@ -28,6 +28,12 @@ class DwRoom(models.Model):
     current_reservation_id = fields.Many2one('dw.meeting', string='Current Meeting',
                                              compute='_compute_current_meeting')
 
+    _sql_constraints = [
+        ('unique_room_name_per_location',
+         'unique(name, location_id)',
+         'A room with the same name already exists in this location.')
+    ]
+
     @api.depends('capacity_number')
     def _compute_capacity(self):
         """Ensure capacity is set"""

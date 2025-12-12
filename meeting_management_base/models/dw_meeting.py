@@ -29,7 +29,7 @@ class DwMeeting(models.Model):
     duration = fields.Float(string='Duration (hours)', default=1.0, tracking=True)
     form_planification = fields.Boolean(string='Created from the planification meetings', default=False)
     planification_id = fields.Many2one('dw.planification.meeting', string='Associated Planifications')
-
+    project_id = fields.Many2one('dw.project', string='Project')
     # from session
     actual_start_datetime = fields.Datetime(string='Actual Start Date & Time', tracking=True)
     actual_end_datetime = fields.Datetime(string='Actual End Date & Time', store=True)

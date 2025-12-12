@@ -178,6 +178,7 @@
                             <field name="parent_id"
                                    readonly="status == 'done'"/>
                             <field name="session_id" invisible="1"/>
+                            <field name="project_id"/>
                         </group>
                     </group>
 
@@ -231,10 +232,9 @@
 
                         <page string="Requirements" name="requirements">
                             <field name="requirements" readonly="status == 'done'">
-                                <list>
-                                    <field name="name"/>
+                                <list editable="bottom">
                                     <field name="description"/>
-                                    <field name="status" widget="badge"/>
+                                    <field name="is_done"/>
                                 </list>
                             </field>
                         </page>

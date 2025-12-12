@@ -13,4 +13,5 @@ from . import (dw_planification_meeting,
                dw_reservations,
                res_config_settings,
                dw_meeting_summary,
+               dw_project,
                )

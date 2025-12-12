@@ -11,7 +11,7 @@ class DwActions(models.Model):
 
     name = fields.Char(string='Name', required=True, tracking=True)
     assignee = fields.Many2one('res.users', string='Assigned to', tracking=True, default=lambda self: self.env.user)
-    requirements = fields.Many2many('dw.requirements', string='Requirements')
+    requirements = fields.One2many('dw.requirements', 'task_id', string='Requirements')
     task_ids = fields.One2many('dw.actions', 'parent_id', string='Sub-tasks')
     dead_line = fields.Date(string='Due Date', tracking=True)
     meeting_id = fields.Many2one('dw.meeting', string='Meeting', ondelete='cascade')
@@ -43,7 +43,7 @@ class DwActions(models.Model):
     subtask_count = fields.Integer(compute='_compute_subtask_progress', store=True)
     subtask_done_count = fields.Integer(compute='_compute_subtask_progress', store=True)
     subtask_progress = fields.Float(compute='_compute_subtask_progress', store=True)
-
+    project_id = fields.Many2one('dw.project', string='Project')
     meeting_name = fields.Char(related='meeting_id.name', string='Meeting Name', readonly=True)
     is_my_action = fields.Boolean(compute='_compute_is_my_action', search='_search_is_my_action')
 

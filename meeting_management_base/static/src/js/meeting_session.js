@@ -44,10 +44,12 @@ export class MeetingSessionView extends Component {
         is_connected: false,
         is_host: false,
         is_pv: false,
+        use_vc: false,
         is_action_assigner: false,
         can_edit_agenda: false,
         can_edit_summary: false,
         planification_id: null,
+        project_id: null,
         objet: "",
         meeting_type_id: null,
         subject_order: [],
@@ -70,6 +72,7 @@ export class MeetingSessionView extends Component {
       notes: "",
       actions: [],
       availableAssignees: [],
+      availableProjects: [],
       formattedDate: "",
       formattedJoinTime: "",
       sessionDuration: 0,
@@ -134,10 +137,11 @@ export class MeetingSessionView extends Component {
       await this.loadSessionData();
       await this.loadActions();
       await this.loadAvailableAssignees();
+      await this.loadAvailableProjects();
     });
 
     onMounted(async () => {
-      if (!this.state.error && this.meetingId) {
+      if (!this.state.error && this.meetingId && this.state.session.state !== 'done' && this.state.session.use_vc) {
         await this.initializeJitsi();
         this.startDurationTimer();
       }
@@ -317,10 +321,12 @@ export class MeetingSessionView extends Component {
           "is_connected",
           "is_host",
           "is_pv",
+          "use_vc",
           "is_action_assigner",
           "can_edit_agenda",
           "can_edit_summary",
           "planification_id",
+          "project_id",
           "objet",
           "meeting_type_id",
           "subject_order",
@@ -334,8 +340,6 @@ export class MeetingSessionView extends Component {
           "has_remote_participants"
         ]
       );
-      console.log("Loaded session_id:", this.sessionId);
-      console.log("Loaded session data:", sessions);
 
       if (!sessions || sessions.length === 0) {
         throw new Error("Session not found");
@@ -371,10 +375,14 @@ export class MeetingSessionView extends Component {
         is_connected: sessionData.is_connected || false,
         is_host: sessionData.is_host || false,
         is_pv: sessionData.is_pv || false,
+        use_vc: sessionData.use_vc || false,
         is_action_assigner: sessionData.is_action_assigner || false,
         can_edit_agenda: sessionData.can_edit_agenda || false,
         can_edit_summary: sessionData.can_edit_summary || false,
         planification_id: this.planificationId,
+        project_id: Array.isArray(sessionData.project_id)
+            ? sessionData.project_id[0]
+            : sessionData.project_id || null,
         objet: sessionData.objet || "",
         meeting_type_id: Array.isArray(sessionData.meeting_type_id)
           ? sessionData.meeting_type_id[0]
@@ -400,8 +408,6 @@ export class MeetingSessionView extends Component {
         );
         this.state.session.participants = participantRecords;
         this.state.session.participant_ids = participantRecords.map(p => p.id);
-        console.log("Loaded participants:", this.state.session.participants);
-        console.log("Loaded participant_ids:", this.state.session.participant_ids);
       }
 
       if (sessionData.subject_order && sessionData.subject_order.length > 0) {
@@ -494,12 +500,13 @@ export class MeetingSessionView extends Component {
       const actions = await this.orm.searchRead(
         "dw.actions",
         [["session_id", "=", this.sessionId]],
-        ["name", "assignee", "dead_line", "priority", "status", "meeting_id", "description"]
+        ["name", "assignee", "dead_line", "priority", "status", "meeting_id", "description", "project_id"]
       );
 
       this.state.actions = actions.map(a => ({
         ...a,
         assignee_id: a.assignee ? (Array.isArray(a.assignee) ? a.assignee[0] : a.assignee) : "",
+        project_id: a.project_id ? (Array.isArray(a.project_id) ? a.project_id[0] : a.project_id) : (this.state.session.project_id || ""),
         priority: a.priority || '0',
       }));
     } catch (error) {
@@ -527,6 +534,34 @@ export class MeetingSessionView extends Component {
       console.error("Failed to load assignees:", error);
     }
   }
+
+    async loadAvailableProjects() {
+      try {
+
+        const currentUserId = this.state.session.user_id;
+
+        if (!currentUserId) {
+            console.warn("⚠️ No user ID available");
+            this.state.availableProjects = [];
+            return;
+        }
+
+        const projects = await this.orm.searchRead(
+          "dw.project",
+          [["users_allowed_to_see", "in", [currentUserId]]],
+          ["name"]
+        );
+        console.log("projects:", projects);
+
+        this.state.availableProjects = projects.map(p => ({
+          id: p.id,
+          name: p.name
+        }));
+        console.log("Loaded projects:", this.state.availableProjects);
+      } catch (error) {
+        console.error("Failed to load projects:", error);
+      }
+    }
 
   async initializeJitsi() {
     // Prevent multiple initializations
@@ -674,7 +709,6 @@ export class MeetingSessionView extends Component {
     });
 
     api.addEventListener("knockingParticipant", (participant) => {
-      console.log("🚪 Participant waiting:", participant);
       const p = participant.participant || participant;
       const id = p.id || p.participantId;
       const name = p.name || p.displayName || "Guest";
@@ -691,7 +725,6 @@ export class MeetingSessionView extends Component {
     });
 
     api.addEventListener("videoConferenceLeft", () => {
-      console.log("👋 Left conference");
       try {
         this.orm.write("dw.meeting.session", [this.sessionId], {
           is_connected: false,
@@ -848,9 +881,6 @@ export class MeetingSessionView extends Component {
   }
 
   async refreshParticipantStatus() {
-    console.log("🔄 Refreshing participant status...");
-    console.log("Participant IDs:", this.state.session.participant_ids);
-
     if (this.state.session.participant_ids?.length > 0) {
       try {
         const participantRecords = await this.orm.read(
@@ -859,9 +889,7 @@ export class MeetingSessionView extends Component {
           ['id', 'name', 'attendance_status']
         );
 
-        console.log("✅ Fetched participant records:", participantRecords);
         this.state.session.participants = participantRecords;
-        console.log("✅ Updated state.session.participants");
 
       } catch (error) {
         console.error("❌ Error refreshing participant status:", error);
@@ -878,14 +906,10 @@ export class MeetingSessionView extends Component {
     } else {
       this.startTime = Date.now();
     }
-    console.log("Meeting started at:", new Date(this.startTime).toISOString());
     this.durationInterval = setInterval(() => {
       const elapsed = Date.now() - this.startTime;
-      console.log("Elapsed time (ms):", elapsed);
       const seconds = Math.floor(elapsed / 1000);
-      console.log("Elapsed time (s):", seconds);
       const minutes = Math.floor(seconds / 60);
-      console.log("Elapsed time (min):", minutes);
       const hours = Math.floor(minutes / 60);
 
       this.state.meetingDuration =
@@ -950,7 +974,6 @@ export class MeetingSessionView extends Component {
         pv: this.state.pv,
       });
 
-      console.log("Saved PV:", this.state.pv);
       this.notification.add("PV saved successfully", {
         type: "success",
       });
@@ -1137,6 +1160,7 @@ Document généré le ${new Date().toLocaleString('fr-FR')}
         name: "New Action",
         session_id: this.sessionId,
         meeting_id: this.meetingId,
+        project_id: this.state.session.project_id,
         status: "todo",
         priority: "0",
       }]);
@@ -1167,6 +1191,17 @@ Document généré le ${new Date().toLocaleString('fr-FR')}
         status: action.status,
         priority: action.priority,
       };
+
+      if (action.project_id) {
+        const projectId = typeof action.project_id === 'string'
+            ? parseInt(action.project_id, 10)
+            : action.project_id;
+        if (!isNaN(projectId) && projectId > 0) {
+            updateData.project_id = projectId;
+        }
+      } else {
+          updateData.project_id = false;
+      }
 
       if (action.assignee_id) {
         const assigneeId = typeof action.assignee_id === 'string'

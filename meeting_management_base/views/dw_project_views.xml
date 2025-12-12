@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<smartdz>
+    <data>
+        <record id="view_dw_project_kanban" model="ir.ui.view">
+            <field name="name">dw.project.kanban.2</field>
+            <field name="model">dw.project</field>
+            <field name="arch" type="xml">
+                <kanban default_group_by="status" class="o_kanban_small_column">
+                    <field name="name"/>
+                    <field name="manager_ids"/>
+                    <field name="progress"/>
+                    <field name="color"/>
+
+                    <templates>
+                        <t t-name="kanban-box">
+                            <div t-attf-class="oe_kanban_card oe_kanban_global_click oe_kanban_color_#{color}">
+                                <div cancelclass="o_kanban_details">
+                                    <strong>
+                                        <field name="name"/>
+                                    </strong>
+                                    <div>
+                                        <span>Status:</span>
+                                        <field name="status"/>
+                                    </div>
+                                    <div>
+                                        <span>Managers:</span>
+                                        <field name="manager_ids" widget="many2many_tags"/>
+                                    </div>
+<!--                                    <div>-->
+<!--                                        <span>Members:</span>-->
+<!--                                        <field name="member_ids" widget="many2many_tags"/>-->
+<!--                                    </div>-->
+                                    <div>
+                                        <span>Progress:</span>
+                                        <field name="progress"/>
+                                        %
+                                    </div>
+                                </div>
+                            </div>
+                        </t>
+                    </templates>
+                </kanban>
+            </field>
+        </record>
+
+        <record id="view_dw_project_form" model="ir.ui.view">
+            <field name="name">dw.project.form.2</field>
+            <field name="model">dw.project</field>
+            <field name="arch" type="xml">
+                <form>
+                    <header>
+                        <field name="status" widget="statusbar" statusbar_visible="planning,ongoing,done,cancelled"/>
+                        <button name="action_set_ongoing"
+                                string="Start"
+                                type="object"
+                                class="btn-primary"
+                                invisible="status not in ['planning','on_hold']"/>
+                        <button name="action_set_on_hold"
+                                string="On hold"
+                                type="object"
+                                class="btn-info"
+                                invisible="status != 'ongoing'"/>
+                        <button name="action_set_done"
+                                string="Done"
+                                type="object"
+                                class="btn-success"
+                                invisible="status != 'ongoing'"/>
+                        <button name="action_set_cancelled"
+                                string="Cancel"
+                                type="object"
+                                class="btn-danger"
+                                confirm="Do you want to cancel this project ? this action is irreversible."
+                                invisible="status == 'done'"/>
+                        <button name="action_view_actions"
+                                string="View Tasks"
+                                type="object"
+                                class="btn-warning"/>
+                    </header>
+
+                    <sheet>
+                        <group>
+                            <field name="name"/>
+                            <field name="manager_ids" widget="many2many_tags"/>
+                            <field name="member_ids" widget="many2many_tags"/>
+                            <field name="start_date"/>
+                            <field name="end_date"/>
+                        </group>
+
+                        <notebook>
+                            <page string="Description">
+                                <field name="description"/>
+                            </page>
+
+                            <page string="Tasks">
+                                <field name="action_ids">
+                                    <list>
+                                        <field name="name"/>
+                                        <field name="assignee"/>
+                                        <field name="completed_date"/>
+                                        <field name="dead_line"/>
+                                        <field name="status"/>
+                                    </list>
+                                </field>
+                            </page>
+
+                            <page string="Meetings">
+                                <field name="meeting_ids">
+                                    <list create="false">
+                                        <field name="name"/>
+                                        <field name="actual_start_datetime"/>
+                                    </list>
+                                </field>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+    </data>
+</smartdz>
