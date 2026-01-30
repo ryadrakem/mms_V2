@@ -38,7 +38,9 @@
                     <button name="action_cancel" string="Cancel" type="object"
                             invisible="state in ('cancelled','done', 'started') or not is_current_user_host"
                             class="btn-danger"/>
-
+                    <button name="action_postpone" string="Postpone" type="object"
+                            invisible="state in ('planned') or not is_current_user_host"
+                            class="btn-warning"/>
                 </header>
 
                 <sheet>
@@ -90,34 +92,13 @@
                     <!-- Informations principales -->
                     <group>
                         <group>
-                            <group>
-                                <field name="use_the_chat_room" readonly="state != 'draft'"/>
-                                <field name="sync_with_calendar"/>
-                            </group>
-                            <group>
-                                <field name="is_off_site" readonly="state != 'draft'"/>
-                                <field name="calendar_event_id" invisible="1"/>
-                            </group>
-                        </group>
-                        <group>
-                            <group>
-                                <field name="is_external" readonly="state != 'draft'"/>
-                                <field name="use_vc" readonly="state != 'draft'"/>
-                            </group>
-                            <group>
-                                <field name="has_pv" readonly="state != 'draft'"/>
-                                <field name="is_send_email" readonly="state not in ('draft','confirmed')"/>
-                            </group>
-                        </group>
-
-                    </group>
-                    <group>
-                        <group>
                             <!--                            <field name="objet" readonly="state != 'draft'"/>-->
                             <field name="planned_start_datetime" readonly="state != 'draft'"/>
                             <field name="tolerated_late" readonly="state != 'draft'"/>
                             <field name="duration" widget="float_time" readonly="state != 'draft'"/>
                             <field name="planned_end_time"/>
+                            <field name="permanent_members_id"/>
+                            <field name="times_postponed" readonly="1"/>
                         </group>
                         <group>
                             <field name="location_id" invisible="is_off_site" domain="[('is_in_site', '=', True)]"
@@ -128,6 +109,7 @@
                                    readonly="state != 'draft'"/>
                             <field name="equipment_ids" widget="many2many_tags" readonly="state != 'draft'"/>
                             <field name="project_id" readonly="state != 'draft'"/>
+                            <field name="pv_writer_id" invisible="not has_pv"/>
                         </group>
                     </group>
 
@@ -151,6 +133,30 @@
                                 </group>
                                 <group>
                                     <field name="actual_duration" widget="float_time" readonly="1"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Options">
+                            <group>
+                                <group>
+                                    <group>
+                                        <field name="use_the_chat_room" readonly="state != 'draft'"/>
+                                        <field name="sync_with_calendar"/>
+                                    </group>
+                                    <group>
+                                        <field name="is_off_site" readonly="state != 'draft'"/>
+                                        <field name="calendar_event_id" invisible="1"/>
+                                    </group>
+                                </group>
+                                <group>
+                                    <group>
+                                        <field name="is_external" readonly="state != 'draft'"/>
+                                        <field name="use_vc" readonly="state != 'draft'"/>
+                                    </group>
+                                    <group>
+                                        <field name="has_pv" readonly="state != 'draft'"/>
+                                        <field name="is_send_email" readonly="state not in ('draft','confirmed')"/>
+                                    </group>
                                 </group>
                             </group>
                         </page>

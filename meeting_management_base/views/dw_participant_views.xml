@@ -12,7 +12,7 @@
                 <field name="job"/>
                 <field name="role_id"/>
                 <field name="attachments"/>
-                <field name="attendance_status" decoration-warning="attendance_status == 'late'"
+                <field name="attendance_status" decoration-warning="attendance_status == 'pause'"
                        decoration-success="attendance_status == 'present'"
                        decoration-danger="attendance_status == 'absent'" widget="badge"/>
                 <field name="invitation_status" decoration-info="invitation_status == 'pending'"
@@ -44,7 +44,7 @@
                         <field name="job" invisible="is_external"/>
                         <field name="external_job" invisible="not is_external"/>
                         <field name="role_id"/>
-                        <field name="is_pv"/>
+                        <field name="is_pv" readonly="1" invisible="context.get('participant_form') == 'permanent'"/>
                         <field name="is_action_assigner"/>
                         <field name="is_remote"/>
                     </group>

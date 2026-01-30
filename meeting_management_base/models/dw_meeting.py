@@ -40,7 +40,7 @@ class DwMeeting(models.Model):
     summary = fields.Html(string='Summary')
     note_ids = fields.One2many('dw.meeting.note', 'meeting_id', string='Notes')
     decision_ids = fields.One2many('dw.meeting.decision', 'meeting_id', string='Decisions')
-    pv = fields.Text(string='PV')
+    pv = fields.Html(string='PV')
 
     state = fields.Selection([
         ('draft', 'Draft'),
@@ -104,21 +104,24 @@ class DwMeeting(models.Model):
             ('user_id', '=', current_user.id)
         ], limit=1)
 
-        if user_session and not user_session.flag_attendance:
-            now = fields.Datetime.now()
-            user_session.join_time = now
-            if self.planification_id.actual_start_datetime and self.planification_id.tolerated_late:
-                tolerated_limit = self.planification_id.actual_start_datetime + timedelta(minutes=self.planification_id.tolerated_late)
-                if now <= tolerated_limit:
-                    user_session.participant_id.attendance_status = "present"
-                else:
-                    user_session.participant_id.attendance_status = "late"
-            elif self.planification_id.actual_start_datetime and self.planification_id.tolerated_late == 0:
-                if now <= self.planification_id.actual_start_datetime + timedelta(minutes=1):
-                    user_session.participant_id.attendance_status = "present"
-                else:
-                    user_session.participant_id.attendance_status = "late"
-            user_session.flag_attendance = True
+        if user_session:
+            user_session.participant_id.attendance_status = "present"
+
+            if not user_session.flag_attendance:
+                now = fields.Datetime.now()
+                user_session.join_time = now
+                if self.planification_id.actual_start_datetime and self.planification_id.tolerated_late:
+                    tolerated_limit = self.planification_id.actual_start_datetime + timedelta(minutes=self.planification_id.tolerated_late)
+                    if now <= tolerated_limit:
+                        user_session.participant_id.is_late = False
+                    else:
+                        user_session.participant_id.is_late = True
+                elif self.planification_id.actual_start_datetime and self.planification_id.tolerated_late == 0:
+                    if now <= self.planification_id.actual_start_datetime + timedelta(minutes=1):
+                        user_session.participant_id.is_late = False
+                    else:
+                        user_session.participant_id.is_late = True
+                user_session.flag_attendance = True
 
 
         if not user_session:

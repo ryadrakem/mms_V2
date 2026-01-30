@@ -132,7 +132,9 @@ export class MeetingView extends Component {
         duration: meetingData.duration || 0,
         planification_id: this.planificationId,
         objet: meetingData.objet || "",
-        meeting_type_id: meetingData.meeting_type_id || null,
+        meeting_type_id: Array.isArray(meetingData.meeting_type_id)
+            ? meetingData.meeting_type_id[1]
+            : null,
         subject_order: meetingData.subject_order || [],
         planned_start_datetime: meetingData.planned_start_datetime || null,
         planned_end_time: meetingData.planned_end_time || null,
@@ -142,8 +144,12 @@ export class MeetingView extends Component {
         actual_duration: meetingData.actual_duration || null,
         is_external: meetingData.is_external || false,
         client_ids: meetingData.client_ids || false,
-        location_id: meetingData.location_id || null,
-        room_id: meetingData.room_id || null,
+        location_id: Array.isArray(meetingData.location_id)
+          ? meetingData.location_id[1]
+          : null,
+        room_id: Array.isArray(meetingData.room_id)
+          ? meetingData.room_id[1]
+          : null,
         pv: meetingData.pv || "",
       };
 
@@ -214,7 +220,7 @@ export class MeetingView extends Component {
     getStatusLabel(status) {
         const labels = {
             'present': 'Present',
-            'late': 'Late',
+            'pause': 'In Pause',
             'absent': 'Absent',
             'excused': 'Excused',
             'default': 'Awaiting'

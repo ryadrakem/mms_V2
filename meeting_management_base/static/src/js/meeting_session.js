@@ -504,7 +504,7 @@ export class MeetingSessionView extends Component {
   getStatusLabel(status) {
     const labels = {
       'present': 'Present',
-      'late': 'Late',
+      'paused': 'In Pause',
       'absent': 'Absent',
       'excused': 'Excused',
       'default': 'Awaiting'
@@ -1281,9 +1281,42 @@ Document généré le ${new Date().toLocaleString('fr-FR')}
 
   // ================== MEETING CONTROL ==================
 
-  async leaveMeeting() {
-    const confirmed = confirm("Are you sure you want to leave this meeting?");
-    if (confirmed) {
+async leaveMeeting() {
+  const confirmed = confirm("Are you sure you want to leave this meeting?");
+  if (confirmed) {
+    try {
+      // Find current participant based on current user
+      const currentUserId = this.state.session.user_id;
+      console.log("currentUserId:", currentUserId);
+      const currentParticipant = this.state.session.participant_id;
+      console.log("currentParticipant:", currentParticipant);
+      if (currentParticipant) {
+        // Update attendance status to 'pause'
+        await this.orm.write(
+          'dw.participant',
+          [currentParticipant],
+          { attendance_status: 'pause' }
+        );
+
+        // Read back the updated status to verify
+        const updatedParticipant = await this.orm.read(
+          'dw.participant',
+          [currentParticipant],
+          ['attendance_status']
+        );
+
+        console.log("✅ Updated attendance_status:", updatedParticipant[0].attendance_status);
+      }
+
+      // Leave the meeting
+      if (this.jitsiApi) {
+        this.jitsiApi.executeCommand("hangup");
+      } else {
+        this.goBack();
+      }
+    } catch (error) {
+      console.error("❌ Error updating attendance status:", error);
+      // Still leave the meeting even if status update fails
       if (this.jitsiApi) {
         this.jitsiApi.executeCommand("hangup");
       } else {
@@ -1291,6 +1324,7 @@ Document généré le ${new Date().toLocaleString('fr-FR')}
       }
     }
   }
+}
 
   async endMeeting() {
     if (!this.state.session.is_host) {

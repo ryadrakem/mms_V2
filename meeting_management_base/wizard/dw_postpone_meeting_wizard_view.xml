@@ -1,0 +1,21 @@
+<smartdz>
+    <record id="view_dw_meeting_postpone_wizard_form" model="ir.ui.view">
+        <field name="name">dw.meeting.postpone.wizard.form</field>
+        <field name="model">dw.meeting.postpone.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Postpone Meeting">
+                <group>
+                    <field name="meeting_id" readonly="1"/>
+                    <field name="new_planned_start_datetime"/>
+                </group>
+                <footer>
+                    <button name="action_confirm_postpone"
+                            type="object"
+                            string="Postpone"
+                            class="btn-primary"/>
+                    <button string="Cancel" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</smartdz>

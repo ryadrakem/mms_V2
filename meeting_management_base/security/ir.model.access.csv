@@ -53,3 +53,7 @@ access_dw_agenda_admin,access_dw_agenda_admin,model_dw_agenda,base.group_erp_man
 access_dw_project,access_dw_project,model_dw_project,base.group_user,1,1,1,1
 
 access_dw_project_stage,access_dw_project_stage,model_dw_project_stage,base.group_user,1,1,1,1
+
+
+access_dw_permanent_members,access_dw_permanent_members,model_dw_permanent_members,base.group_user,1,1,1,1
+access_dw_meeting_postpone_wizard,access_dw_meeting_postpone_wizard,model_dw_meeting_postpone_wizard,base.group_user,1,1,1,1

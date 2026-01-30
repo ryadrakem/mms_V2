@@ -222,4 +222,9 @@
         <field name="active" eval="False"/>
     </record>
 
+    <menuitem id="menu_dw_permanent_members"
+          name="Permanent Members"
+          parent="menu_meeting_settings"
+          action="action_dw_permanent_members"/>
+
 </smartdz>

@@ -66,8 +66,8 @@
                                                     <t t-if="p.attendance_status === 'present'">
                                                         <i class="fa fa-circle text-success"/> Present
                                                     </t>
-                                                    <t t-elif="p.attendance_status === 'late'">
-                                                        <i class="fa fa-circle text-warning"/> Late
+                                                    <t t-elif="p.attendance_status === 'pause'">
+                                                        <i class="fa fa-circle text-warning"/> Paused
                                                     </t>
                                                     <t t-elif="p.attendance_status === 'absent'">
                                                         <i class="fa fa-circle text-danger"/> Absent
@@ -95,37 +95,37 @@
                     </div>
 
                     <!-- Meeting Info -->
-                    <div class="sidebar-card">
-                        <div class="card-header">
-                            <h3>
-                                <i class="fa fa-info-circle"/>
-                                Details
-                            </h3>
-                        </div>
-                        <div class="card-body">
-                            <div class="info-list">
-                                <div class="info-item" t-if="state.meeting.objet">
-                                    <label>Subject</label>
-                                    <span t-esc="state.meeting.objet"/>
-                                </div>
-                                <div class="info-item" t-if="state.meeting.meeting_type_id">
-                                    <label>Type</label>
-                                    <span t-esc="state.meeting.meeting_type_id"/>
-                                </div>
-                                <div class="info-item">
-                                    <label>Planned Duration</label>
-                                    <span>
-                                        <t t-esc="state.meeting.duration"/>
-                                        hours
-                                    </span>
-                                </div>
-                                <div class="info-item">
-                                    <label>Actual duration</label>
-                                    <span t-esc="state.formattedDuration"/>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+<!--                    <div class="sidebar-card">-->
+<!--                        <div class="card-header">-->
+<!--                            <h3>-->
+<!--                                <i class="fa fa-info-circle"/>-->
+<!--                                Details-->
+<!--                            </h3>-->
+<!--                        </div>-->
+<!--                        <div class="card-body">-->
+<!--                            <div class="info-list">-->
+<!--                                <div class="info-item" t-if="state.meeting.objet">-->
+<!--                                    <label>Subject</label>-->
+<!--                                    <span t-esc="state.meeting.objet"/>-->
+<!--                                </div>-->
+<!--                                <div class="info-item" t-if="state.meeting.meeting_type_id">-->
+<!--                                    <label>Type</label>-->
+<!--                                    <span t-esc="state.meeting.meeting_type_id"/>-->
+<!--                                </div>-->
+<!--                                <div class="info-item">-->
+<!--                                    <label>Planned Duration</label>-->
+<!--                                    <span>-->
+<!--                                        <t t-esc="state.meeting.duration"/>-->
+<!--                                        hours-->
+<!--                                    </span>-->
+<!--                                </div>-->
+<!--                                <div class="info-item">-->
+<!--                                    <label>Actual duration</label>-->
+<!--                                    <span t-esc="state.formattedDuration"/>-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                        </div>-->
+<!--                    </div>-->
                 </aside>
 
                 <!-- Main: Tabbed Content with Navigation -->
@@ -214,10 +214,10 @@
                                 </div>
 
                                 <!-- Planning -->
-                                <div class="info-row" t-if="state.meeting.planification_id">
-                                    <label>Planning</label>
-                                    <span t-esc="state.meeting.planification_id.display_name"/>
-                                </div>
+<!--                                <div class="info-row" t-if="state.meeting.planification_id">-->
+<!--                                    <label>Planification</label>-->
+<!--                                    <span t-esc="state.meeting.planification_id"/>-->
+<!--                                </div>-->
 
                                 <!-- Subject -->
                                 <div class="info-row" t-if="state.meeting.objet">
@@ -228,7 +228,7 @@
                                 <!-- Meeting Type -->
                                 <div class="info-row" t-if="state.meeting.meeting_type_id">
                                     <label>Type</label>
-                                    <span t-esc="state.meeting.meeting_type_id.display_name"/>
+                                    <span t-esc="state.meeting.meeting_type_id"/>
                                 </div>
 
                                 <!-- Planned Start -->
@@ -269,13 +269,13 @@
                                 <!-- Location -->
                                 <div class="info-row" t-if="state.meeting.location_id">
                                     <label>Location</label>
-                                    <span t-esc="state.meeting.location_id.display_name"/>
+                                    <span t-esc="state.meeting.location_id"/>
                                 </div>
 
                                 <!-- Room -->
                                 <div class="info-row" t-if="state.meeting.room_id">
                                     <label>Room</label>
-                                    <span t-esc="state.meeting.room_id.display_name"/>
+                                    <span t-esc="state.meeting.room_id"/>
                                 </div>
 
                             </div>
@@ -291,7 +291,7 @@
                                 </h3>
                             </div>
                             <div class="notes-editor">
-                                <span t-esc="state.meeting.pv"/>
+                                <pre t-esc="state.meeting.pv"/>
                             </div>
                         </div>
                     </div>

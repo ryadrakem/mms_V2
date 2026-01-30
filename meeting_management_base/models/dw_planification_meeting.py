@@ -24,8 +24,8 @@ class DwPlanificationMeeting(models.Model):
 
     name = fields.Char(string='Title', tracking=True, required=True)
     objet = fields.Char(string='Objet')
-    is_external = fields.Boolean(string='External')
-    is_off_site = fields.Boolean(string='Off Site')
+    is_external = fields.Boolean(string='External', help="If the meeting implies external participants")
+    is_off_site = fields.Boolean(string='Off Site', help="If the meeting location is outside the company")
     meeting_type_id = fields.Many2one('dw.meeting.type', string='Meeting Type')
     # subject_order = fields.Html(string='Agenda')
     subject_order = fields.One2many('dw.agenda', 'planification_id', string='Agenda')
@@ -52,15 +52,28 @@ class DwPlanificationMeeting(models.Model):
     is_current_user_host = fields.Boolean(string="Is Current User Host", compute="_compute_is_current_user_host")
     is_current_user_participant = fields.Boolean(string="Is Current User Participant", compute="_compute_is_current_user_participant")
     calendar_event_id = fields.Many2one('calendar.event', string='Calendar Event', readonly=True, copy=False)
-    sync_with_calendar = fields.Boolean(string='Sync with Calendar', default=True)
-    use_vc = fields.Boolean(string='Video Conference', default=True)
-    has_pv = fields.Boolean(string='PV', default=True)
+    sync_with_calendar = fields.Boolean(string='Sync with Calendar', default=True, help='Create the event in your calendar')
+    use_vc = fields.Boolean(string='Video Conference', default=True, help='If ticked, a video conference page will be available during the meeting')
+    has_pv = fields.Boolean(string='PV', default=True, help='If the meeting implies the redaction of an offical report')
+    times_postponed = fields.Integer(string='Times Postponed')
+
+    pv_writer_id = fields.Many2one(
+        'res.users',
+        string='PV Writer',
+        tracking=True
+    )
+
+    permanent_members_id = fields.Many2one(
+        'dw.permanent.members',
+        string='Permanent Members Group'
+    )
+
     has_remote_participants = fields.Boolean(
         string='Has Remote Participants',
         compute='_compute_has_remote_participants',
         store=True
     )
-    is_send_email = fields.Boolean(string='Send Email Invitations', default=True)
+    is_send_email = fields.Boolean(string='Send Email Invitations', default=True, help='Do you wish to send email invitations to the participants')
     state = fields.Selection([
         ('draft', 'Draft'),
         ('confirmed', 'Confirmed'),
@@ -69,6 +82,63 @@ class DwPlanificationMeeting(models.Model):
         ('done', 'Done'),
         ('cancelled', 'Cancelled'),
     ], string='Status', default='draft', tracking=True)
+
+    #tries to find the selected user among the participants if not found creates one
+    @api.onchange('pv_writer_id')
+    def _onchange_pv_writer_id(self):
+        for rec in self:
+            if not rec.pv_writer_id:
+                return
+
+            user = rec.pv_writer_id
+
+            rec.participant_ids.filtered(lambda p: p.is_pv).write({'is_pv': False})
+
+            participant = rec.participant_ids.filtered(lambda p: p.user_id == user)
+
+            if participant:
+                participant.write({'is_pv': True})
+            else:
+                vals = {
+                    'meeting_planification_id': rec.id,
+                    'user_id': user.id,
+                    'is_pv': True,
+                    'name': user.name,
+                    'is_external': participant.is_external,
+                }
+
+                if user.employee_id:
+                    vals['employee_id'] = user.employee_id.id
+                    vals['is_external'] = False
+                    vals['job'] = user.employee_id.job_id.id
+                    vals['department'] = user.employee_id.department_id.id
+                else:
+                    vals['partner_id'] = user.partner_id.id
+                    vals['is_external'] = True
+
+                rec.participant_ids = [(0, 0, vals)]
+
+    #copy the members of the permanent members if permanent_members_id is selected
+    @api.onchange('permanent_members_id')
+    def _onchange_permanent_members_id(self):
+        for rec in self:
+            if not rec.permanent_members_id:
+                rec.participant_ids = [(5, 0, 0)]
+                return
+
+            new_participants = [(5, 0, 0)]
+
+            for participant in rec.permanent_members_id.participant_ids:
+                new_participants.append((0, 0, {
+                    'name': participant.name,
+                    'employee_id': participant.employee_id.id,
+                    'role_id': participant.role_id.id,
+                    'department': participant.department.id,
+                    'is_external': participant.is_external,
+                    'is_pv': True if self.pv_writer_id and participant.user_id and self.pv_writer_id.id == participant.user_id.id else False,
+                }))
+
+            rec.participant_ids = new_participants
 
     @api.model
     def _get_allowed_projects_domain(self):
@@ -91,6 +161,7 @@ class DwPlanificationMeeting(models.Model):
         for meeting in self:
             meeting.has_remote_participants = any(meeting.participant_ids.mapped('is_remote'))
 
+    @api.depends('participant_ids')
     def _compute_is_current_user_host(self):
         for rec in self:
             user = self.env.user
@@ -326,7 +397,7 @@ class DwPlanificationMeeting(models.Model):
             'name': self.name,
             'planned_start_datetime': self.planned_start_datetime,
             'duration': self.duration,
-            'subject_order': self.subject_order,
+            'subject_order': [(6, 0, self.subject_order.ids)],
             'planification_id': self.id,
             'form_planification': True,
             'actual_start_datetime': fields.Datetime.now(),
@@ -363,7 +434,7 @@ class DwPlanificationMeeting(models.Model):
                     'is_action_assigner': participant.is_action_assigner,
                     'actual_start_datetime': fields.Datetime.now(),
                     'display_camera': self.display_camera,
-                    'subject_order': self.subject_order,
+                    'subject_order': [(6, 0, self.subject_order.ids)],
                     'project_id': self.project_id.id,
                 })
 
@@ -381,6 +452,52 @@ class DwPlanificationMeeting(models.Model):
             'res_id': meeting.id,
             'target': 'current',
         }
+
+    def action_postpone(self):
+        self.ensure_one()
+        template = self.env.ref('meeting_management_base.email_template_meeting_postponed_secure',
+                                raise_if_not_found=False)
+
+        if template:
+            # Send individual email to each participant
+            for participant in self.participant_ids:
+                participant_email = None
+                if participant.partner_id and participant.partner_id.email:
+                    participant_email = participant.partner_id.email
+                elif participant.employee_id and participant.employee_id.work_email:
+                    participant_email = participant.employee_id.work_email
+
+                if participant_email:
+                    try:
+                        template.send_mail(
+                            participant.id,  # Send to participant record
+                            force_send=True,
+                            email_values={
+                                'email_to': participant_email,
+                                'recipient_ids': []  # Clear default recipients
+                            }
+                        )
+                        _logger.info(f"Invitation sent to {participant.name} ({participant_email})")
+                    except Exception as e:
+                        _logger.error(f"Failed to send invitation to {participant.name}: {str(e)}")
+                else:
+                    _logger.warning(f"No email address found for participant {participant.name}")
+        else:
+            _logger.warning("Email template 'email_template_meeting_invitation_secure' not found!")
+
+        return {
+            'name': 'Postpone Meeting',
+            'type': 'ir.actions.act_window',
+            'res_model': 'dw.meeting.postpone.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_meeting_id': self.id,
+                'default_participant_ids': self.participant_ids.ids,
+                'default_is_current_user_host': True,
+            }
+        }
+
 
     def _delete_reservations(self):
         """Delete all reservations when meeting is cancelled or done"""
@@ -423,22 +540,25 @@ class DwPlanificationMeeting(models.Model):
                 if participant.user_id.id == self.env.user.id:
                     user_session = session
 
-        if user_session and not user_session.flag_attendance:
-            now = fields.Datetime.now()
-            user_session.join_time = now
-            if self.actual_start_datetime and self.tolerated_late:
-                tolerated_limit = self.actual_start_datetime + timedelta(minutes=self.tolerated_late)
-                if now <= tolerated_limit:
-                    user_session.participant_id.attendance_status = "present"
-                else:
-                    user_session.participant_id.attendance_status = "late"
+        if user_session:
+            user_session.participant_id.attendance_status = "present"
 
-            elif self.actual_start_datetime and self.tolerated_late == 0:
-                if now <= self.actual_start_datetime + timedelta(minutes=1):
-                    user_session.participant_id.attendance_status = "present"
-                else:
-                    user_session.participant_id.attendance_status = "late"
-            user_session.flag_attendance = True
+            if not user_session.flag_attendance:
+                now = fields.Datetime.now()
+                user_session.join_time = now
+                if self.actual_start_datetime and self.tolerated_late:
+                    tolerated_limit = self.actual_start_datetime + timedelta(minutes=self.tolerated_late)
+                    if now <= tolerated_limit:
+                        user_session.participant_id.is_late = False
+                    else:
+                        user_session.participant_id.is_late = True
+
+                elif self.actual_start_datetime and self.tolerated_late == 0:
+                    if now <= self.actual_start_datetime + timedelta(minutes=1):
+                        user_session.participant_id.is_late = False
+                    else:
+                        user_session.participant_id.is_late = True
+                user_session.flag_attendance = True
 
         return {
             'type': 'ir.actions.client',
@@ -670,6 +790,36 @@ class DwPlanificationMeeting(models.Model):
                 rec.calendar_event_id.unlink()
             rec._delete_reservations()
             rec.state = 'cancelled'
+
+            template = self.env.ref('meeting_management_base.email_template_meeting_cancellation_secure',
+                                    raise_if_not_found=False)
+
+            if rec.state == "planned" and template:
+                # Send individual email to each participant
+                for participant in rec.participant_ids:
+                    participant_email = None
+                    if participant.partner_id and participant.partner_id.email:
+                        participant_email = participant.partner_id.email
+                    elif participant.employee_id and participant.employee_id.work_email:
+                        participant_email = participant.employee_id.work_email
+
+                    if participant_email:
+                        try:
+                            template.send_mail(
+                                participant.id,  # Send to participant record
+                                force_send=True,
+                                email_values={
+                                    'email_to': participant_email,
+                                    'recipient_ids': []  # Clear default recipients
+                                }
+                            )
+                            _logger.info(f"Invitation sent to {participant.name} ({participant_email})")
+                        except Exception as e:
+                            _logger.error(f"Failed to send invitation to {participant.name}: {str(e)}")
+                    else:
+                        _logger.warning(f"No email address found for participant {participant.name}")
+            else:
+                _logger.warning("Email template 'email_template_meeting_invitation_secure' not found!")
 
     def action_reset_to_draft(self):
         for rec in self:

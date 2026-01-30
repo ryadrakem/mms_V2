@@ -115,46 +115,53 @@
         <field name="subject">Meeting Summary: {{ object.meeting_id.name }}</field>
         <field name="body_html" type="html">
             <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
-                <h2 style="color: #3b82f6;">Meeting Summary: {{ object.meeting_id.name }}</h2>
+
+                <h2 style="color: #3b82f6;">
+                    Meeting Summary:
+                    <t t-esc="object.meeting_id.name"/>
+                </h2>
 
                 <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
                     <p>
                         <strong>Date:</strong>
-                        {{ object.meeting_id.planned_start_datetime }}
+                        <t t-esc="object.meeting_id.planned_start_datetime"/>
                     </p>
                     <p>
                         <strong>Duration:</strong>
-                        {{ object.meeting_duration }} hours
+                        <t t-esc="object.meeting_duration"/>
+                        hours
                     </p>
                     <p>
                         <strong>Participants:</strong>
-                        {{ object.participants_summary }}
+                        <t t-esc="object.participants_summary"/>
                     </p>
                 </div>
 
                 <h3>Executive Summary</h3>
                 <div style="margin-bottom: 20px;">
-                    {{ object.executive_summary }}
+                    <t t-esc="object.executive_summary"/>
                 </div>
 
                 <h3>Key Decisions</h3>
                 <div style="margin-bottom: 20px;">
-                    {{ object.key_decisions }}
+                    <t t-esc="object.key_decisions"/>
                 </div>
 
                 <h3>Action Items</h3>
                 <div style="margin-bottom: 20px;">
-                    {{ object.action_items_summary }}
+                    <t t-esc="object.action_items_summary"/>
                 </div>
 
                 <h3>Discussion Points</h3>
                 <div style="margin-bottom: 20px;">
-                    {{ object.discussion_points }}
+                    <t t-esc="object.discussion_points"/>
                 </div>
 
                 <p style="color: #64748b; font-size: 12px; margin-top: 40px;">
-                    This summary was automatically generated on {{ object.generation_date }}.
+                    This summary was automatically generated on
+                    <t t-esc="object.generation_date"/>.
                 </p>
+
             </div>
         </field>
     </record>

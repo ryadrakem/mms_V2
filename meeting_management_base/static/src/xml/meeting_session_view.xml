@@ -67,9 +67,8 @@
                                                     <i class="fa fa-circle text-success"/>
                                                     Present
                                                 </t>
-                                                <t t-elif="p.attendance_status === 'late'">
-                                                    <i class="fa fa-circle text-warning"/>
-                                                    Late
+                                                <t t-elif="p.attendance_status === 'pause'">
+                                                    <i class="fa fa-circle text-warning"/> Paused
                                                 </t>
                                                 <t t-elif="p.attendance_status === 'absent'">
                                                     <i class="fa fa-circle text-danger"/>

@@ -14,4 +14,5 @@ from . import (dw_planification_meeting,
                res_config_settings,
                dw_meeting_summary,
                dw_project,
+               dw_permanent_members
                )

@@ -41,13 +41,23 @@ class DwParticipant(models.Model):
     is_pv = fields.Boolean(string="Rédacteur PV", store=True, readonly=False)
     is_action_assigner = fields.Boolean(string="Action Assigner", store=True, readonly=False)
     user_id = fields.Many2one('res.users', string='User', compute='_compute_user_id', store=True, readonly=True)
+
+    permanent_members_id = fields.Many2one(
+        'dw.permanent.members',
+        string='Permanent Members Group',
+        ondelete='cascade'
+    )
+
     attendance_status = fields.Selection([
         ('default', 'Awaiting'),
         ('late', 'Late'),
+        ('pause', 'In Pause'),
         ('present', 'Present'),
         ('absent', 'absent'),
         ('excused', 'Excused'),
     ], string='Attendance', default='default')
+
+    is_late = fields.Boolean(string='Late', store=True, readonly=True)
 
     def set_attachment_2_visible(self):
         self.ensure_one()

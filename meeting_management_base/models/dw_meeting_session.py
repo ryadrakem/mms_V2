@@ -13,8 +13,7 @@ class DwMeetingSession(models.Model):
     objet = fields.Char(related="meeting_id.objet", readonly=True, store=True)
     meeting_type_id = fields.Many2one('dw.meeting.type', related="meeting_id.meeting_type_id", readonly=True,store=True)
     project_id = fields.Many2one('dw.project', string='Project')
-    # subject_order = fields.Html(readonly=True, store=True)
-    subject_order = fields.One2many('dw.agenda', 'session_id', string='Agenda')
+    subject_order = fields.One2many('dw.agenda', compute='_compute_subject_order', string='Agenda')
     planned_start_datetime = fields.Datetime(related="meeting_id.planned_start_datetime", readonly=True, store=True)
     planned_end_time = fields.Datetime(related="meeting_id.planned_end_time", readonly=True, store=True)
     duration = fields.Float(string="Duration (hours)", related="planification_id.duration", store=True)
@@ -56,7 +55,6 @@ class DwMeetingSession(models.Model):
         'dw.participant',
         compute='_compute_participant_ids',
         string='Participants',
-        # store=False
     )
 
     @api.depends('meeting_id', 'meeting_id.participant_ids')
@@ -68,6 +66,16 @@ class DwMeetingSession(models.Model):
                 )
             else:
                 session.participant_ids = self.env['dw.participant']
+
+    @api.depends('meeting_id', 'meeting_id.subject_order')
+    def _compute_subject_order(self):
+        for session in self:
+            if session.meeting_id:
+                session.subject_order = session.meeting_id.subject_order.filtered(
+                    lambda p: p.meeting_id.id == session.meeting_id.id
+                )
+            else:
+                session.subject_order = self.env['dw.agenda']
 
     def write(self, vals):
         res = super().write(vals)

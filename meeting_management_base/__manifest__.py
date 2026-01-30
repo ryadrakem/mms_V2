@@ -33,6 +33,8 @@
         "security/ir.model.access.csv",
         "security/dw_meeting_rules.xml",
         "views/email_templates.xml",
+        "views/dw_permanent_members.xml",
+        "wizard/dw_postpone_meeting_wizard_view.xml",
         # menus
         "menus.xml",
 

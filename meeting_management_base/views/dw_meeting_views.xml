@@ -143,7 +143,7 @@
                             <t t-esc="meeting.name"/>
                         </h3>
 
-                        <div class="info-box text-center mx-auto" style="max-width: 420px;">
+                        <div class="info-box text-center mx-auto" style="max-width: 100%;">
                             <p class="mb-2">
                                 <strong>Date:</strong>
                                 <t t-esc="meeting.planned_start_datetime"/>
@@ -461,6 +461,258 @@
         </field>
         <field name="auto_delete" eval="True"/>
     </record>
+
+    <record id="email_template_meeting_cancellation_secure" model="mail.template">
+        <field name="name">Meeting Cancellation (Secure)</field>
+        <field name="model_id" ref="model_dw_participant"/>
+        <field name="subject">Meeting Cancelled: {{ object.meeting_planification_id.name }}</field>
+        <field name="description">Secure cancellation email for scheduled meetings</field>
+        <field name="body_html" type="html">
+            <t t-set="meeting" t-value="object.meeting_planification_id"/>
+            <t t-set="participant" t-value="object"/>
+            <t t-set="meeting_title" t-value="meeting.name or ''"/>
+            <t t-set="meeting_objet" t-value="meeting.objet or ''"/>
+            <t t-set="meeting_start" t-value="meeting.planned_start_datetime"/>
+            <t t-set="meeting_end" t-value="meeting.planned_end_time"/>
+            <t t-set="meeting_room" t-value="meeting.room_id.name if meeting.room_id else ''"/>
+            <t t-set="meeting_location" t-value="meeting.location_id.name if meeting.location_id else ''"/>
+
+            <table border="0" cellpadding="0" cellspacing="0"
+                   style="padding:16px; background-color:#f5f5f5; font-family:Verdana, Arial,sans-serif; color:#333; width:100%; border-collapse:separate;">
+                <tr>
+                    <td align="center">
+                        <table border="0" cellpadding="16" cellspacing="0" width="600"
+                               style="background-color:white; border-collapse:separate; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                            <tbody>
+                                <!-- HEADER -->
+                                <tr>
+                                    <td style="font-size:20px; font-weight:bold; text-align:center; color:#c0392b; padding-top:24px;">
+                                        ❌ Meeting Cancelled
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="font-size:16px; font-weight:bold; text-align:center; color:#2c3e50;">
+                                        <t t-esc="meeting_title"/>
+                                    </td>
+                                </tr>
+                                <tr t-if="meeting_objet">
+                                    <td style="font-size:14px; text-align:center; color:#7f8c8d; padding-bottom:8px;">
+                                        <t t-esc="meeting_objet"/>
+                                    </td>
+                                </tr>
+
+                                <!-- DIVIDER -->
+                                <tr>
+                                    <td style="padding:16px 0;">
+                                        <div style="height:2px; background-color:#ecf0f1;"></div>
+                                    </td>
+                                </tr>
+
+                                <!-- CONTENT -->
+                                <tr>
+                                    <td style="font-size:13px; line-height:1.6; color:#34495e;">
+                                        <p style="margin-top:0;">Dear
+                                            <strong>
+                                                <t t-esc="participant.name"/>
+                                            </strong>
+                                            ,
+                                        </p>
+
+                                        <p>We regret to inform you that the following meeting has been
+                                            <strong style="color:#c0392b;">cancelled</strong>:
+                                        </p>
+
+                                        <table style="width:100%; margin:20px 0;">
+                                            <tr>
+                                                <td style="padding:8px 0;">
+                                                    <strong style="color:#2c3e50;">📅 Date &amp; Time:</strong>
+                                                    <div style="margin-top:4px; color:#555;">
+                                                        <t t-esc="meeting_start"/>
+                                                        -
+                                                        <t t-esc="meeting_end"/>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr t-if="meeting_room">
+                                                <td style="padding:8px 0;">
+                                                    <strong style="color:#2c3e50;">🚪 Room:</strong>
+                                                    <span style="margin-left:8px; color:#555;">
+                                                        <t t-esc="meeting_room"/>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <tr t-if="meeting_location">
+                                                <td style="padding:8px 0;">
+                                                    <strong style="color:#2c3e50;">📍 Location:</strong>
+                                                    <span style="margin-left:8px; color:#555;">
+                                                        <t t-esc="meeting_location"/>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <p>We apologize for any inconvenience this may cause. You will be notified if
+                                            the meeting is rescheduled.
+                                        </p>
+                                    </td>
+                                </tr>
+
+                                <!-- DIVIDER -->
+                                <tr>
+                                    <td style="padding:16px 0;">
+                                        <div style="height:1px; background-color:#ecf0f1;"></div>
+                                    </td>
+                                </tr>
+
+                                <!-- FOOTER -->
+                                <tr>
+                                    <td style="font-size:11px; color:#95a5a6; padding:16px 0; text-align:center;">
+                                        <p style="margin:0;">
+                                            This is an automated message. Please do not reply to this email.
+                                        </p>
+                                        <p style="margin:8px 0 0 0;">
+                                            Powered by
+                                            <a href="#" style="color:#3498db; text-decoration:none;">
+                                                Smartdz
+                                            </a>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </field>
+        <field name="auto_delete" eval="True"/>
+    </record>
+
+    <record id="email_template_meeting_postponed_secure" model="mail.template">
+        <field name="name">Meeting Postponed (Secure)</field>
+        <field name="model_id" ref="model_dw_participant"/>
+        <field name="subject">Meeting Postponed: {{ object.meeting_planification_id.name }}</field>
+        <field name="description">Secure postponement email for scheduled meetings</field>
+        <field name="body_html" type="html">
+            <t t-set="meeting" t-value="object.meeting_planification_id"/>
+            <t t-set="participant" t-value="object"/>
+            <t t-set="meeting_title" t-value="meeting.name or ''"/>
+            <t t-set="meeting_objet" t-value="meeting.objet or ''"/>
+            <t t-set="meeting_start" t-value="meeting.planned_start_datetime"/>
+            <t t-set="meeting_end" t-value="meeting.planned_end_time"/>
+            <t t-set="meeting_room" t-value="meeting.room_id.name if meeting.room_id else ''"/>
+            <t t-set="meeting_location" t-value="meeting.location_id.name if meeting.location_id else ''"/>
+
+            <table border="0" cellpadding="0" cellspacing="0"
+                   style="padding:16px; background-color:#f5f5f5; font-family:Verdana, Arial,sans-serif; color:#333; width:100%; border-collapse:separate;">
+                <tr>
+                    <td align="center">
+                        <table border="0" cellpadding="16" cellspacing="0" width="600"
+                               style="background-color:white; border-collapse:separate; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                            <tbody>
+                                <!-- HEADER -->
+                                <tr>
+                                    <td style="font-size:20px; font-weight:bold; text-align:center; color:#f39c12; padding-top:24px;">
+                                        ⏳ Meeting Postponed
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="font-size:16px; font-weight:bold; text-align:center; color:#2c3e50;">
+                                        <t t-esc="meeting_title"/>
+                                    </td>
+                                </tr>
+                                <tr t-if="meeting_objet">
+                                    <td style="font-size:14px; text-align:center; color:#7f8c8d; padding-bottom:8px;">
+                                        <t t-esc="meeting_objet"/>
+                                    </td>
+                                </tr>
+
+                                <!-- DIVIDER -->
+                                <tr>
+                                    <td style="padding:16px 0;">
+                                        <div style="height:2px; background-color:#ecf0f1;"></div>
+                                    </td>
+                                </tr>
+
+                                <!-- CONTENT -->
+                                <tr>
+                                    <td style="font-size:13px; line-height:1.6; color:#34495e;">
+                                        <p style="margin-top:0;">Dear
+                                            <strong>
+                                                <t t-esc="participant.name"/>
+                                            </strong>
+                                            ,
+                                        </p>
+
+                                        <p>The following meeting has been
+                                            <strong style="color:#f39c12;">postponed</strong>.
+                                            Please note the updated schedule below:
+                                        </p>
+
+                                        <table style="width:100%; margin:20px 0;">
+                                            <tr>
+                                                <td style="padding:8px 0;">
+                                                    <strong style="color:#2c3e50;">📅 New Date &amp; Time:</strong>
+                                                    <div style="margin-top:4px; color:#555;">
+                                                        <t t-esc="meeting_start"/>
+                                                        -
+                                                        <t t-esc="meeting_end"/>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr t-if="meeting_room">
+                                                <td style="padding:8px 0;">
+                                                    <strong style="color:#2c3e50;">🚪 Room:</strong>
+                                                    <span style="margin-left:8px; color:#555;">
+                                                        <t t-esc="meeting_room"/>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <tr t-if="meeting_location">
+                                                <td style="padding:8px 0;">
+                                                    <strong style="color:#2c3e50;">📍 Location:</strong>
+                                                    <span style="margin-left:8px; color:#555;">
+                                                        <t t-esc="meeting_location"/>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <p>Thank you for your understanding. We look forward to your participation at
+                                            the new time.
+                                        </p>
+                                    </td>
+                                </tr>
+
+                                <!-- DIVIDER -->
+                                <tr>
+                                    <td style="padding:16px 0;">
+                                        <div style="height:1px; background-color:#ecf0f1;"></div>
+                                    </td>
+                                </tr>
+
+                                <!-- FOOTER -->
+                                <tr>
+                                    <td style="font-size:11px; color:#95a5a6; padding:16px 0; text-align:center;">
+                                        <p style="margin:0;">
+                                            This is an automated message. Please do not reply to this email.
+                                        </p>
+                                        <p style="margin:8px 0 0 0;">
+                                            Powered by
+                                            <a href="#" style="color:#3498db; text-decoration:none;">
+                                                Smartdz
+                                            </a>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </field>
+        <field name="auto_delete" eval="True"/>
+    </record>
+
 
     <record id="email_template_imminent_meeting_invitation_secure" model="mail.template">
         <field name="name">Imminent Meeting Invitation</field>
