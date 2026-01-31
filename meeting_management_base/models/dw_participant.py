@@ -146,27 +146,27 @@ class DwParticipant(models.Model):
         return True
 
     # TODO: this constraint is triggered once the whole record is being created, need to find a way to trigger it before
-    @api.constrains('employee_id', 'partner_id', 'meeting_planification_id')
-    def _check_unique_participant(self):
-        for record in self:
-            if record.meeting_planification_id:
-                if record.employee_id:
-                    duplicate = self.search([
-                        ('meeting_planification_id', '=', record.meeting_planification_id.id),
-                        ('employee_id', '=', record.employee_id.id),
-                        ('id', '!=', record.id)
-                    ])
-                    if duplicate:
-                        raise ValidationError('This employee is already a participant in this meeting!')
-
-                if record.partner_id:
-                    duplicate = self.search([
-                        ('meeting_planification_id', '=', record.meeting_planification_id.id),
-                        ('partner_id', '=', record.partner_id.id),
-                        ('id', '!=', record.id)
-                    ])
-                    if duplicate:
-                        raise ValidationError('This partner is already a participant in this meeting!')
+    # @api.constrains('employee_id', 'partner_id', 'meeting_planification_id')
+    # def _check_unique_participant(self):
+    #     for record in self:
+    #         if record.meeting_planification_id:
+    #             if record.employee_id:
+    #                 duplicate = self.search([
+    #                     ('meeting_planification_id', '=', record.meeting_planification_id.id),
+    #                     ('employee_id', '=', record.employee_id.id),
+    #                     ('id', '!=', record.id)
+    #                 ])
+    #                 if duplicate:
+    #                     raise ValidationError('This employee is already a participant in this meeting!')
+    #
+    #             if record.partner_id:
+    #                 duplicate = self.search([
+    #                     ('meeting_planification_id', '=', record.meeting_planification_id.id),
+    #                     ('partner_id', '=', record.partner_id.id),
+    #                     ('id', '!=', record.id)
+    #                 ])
+    #                 if duplicate:
+    #                     raise ValidationError('This partner is already a participant in this meeting!')
 
     @api.onchange('is_external')
     def _onchange_is_external(self):
