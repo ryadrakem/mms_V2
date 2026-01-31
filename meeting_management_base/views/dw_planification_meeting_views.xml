@@ -39,7 +39,7 @@
                             invisible="state in ('cancelled','done', 'started') or not is_current_user_host"
                             class="btn-danger"/>
                     <button name="action_postpone" string="Postpone" type="object"
-                            invisible="state in ('planned') or not is_current_user_host"
+                            invisible="state not in ('planned') or not is_current_user_host"
                             class="btn-warning"/>
                 </header>
 
@@ -107,9 +107,11 @@
                                    domain="[('is_in_site', '=', False)]" readonly="state != 'draft'"/>
                             <field name="room_id" domain="[('location_id', '=', location_id)]"
                                    readonly="state != 'draft'"/>
-                            <field name="equipment_ids" widget="many2many_tags" readonly="state != 'draft'"/>
+                            <field name="equipment_ids" widget="many2many_tags" invisible="not equipment_ids and state != 'draft'" readonly="state != 'draft'"/>
                             <field name="project_id" readonly="state != 'draft'"/>
-                            <field name="pv_writer_id" invisible="not has_pv"/>
+                            <field name="pv_writer_id2" invisible="not has_pv or not participant_ids"/>
+                            <field name="host_id" invisible="not participant_ids"/>
+                            <field name="quorum" readonly="state != 'draft'"/>
                         </group>
                     </group>
 
@@ -136,6 +138,14 @@
                                 </group>
                             </group>
                         </page>
+                        <page string="Documents">
+                            <field name="document_ids">
+                                <list editable="bottom">
+                                    <field name="name"/>
+                                    <field name="attachments"/>
+                                </list>
+                            </field>
+                        </page>
                         <page string="Options">
                             <group>
                                 <group>
@@ -145,6 +155,7 @@
                                     </group>
                                     <group>
                                         <field name="is_off_site" readonly="state != 'draft'"/>
+                                        <field name="is_presence_constraint" readonly="state not in ('draft', 'confirmed', 'planned')"/>
                                         <field name="calendar_event_id" invisible="1"/>
                                     </group>
                                 </group>
@@ -155,7 +166,7 @@
                                     </group>
                                     <group>
                                         <field name="has_pv" readonly="state != 'draft'"/>
-                                        <field name="is_send_email" readonly="state not in ('draft','confirmed')"/>
+                                        <field name="is_send_email" readonly="state not in ('draft','confirmed','planned')"/>
                                     </group>
                                 </group>
                             </group>
@@ -166,102 +177,6 @@
             </form>
         </field>
     </record>
-
-    <!--    <record id="view_dw_planification_meeting_list" model="ir.ui.view">-->
-    <!--        <field name="name">dw.planification.meeting.list</field>-->
-    <!--        <field name="model">dw.planification.meeting</field>-->
-    <!--        <field name="arch" type="xml">-->
-    <!--            <list string="Planification Meetings">-->
-    <!--                <field name="name"/>-->
-    <!--                <field name="meeting_type_id"/>-->
-    <!--&lt;!&ndash;                <field name="reservation_date"/>&ndash;&gt;-->
-    <!--&lt;!&ndash;                <field name="start_datetime"/>&ndash;&gt;-->
-    <!--                <field name="end_time"/>-->
-    <!--                <field name="duration"/>-->
-    <!--                <field name="state"/>-->
-    <!--            </list>-->
-    <!--        </field>-->
-    <!--    </record>-->
-
-    <!--    &lt;!&ndash; Kanban View &ndash;&gt;-->
-    <!--    <record id="view_dw_planification_meeting_kanban" model="ir.ui.view">-->
-    <!--        <field name="name">dw.planification.meeting.kanban</field>-->
-    <!--        <field name="model">dw.planification.meeting</field>-->
-    <!--        <field name="arch" type="xml">-->
-    <!--            <kanban class="o_kanban_small_column">-->
-    <!--                <field name="name"/>-->
-    <!--                <field name="meeting_type_id"/>-->
-    <!--&lt;!&ndash;                <field name="start_datetime"/>&ndash;&gt;-->
-    <!--&lt;!&ndash;                <field name="start_datetime"/>&ndash;&gt;-->
-    <!--                <field name="end_time"/>-->
-    <!--                <field name="room_id"/>-->
-    <!--                <field name="participant_ids"/>-->
-    <!--                <field name="state"/>-->
-
-    <!--                <templates>-->
-    <!--                    <t t-name="kanban-box">-->
-    <!--                        <div t-attf-class="oe_kanban_global_click o_kanban_record o_state_#{record.state.raw_value}"-->
-    <!--                             style="border-radius:10px; padding:12px; margin-bottom:12px;-->
-    <!--                                box-shadow:0 4px 12px rgba(0,0,0,0.1);-->
-    <!--                                background-color:white; transition:0.3s;">-->
-
-    <!--                            &lt;!&ndash; HEADER &ndash;&gt;-->
-    <!--                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">-->
-    <!--                                <strong style="font-size:16px; color:#222;">-->
-    <!--                                    <field name="name"/>-->
-    <!--                                </strong>-->
-    <!--                                <span t-att-class="{-->
-    <!--                                            'badge': True,-->
-    <!--                                            'badge-pill': True,-->
-    <!--                                            'bg-warning': record.state.raw_value == 'draft',-->
-    <!--                                            'bg-info': record.state.raw_value == 'planned',-->
-    <!--                                            'bg-primary': record.state.raw_value == 'started',-->
-    <!--                                            'bg-success': record.state.raw_value == 'done',-->
-    <!--                                            'bg-danger': record.state.raw_value == 'cancelled'-->
-    <!--                                        }"-->
-    <!--                                      style="padding:4px 10px; font-size:12px; color:white;">-->
-    <!--                                    <t t-esc="record.state.value"/>-->
-    <!--                                </span>-->
-    <!--                            </div>-->
-
-    <!--                            &lt;!&ndash; BODY &ndash;&gt;-->
-    <!--                            <div style="font-size:13px; color:#444;">-->
-    <!--                                <div>-->
-    <!--                                    <i class="fa fa-calendar"></i>-->
-    <!--&lt;!&ndash;                                    <field name="start_datetime"/>&ndash;&gt;-->
-    <!--                                </div>-->
-    <!--                                <div>-->
-    <!--                                    <i class="fa fa-clock"></i>-->
-    <!--&lt;!&ndash;                                    <field name="start_datetime"/>&ndash;&gt;-->
-    <!--                                    →-->
-    <!--                                    <field name="end_time"/>-->
-    <!--                                </div>-->
-    <!--                                <div>-->
-    <!--                                    <i class="fa fa-door-open"></i>-->
-    <!--                                    <field name="room_id"/>-->
-    <!--                                </div>-->
-    <!--                                <div>-->
-    <!--                                    <i class="fa fa-users"></i>-->
-    <!--                                    <field name="participant_ids" widget="many2many_tags"/>-->
-    <!--                                </div>-->
-    <!--                                <div>-->
-    <!--                                    <i class="fa fa-tag"></i>-->
-    <!--                                    <field name="meeting_type_id"/>-->
-    <!--                                </div>-->
-    <!--                            </div>-->
-
-    <!--                            &lt;!&ndash; FOOTER &ndash;&gt;-->
-    <!--                            <div style="margin-top:8px; font-size:12px; color:#777;">-->
-    <!--                                <strong>Durée:</strong>-->
-    <!--                                <field name="duration"/>-->
-    <!--                                h-->
-    <!--                            </div>-->
-    <!--                        </div>-->
-    <!--                    </t>-->
-    <!--                </templates>-->
-    <!--            </kanban>-->
-    <!--        </field>-->
-    <!--    </record>-->
 
     <!-- list View -->
     <record id="view_dw_planification_meeting_list" model="ir.ui.view">

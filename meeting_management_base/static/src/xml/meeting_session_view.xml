@@ -68,7 +68,8 @@
                                                     Present
                                                 </t>
                                                 <t t-elif="p.attendance_status === 'pause'">
-                                                    <i class="fa fa-circle text-warning"/> Paused
+                                                    <i class="fa fa-circle text-warning"/>
+                                                    Paused
                                                 </t>
                                                 <t t-elif="p.attendance_status === 'absent'">
                                                     <i class="fa fa-circle text-danger"/>
@@ -229,7 +230,9 @@
                     <!-- REPLACE this section in your meeting_session_view.xml -->
                     <!-- Change from t-if to always render, visibility controlled by CSS -->
 
-                    <div class="video-conference-container" t-if="state.session.state !== 'done' and state.session.use_vc" t-att-class="{ 'hidden': !state.session.display_camera }">
+                    <div class="video-conference-container"
+                         t-if="state.session.state !== 'done' and state.session.use_vc"
+                         t-att-class="{ 'hidden': !state.session.display_camera }">
                         <div id="jitsi-meet-container" class="jitsi-container"/>
 
                         <!-- Loading -->
@@ -304,6 +307,35 @@
                                     </div>
                                 </t>
                             </div>
+                            <!-- Documents Section -->
+                            <div class="documents-section" t-if="state.session.documents?.length">
+                                <div class="actions-header">
+                                    <h3>
+                                        <i class="fa fa-list"/>
+                                        Documents
+                                    </h3>
+                                </div>
+                                <div class="agenda-body">
+                                    <table style="width:100%;">
+                                        <t t-foreach="state.session.documents" t-as="doc" t-key="doc.id">
+                                            <tr class="agenda-item" style="width:100%; display: inline-block;">
+                                                <td class="agenda-title" style="width:300px;">
+                                                    <t t-esc="doc.name"/>
+                                                </td>
+                                                <td style="">
+                                                    <button class="btn btn-xs btn-primary"
+                                                            t-on-click="() => this.downloadDocument(doc)"
+                                                            t-if="doc.attachments"
+                                                            style="height:35px;">
+                                                        <i class="fa fa-download"/>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </t>
+                                    </table>
+
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <!-- Actions Section -->
@@ -349,9 +381,9 @@
                                                                 Project:
                                                             </label>
                                                             <select
-                                                                t-model="action.project_id"
-                                                                t-on-change="() => updateAction(action)"
-                                                                class="form-select">
+                                                                    t-model="action.project_id"
+                                                                    t-on-change="() => updateAction(action)"
+                                                                    class="form-select">
                                                                 <option value="">Select project...</option>
                                                                 <t t-foreach="state.availableProjects" t-as="project"
                                                                    t-key="project.id">

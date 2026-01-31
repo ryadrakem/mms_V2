@@ -10,6 +10,7 @@ class DwParticipant(models.Model):
 
     name = fields.Char(string='Name')
     is_external = fields.Boolean(string='External')
+    is_presence_required = fields.Boolean(string='Presence Required', store=True)
     is_remote = fields.Boolean(string='Remote')
     department = fields.Many2one('hr.department', string='Département')
     external_department = fields.Char(string='Département')
@@ -39,6 +40,7 @@ class DwParticipant(models.Model):
     ], string='Invitation Status', default='pending')
     is_host = fields.Boolean(string="Host", compute='_compute_is_host', store=True, readonly=True)
     is_pv = fields.Boolean(string="Rédacteur PV", store=True, readonly=False)
+    planification_is_send_email = fields.Boolean(related="meeting_planification_id.is_send_email", store=True, readonly=False)
     is_action_assigner = fields.Boolean(string="Action Assigner", store=True, readonly=False)
     user_id = fields.Many2one('res.users', string='User', compute='_compute_user_id', store=True, readonly=True)
 
@@ -111,10 +113,14 @@ class DwParticipant(models.Model):
             else:
                 rec.available_partner_ids = self.env['res.partner'].search([])
 
-    @api.depends('role_id')
+
+    @api.depends('meeting_planification_id.host_id')
     def _compute_is_host(self):
         for rec in self:
-            rec.is_host = rec.role_id.name == "host"
+            rec.is_host = bool(
+                rec.meeting_planification_id
+                and rec.meeting_planification_id.host_id == rec
+            )
 
     @api.depends('employee_id', 'partner_id')
     def _compute_user_id(self):
@@ -186,7 +192,7 @@ class DwParticipant(models.Model):
     def _check_user_required_for_roles(self):
         for record in self:
             if not record.user_id:
-                if record.role_id and record.role_id.name == 'host':
+                if record.is_host:
                     raise ValidationError('Cannot be host without user account')
                 if record.is_pv:
                     raise ValidationError('Cannot be PV writer without user account')

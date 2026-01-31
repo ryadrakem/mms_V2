@@ -65,7 +65,7 @@ class DwMeeting(models.Model):
     def _compute_host_participant(self):
         """Find the host participant"""
         for meeting in self:
-            host = meeting.participant_ids.filtered(lambda p: p.role_id.name == 'host')
+            host = meeting.participant_ids.filtered(lambda p: p.is_host)
             meeting.host_participant_id = host[0] if host else False
 
     def open_meeting(self):
@@ -184,7 +184,7 @@ class DwMeeting(models.Model):
         # Check if user is the host
         current_user = self.env.user
         host_participant = self.participant_ids.filtered(
-            lambda p: p.role_id.name == 'host' and (
+            lambda p: p.is_host and (
                     p.partner_id.id == current_user.partner_id.id or
                     p.employee_id.user_id.id == current_user.id
             )

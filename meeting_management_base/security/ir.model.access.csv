@@ -57,3 +57,4 @@ access_dw_project_stage,access_dw_project_stage,model_dw_project_stage,base.grou
 
 access_dw_permanent_members,access_dw_permanent_members,model_dw_permanent_members,base.group_user,1,1,1,1
 access_dw_meeting_postpone_wizard,access_dw_meeting_postpone_wizard,model_dw_meeting_postpone_wizard,base.group_user,1,1,1,1
+access_dw_meeting_document,access_dw_meeting_document,model_dw_meeting_document,base.group_user,1,1,1,1

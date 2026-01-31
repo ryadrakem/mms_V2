@@ -6,6 +6,18 @@ import pytz
 
 _logger = logging.getLogger(__name__)
 
+class DwMeetingDocument(models.Model):
+    _name = 'dw.meeting.document'
+    _description = 'Meeting Documents'
+
+    name = fields.Char(string='Document name', required=True)
+    meeting_id = fields.Many2one(
+        'dw.planification.meeting',
+        string='Meeting',
+        ondelete='cascade',
+        required=True,
+    )
+    attachments = fields.Binary(string='Attachments')
 
 class DwAgenda(models.Model):
     _name = 'dw.agenda'
@@ -26,6 +38,7 @@ class DwPlanificationMeeting(models.Model):
     objet = fields.Char(string='Objet')
     is_external = fields.Boolean(string='External', help="If the meeting implies external participants")
     is_off_site = fields.Boolean(string='Off Site', help="If the meeting location is outside the company")
+    is_presence_constraint = fields.Boolean(string='Presence Constraint', help="Keeps the meeting from starting if a required member did not accept the invitation or if the minimum number of attendees is not reached")
     meeting_type_id = fields.Many2one('dw.meeting.type', string='Meeting Type')
     # subject_order = fields.Html(string='Agenda')
     subject_order = fields.One2many('dw.agenda', 'planification_id', string='Agenda')
@@ -39,7 +52,7 @@ class DwPlanificationMeeting(models.Model):
     actual_end_datetime = fields.Datetime(string='Actual End Date & Time', store=True)
     location_id = fields.Many2one('dw.location', string='Location')
     room_id = fields.Many2one('dw.room', string='Room')
-    participant_ids = fields.One2many('dw.participant', 'meeting_planification_id', string='Participants')
+    participant_ids = fields.One2many('dw.participant','meeting_planification_id',  compute='_compute_participant_ids_from_permanent', string='Participants', store=True)
     duration = fields.Float(string='Duration (H)', store=True, required=True, default=1.0)
     actual_duration = fields.Float(string='Duration (hours)', default=1.0, tracking=True)
 
@@ -56,11 +69,27 @@ class DwPlanificationMeeting(models.Model):
     use_vc = fields.Boolean(string='Video Conference', default=True, help='If ticked, a video conference page will be available during the meeting')
     has_pv = fields.Boolean(string='PV', default=True, help='If the meeting implies the redaction of an offical report')
     times_postponed = fields.Integer(string='Times Postponed')
+    quorum = fields.Integer(string='Quorum (%)', default=50, help="Minimum percentage of participants who must accept.")
+
+    pv_writer_id2 = fields.Many2one(
+        'dw.participant',
+        string='PV Writer',
+        store=True,
+        domain="[('meeting_planification_id', '=', id), ('user_id', '!=', False)]",
+        tracking=True
+    )
 
     pv_writer_id = fields.Many2one(
         'res.users',
         string='PV Writer',
         tracking=True
+    )
+
+    host_id = fields.Many2one(
+        'dw.participant',
+        string='Host',
+        tracking=True,
+        domain="[('meeting_planification_id', '=', id), ('user_id', '!=', False)]"
     )
 
     permanent_members_id = fields.Many2one(
@@ -83,48 +112,29 @@ class DwPlanificationMeeting(models.Model):
         ('cancelled', 'Cancelled'),
     ], string='Status', default='draft', tracking=True)
 
-    #tries to find the selected user among the participants if not found creates one
-    @api.onchange('pv_writer_id')
-    def _onchange_pv_writer_id(self):
+    document_ids = fields.One2many(
+        'dw.meeting.document',
+        'meeting_id',
+        string='Documents'
+    )
+
+    @api.onchange('pv_writer_id2')
+    @api.depends('pv_writer_id2')
+    def _compute_set_pv_writer(self):
         for rec in self:
-            if not rec.pv_writer_id:
-                return
+            rec.participant_ids.write({'is_pv': False})
+            if rec.pv_writer_id2:
+                rec.pv_writer_id2.is_pv = True
 
-            user = rec.pv_writer_id
+    # copy the members of the permanent members if permanent_members_id is selected
 
-            rec.participant_ids.filtered(lambda p: p.is_pv).write({'is_pv': False})
-
-            participant = rec.participant_ids.filtered(lambda p: p.user_id == user)
-
-            if participant:
-                participant.write({'is_pv': True})
-            else:
-                vals = {
-                    'meeting_planification_id': rec.id,
-                    'user_id': user.id,
-                    'is_pv': True,
-                    'name': user.name,
-                    'is_external': participant.is_external,
-                }
-
-                if user.employee_id:
-                    vals['employee_id'] = user.employee_id.id
-                    vals['is_external'] = False
-                    vals['job'] = user.employee_id.job_id.id
-                    vals['department'] = user.employee_id.department_id.id
-                else:
-                    vals['partner_id'] = user.partner_id.id
-                    vals['is_external'] = True
-
-                rec.participant_ids = [(0, 0, vals)]
-
-    #copy the members of the permanent members if permanent_members_id is selected
     @api.onchange('permanent_members_id')
-    def _onchange_permanent_members_id(self):
+    @api.depends('permanent_members_id')
+    def _compute_participant_ids_from_permanent(self):
         for rec in self:
             if not rec.permanent_members_id:
                 rec.participant_ids = [(5, 0, 0)]
-                return
+                continue
 
             new_participants = [(5, 0, 0)]
 
@@ -135,7 +145,6 @@ class DwPlanificationMeeting(models.Model):
                     'role_id': participant.role_id.id,
                     'department': participant.department.id,
                     'is_external': participant.is_external,
-                    'is_pv': True if self.pv_writer_id and participant.user_id and self.pv_writer_id.id == participant.user_id.id else False,
                 }))
 
             rec.participant_ids = new_participants
@@ -349,7 +358,7 @@ class DwPlanificationMeeting(models.Model):
             template = self.env.ref('meeting_management_base.email_template_meeting_invitation_secure',
                                     raise_if_not_found=False)
 
-            if template:
+            if template and self.is_send_email:
                 # Send individual email to each participant
                 for participant in rec.participant_ids:
                     participant_email = None
@@ -378,6 +387,31 @@ class DwPlanificationMeeting(models.Model):
 
     def create_meeting_and_sessions(self):
         self.ensure_one()
+
+        participants = self.participant_ids
+        total = len(participants)
+        accepted = len(participants.filtered(lambda p: p.invitation_status == 'accepted'))
+
+        if total > 0 and self.quorum:
+            required = (total * self.quorum) / 100.0
+            if accepted < required and self.is_presence_constraint:
+                raise ValidationError(
+                    "⚠️ Cannot start the meeting.\n\n"
+                    f"Quorum not reached: {accepted}/{total} participants accepted.\n"
+                    f"Required: {self.quorum}% ({int(required) if required.is_integer() else required:.1f})."
+                )
+
+        missing_required = participants.filtered(
+            lambda p: p.is_presence_required and p.invitation_status != 'accepted'
+        )
+        if missing_required and self.is_presence_constraint:
+            names = ", ".join(missing_required.mapped("name"))
+            raise ValidationError(
+                "⚠️ Cannot start the meeting.\n\n"
+                "The following required participants have not accepted the invitation:\n"
+                f"- {names}\n\n"
+                "Please wait for their confirmation before starting the meeting."
+            )
 
         # Check for overrun conflicts before creating meeting
         # Pass ignore_time_window=True to force immediate check
@@ -458,7 +492,7 @@ class DwPlanificationMeeting(models.Model):
         template = self.env.ref('meeting_management_base.email_template_meeting_postponed_secure',
                                 raise_if_not_found=False)
 
-        if template:
+        if template and self.is_send_email:
             # Send individual email to each participant
             for participant in self.participant_ids:
                 participant_email = None
@@ -762,7 +796,7 @@ class DwPlanificationMeeting(models.Model):
 
     def action_confirm(self):
         for rec in self:
-            host_count = self.participant_ids.filtered(lambda p: p.role_id.name == 'host')
+            host_count = self.participant_ids.filtered(lambda p: p.is_host == True)
             if not host_count:
                 raise ValidationError(
                     _("At least one participant must be designated as host before starting the meeting.")
@@ -794,7 +828,7 @@ class DwPlanificationMeeting(models.Model):
             template = self.env.ref('meeting_management_base.email_template_meeting_cancellation_secure',
                                     raise_if_not_found=False)
 
-            if rec.state == "planned" and template:
+            if rec.state == "planned" and template and self.is_send_email:
                 # Send individual email to each participant
                 for participant in rec.participant_ids:
                     participant_email = None
