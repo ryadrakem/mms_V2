@@ -42,7 +42,6 @@ class DwParticipant(models.Model):
     is_pv = fields.Boolean(string="Rédacteur PV", store=True, readonly=False)
     planification_is_send_email = fields.Boolean(related="meeting_planification_id.is_send_email", store=True, readonly=False)
     planification_state = fields.Selection(related="meeting_planification_id.state", store=True, readonly=False)
-    planification_is_current_user_host = fields.Boolean(related="meeting_planification_id.is_current_user_host", store=True, readonly=False)
     is_action_assigner = fields.Boolean(string="Action Assigner", store=True, readonly=False)
     user_id = fields.Many2one('res.users', string='User', compute='_compute_user_id', store=True, readonly=True)
 

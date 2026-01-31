@@ -532,7 +532,6 @@ class DwPlanificationMeeting(models.Model):
             'context': {
                 'default_meeting_id': self.id,
                 'default_participant_ids': self.participant_ids.ids,
-                'default_is_current_user_host': True,
             }
         }
 
