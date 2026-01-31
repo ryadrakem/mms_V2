@@ -144,7 +144,11 @@ class DwPlanificationMeeting(models.Model):
                     'employee_id': participant.employee_id.id,
                     'role_id': participant.role_id.id,
                     'department': participant.department.id,
+                    'job': participant.job.id,
                     'is_external': participant.is_external,
+                    'is_action_assigner': participant.is_action_assigner,
+                    'is_presence_required': participant.is_presence_required,
+                    'is_remote': participant.is_remote,
                 }))
 
             rec.participant_ids = new_participants
