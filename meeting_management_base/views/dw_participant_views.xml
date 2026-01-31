@@ -62,12 +62,12 @@
                                 <button name="set_attachment_2_visible"
                                         type="object"
                                         icon="fa-plus"
-                                        invisible="is_attachments_2_visible or not is_host or planification_state != 'draft'"
+                                        invisible="is_attachments_2_visible or not planification_is_current_user_host or planification_state != 'draft'"
                                         class="btn btn-secondary"/>
                                 <button name="set_attachment_2_invisible"
                                         type="object"
                                         icon="fa-minus"
-                                        invisible="not is_attachments_2_visible or is_attachments_3_visible or not is_host or planification_state != 'draft'"
+                                        invisible="not is_attachments_2_visible or is_attachments_3_visible or not planification_is_current_user_host or planification_state != 'draft'"
                                         class="btn btn-secondary"/>
                             </group>
                         </group>
@@ -91,12 +91,12 @@
                                 <button name="set_attachment_3_visible"
                                         type="object"
                                         icon="fa-plus"
-                                        invisible="is_attachments_3_visible or not is_host or planification_state != 'draft'"
+                                        invisible="is_attachments_3_visible or not planification_is_current_user_host or planification_state != 'draft'"
                                         class="btn btn-secondary"/>
                                 <button name="set_attachment_3_invisible"
                                         type="object"
                                         icon="fa-minus"
-                                        invisible="not is_attachments_3_visible or is_attachments_4_visible or not is_host or planification_state != 'draft'"
+                                        invisible="not is_attachments_3_visible or is_attachments_4_visible or not planification_is_current_user_host or planification_state != 'draft'"
                                         class="btn btn-secondary"/>
                             </group>
                         </group>
@@ -120,12 +120,12 @@
                                 <button name="set_attachment_4_visible"
                                         type="object"
                                         icon="fa-plus"
-                                        invisible="is_attachments_4_visible or not is_host or planification_state != 'draft'"
+                                        invisible="is_attachments_4_visible or not planification_is_current_user_host or planification_state != 'draft'"
                                         class="btn btn-secondary"/>
                                 <button name="set_attachment_4_invisible"
                                         type="object"
                                         icon="fa-minus"
-                                        invisible="not is_attachments_4_visible or not is_host or planification_state != 'draft'"
+                                        invisible="not is_attachments_4_visible or not planification_is_current_user_host or planification_state != 'draft'"
                                         class="btn btn-secondary"/>
                             </group>
                         </group>
