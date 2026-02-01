@@ -80,6 +80,7 @@ export class MeetingSessionView extends Component {
       jitsiRoomId: null,
       pv: "",
       jitsiInitialized: false,
+      pipManuallyClosed: false, // Track if user closed the PiP with X button
     });
 
     this.sessionId = null;
@@ -153,6 +154,9 @@ export class MeetingSessionView extends Component {
       }, 10000);
 
       await this.refreshParticipantStatus();
+
+      // Initialize PiP drag functionality
+      this.initializePipDrag();
     });
 
     onWillUnmount(() => {
@@ -174,6 +178,10 @@ export class MeetingSessionView extends Component {
         } catch (e) {
           console.warn('Error cleaning up voice recorder:', e);
         }
+      }
+      // Cleanup PiP drag functionality
+      if (this._cleanupPipDrag) {
+        this._cleanupPipDrag();
       }
     });
   }
@@ -789,8 +797,10 @@ export class MeetingSessionView extends Component {
         videoContainer.classList.remove('pip-mode');
         videoContainer.classList.add('main-mode');
         this.state.showVideoPip = false;
-    } else if (this.state.session.display_camera) {
-        // Show video in PiP mode
+        // Reset the manually closed flag when user goes to video tab
+        this.state.pipManuallyClosed = false;
+    } else if (this.state.session.display_camera && !this.state.pipManuallyClosed) {
+        // Show video in PiP mode only if camera is enabled and user didn't manually close it
         videoContainer.classList.remove('main-mode');
         videoContainer.classList.add('pip-mode');
         this.state.showVideoPip = true;
@@ -811,11 +821,211 @@ export class MeetingSessionView extends Component {
   }
 
   closeVideoPip() {
+    // Hide PiP but keep camera available on video tab
     this.state.showVideoPip = false;
+    this.state.pipManuallyClosed = true; // Mark that user manually closed the PiP
+
     const videoContainer = document.querySelector('.video-conference-container');
     if (videoContainer) {
-        videoContainer.classList.remove('pip-mode', 'main-mode');
+        // Remove PiP mode - video will show in main mode when user switches to video tab
+        videoContainer.classList.remove('pip-mode');
     }
+
+    // Note: We keep display_camera as true so video remains available on video tab
+    // The pipManuallyClosed flag prevents PiP from reappearing on other tabs
+  }
+
+  /**
+   * Initialize drag and resize functionality for PiP mode
+   */
+  initializePipDrag() {
+    const videoContainer = document.querySelector('.video-conference-container');
+    if (!videoContainer) return;
+
+    // Drag variables
+    let isDragging = false;
+    let isResizing = false;
+    let currentX, currentY;
+    let initialX, initialY;
+    let startWidth, startHeight;
+    let startMouseX, startMouseY;
+
+    // Calculate size limits based on viewport (30% to 100%)
+    const getMinSize = () => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      // 30% of viewport, maintaining 16:9 aspect ratio
+      const minWidth = Math.max(vw * 0.30, 320); // At least 320px for clarity
+      const minHeight = minWidth / (16/9);
+      return { width: minWidth, height: minHeight };
+    };
+
+    const getMaxSize = () => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      // 100% of viewport (with some padding)
+      const maxWidth = vw - 40; // 20px padding on each side
+      const maxHeight = vh - 100; // Space for header and some padding
+      return { width: maxWidth, height: maxHeight };
+    };
+
+    const dragStart = (e) => {
+      // Only allow dragging in PiP mode
+      if (!videoContainer.classList.contains('pip-mode')) return;
+
+      // Check if clicking on resize handle (bottom-right 30px area for easier grabbing)
+      const rect = videoContainer.getBoundingClientRect();
+      const isResizeHandle = (
+        e.clientX > rect.right - 30 &&
+        e.clientY > rect.bottom - 30
+      );
+
+      // Prevent dragging if clicking on buttons
+      if (e.target.closest('button')) return;
+
+      if (isResizeHandle) {
+        isResizing = true;
+        startWidth = videoContainer.offsetWidth;
+        startHeight = videoContainer.offsetHeight;
+        startMouseX = e.clientX;
+        startMouseY = e.clientY;
+        videoContainer.style.cursor = 'se-resize';
+      } else {
+        isDragging = true;
+
+        if (e.type === 'touchstart') {
+          initialX = e.touches[0].clientX - (videoContainer._xOffset || 0);
+          initialY = e.touches[0].clientY - (videoContainer._yOffset || 0);
+        } else {
+          initialX = e.clientX - (videoContainer._xOffset || 0);
+          initialY = e.clientY - (videoContainer._yOffset || 0);
+        }
+
+        videoContainer.style.cursor = 'grabbing';
+      }
+    };
+
+    const drag = (e) => {
+      e.preventDefault();
+
+      if (isResizing) {
+        const deltaX = e.clientX - startMouseX;
+        const deltaY = e.clientY - startMouseY;
+
+        const minSize = getMinSize();
+        const maxSize = getMaxSize();
+
+        let newWidth = startWidth + deltaX;
+        let newHeight = startHeight + deltaY;
+
+        // Maintain aspect ratio (16:9)
+        const aspectRatio = 16 / 9;
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+          newHeight = newWidth / aspectRatio;
+        } else {
+          newWidth = newHeight * aspectRatio;
+        }
+
+        // Apply size constraints
+        newWidth = Math.max(minSize.width, Math.min(maxSize.width, newWidth));
+        newHeight = Math.max(minSize.height, Math.min(maxSize.height, newHeight));
+
+        // Ensure aspect ratio is maintained after constraints
+        const constrainedHeight = newWidth / aspectRatio;
+        if (constrainedHeight <= maxSize.height) {
+          newHeight = constrainedHeight;
+        } else {
+          newWidth = newHeight * aspectRatio;
+        }
+
+        videoContainer.style.width = newWidth + 'px';
+        videoContainer.style.height = newHeight + 'px';
+
+      } else if (isDragging) {
+        if (e.type === 'touchmove') {
+          currentX = e.touches[0].clientX - initialX;
+          currentY = e.touches[0].clientY - initialY;
+        } else {
+          currentX = e.clientX - initialX;
+          currentY = e.clientY - initialY;
+        }
+
+        videoContainer._xOffset = currentX;
+        videoContainer._yOffset = currentY;
+
+        // Apply transform
+        videoContainer.style.transform = `translate(${currentX}px, ${currentY}px)`;
+      }
+    };
+
+    const dragEnd = () => {
+      if (isResizing) {
+        isResizing = false;
+        updateCursor();
+      }
+      if (isDragging) {
+        isDragging = false;
+        videoContainer.style.cursor = 'grab';
+      }
+    };
+
+    const updateCursorOnMove = (e) => {
+      if (!videoContainer.classList.contains('pip-mode')) return;
+      if (isDragging || isResizing) return;
+
+      const rect = videoContainer.getBoundingClientRect();
+      const isResizeHandle = (
+        e.clientX > rect.right - 30 &&
+        e.clientY > rect.bottom - 30
+      );
+
+      if (isResizeHandle) {
+        videoContainer.style.cursor = 'se-resize';
+      } else {
+        videoContainer.style.cursor = 'grab';
+      }
+    };
+
+    // Add event listeners
+    videoContainer.addEventListener('mousedown', dragStart);
+    videoContainer.addEventListener('mousemove', updateCursorOnMove);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', dragEnd);
+
+    // Touch events for mobile
+    videoContainer.addEventListener('touchstart', dragStart, { passive: false });
+    document.addEventListener('touchmove', drag, { passive: false });
+    document.addEventListener('touchend', dragEnd);
+
+    // Set cursor style for PiP mode
+    const updateCursor = () => {
+      if (videoContainer.classList.contains('pip-mode')) {
+        videoContainer.style.cursor = 'grab';
+      } else {
+        videoContainer.style.cursor = '';
+        videoContainer.style.transform = '';
+        videoContainer.style.width = '';
+        videoContainer.style.height = '';
+        videoContainer._xOffset = 0;
+        videoContainer._yOffset = 0;
+      }
+    };
+
+    // Watch for class changes
+    const observer = new MutationObserver(updateCursor);
+    observer.observe(videoContainer, { attributes: true, attributeFilter: ['class'] });
+
+    // Store cleanup function
+    this._cleanupPipDrag = () => {
+      videoContainer.removeEventListener('mousedown', dragStart);
+      videoContainer.removeEventListener('mousemove', updateCursorOnMove);
+      document.removeEventListener('mousemove', drag);
+      document.removeEventListener('mouseup', dragEnd);
+      videoContainer.removeEventListener('touchstart', dragStart);
+      document.removeEventListener('touchmove', drag);
+      document.removeEventListener('touchend', dragEnd);
+      observer.disconnect();
+    };
   }
 
   pauseJitsi() {
@@ -970,6 +1180,11 @@ export class MeetingSessionView extends Component {
 
   async toggleCamera() {
     this.state.session.display_camera = !this.state.session.display_camera;
+
+    // If user is turning camera on, reset the manually closed flag
+    if (this.state.session.display_camera) {
+      this.state.pipManuallyClosed = false;
+    }
 
     await this.orm.write("dw.meeting.session", [this.sessionId], {
       display_camera: this.state.session.display_camera,
