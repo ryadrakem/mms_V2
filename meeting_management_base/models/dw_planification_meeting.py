@@ -62,7 +62,7 @@ class DwPlanificationMeeting(models.Model):
     project_id = fields.Many2one('dw.project', string='Project', domain=lambda self: self._get_allowed_projects_domain())
     use_the_chat_room = fields.Boolean(string='Use the chat room', default=False)
     display_camera = fields.Boolean(string='Display the cameras in the meeting', default=False)
-    is_current_user_host = fields.Boolean(string="Is Current User Host", compute="_compute_is_current_user_host")
+    is_current_user_host = fields.Boolean(string="Is Current User Host", compute="_compute_is_current_user_host", store=False)
     is_current_user_participant = fields.Boolean(string="Is Current User Participant", compute="_compute_is_current_user_participant")
     calendar_event_id = fields.Many2one('calendar.event', string='Calendar Event', readonly=True, copy=False)
     sync_with_calendar = fields.Boolean(string='Sync with Calendar', default=True, help='Create the event in your calendar')
@@ -174,18 +174,11 @@ class DwPlanificationMeeting(models.Model):
         for meeting in self:
             meeting.has_remote_participants = any(meeting.participant_ids.mapped('is_remote'))
 
-    @api.depends('participant_ids')
+    @api.depends('participant_ids.is_host')
     def _compute_is_current_user_host(self):
         for rec in self:
-            user = self.env.user
-
-            # find participant linked to this user
-            participant = rec.participant_ids.filtered(
-                lambda p: p.user_id.id == user.id
-            )
-
-            # true if host
-            rec.is_current_user_host = bool(participant and participant.is_host)
+            participant = rec.participant_ids.filtered(lambda p: p.user_id == self.env.user)
+            rec.is_current_user_host = any(participant.mapped('is_host'))
 
     def _compute_is_current_user_participant(self):
         for rec in self:
