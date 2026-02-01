@@ -524,7 +524,7 @@ class DwPlanificationMeeting(models.Model):
             'target': 'new',
             'context': {
                 'default_meeting_id': self.id,
-                'default_participant_ids': self.participant_ids.ids,
+                # 'default_participant_ids': self.participant_ids.ids,
             }
         }
 
