@@ -21,6 +21,7 @@ export class MeetingSessionView extends Component {
     this.orm = this.env.services.orm;
     this.actionService = this.env.services.action;
     this.notification = this.env.services.notification;
+    this.agendaTimers = {};
 
     this.state = useState({
       loading: true,
@@ -81,6 +82,11 @@ export class MeetingSessionView extends Component {
       pv: "",
       jitsiInitialized: false,
       pipManuallyClosed: false, // Track if user closed the PiP with X button
+
+      agendaItems: [],
+      draggedAgendaId: null,
+      editingAgendaId: null,
+      newAgendaName: "",
     });
 
     this.sessionId = null;
@@ -118,6 +124,28 @@ export class MeetingSessionView extends Component {
     this._initializeVoiceRecorder = this._initializeVoiceRecorder.bind(this);
     this._initializeVoiceRecorderOnPVTab = this._initializeVoiceRecorderOnPVTab.bind(this);
     this.downloadDocument = this.downloadDocument.bind(this);
+    this.addAgendaItem = this.addAgendaItem.bind(this);
+    this.deleteAgendaItem = this.deleteAgendaItem.bind(this);
+    this.updateAgendaItem = this.updateAgendaItem.bind(this);
+    this.startEditAgenda = this.startEditAgenda.bind(this);
+    this.saveAgendaEdit = this.saveAgendaEdit.bind(this);
+    this.cancelAgendaEdit = this.cancelAgendaEdit.bind(this);
+    this.onAgendaDragStart = this.onAgendaDragStart.bind(this);
+    this.onAgendaDragOver = this.onAgendaDragOver.bind(this);
+    this.onAgendaDrop = this.onAgendaDrop.bind(this);
+    this.onAgendaDragEnd = this.onAgendaDragEnd.bind(this);
+    this.startAgendaTimer = this.startAgendaTimer.bind(this);
+    this.pauseAgendaTimer = this.pauseAgendaTimer.bind(this);
+    this.stopAgendaTimer = this.stopAgendaTimer.bind(this);
+    this.resetAgendaTimer = this.resetAgendaTimer.bind(this);
+    this.formatTime = this.formatTime.bind(this);
+    this.getTimerStateClass = this.getTimerStateClass.bind(this);
+    this.getTimerStateIcon = this.getTimerStateIcon.bind(this);
+    this.getStatusLabel = this.getStatusLabel.bind(this);
+
+    // Expose global functions so Owl can resolve them via ctx in the template
+    this.parseInt = parseInt;
+    this.Math = Math;
 
     onWillStart(async () => {
       const context = this.props.action?.context || {};
@@ -141,6 +169,7 @@ export class MeetingSessionView extends Component {
       await this.loadAvailableAssignees();
       await this.loadAvailableProjects();
       await this.loadPlanificationDocuments();
+      await this.loadAgendaItems();
     });
 
     onMounted(async () => {
@@ -157,6 +186,8 @@ export class MeetingSessionView extends Component {
 
       // Initialize PiP drag functionality
       this.initializePipDrag();
+
+      this.initializeRunningTimers();
     });
 
     onWillUnmount(() => {
@@ -183,8 +214,334 @@ export class MeetingSessionView extends Component {
       if (this._cleanupPipDrag) {
         this._cleanupPipDrag();
       }
+
+      Object.keys(this.agendaTimers).forEach(agendaId => {
+        if (this.agendaTimers[agendaId]?.interval) {
+          clearInterval(this.agendaTimers[agendaId].interval);
+        }
+      });
     });
   }
+  // ================== AGENDA MANAGEMENT ==================
+  async loadAgendaItems() {
+    try {
+      const agendas = await this.orm.searchRead(
+        'dw.agenda',
+        [['session_id', '=', this.sessionId]],
+        ['id', 'name', 'sequence', 'duration_minutes', 'timer_state',
+         'elapsed_seconds', 'timer_start_time', 'timer_pause_time'],
+        { order: 'sequence, id' }
+      );
+
+      this.state.agendaItems = agendas;
+      this.state.session.subject_order = agendas;
+    } catch (error) {
+      console.error('Failed to load agenda items:', error);
+      this.notification.add('Failed to load agenda', { type: 'danger' });
+    }
+  }
+
+  async addAgendaItem() {
+    if (!this.state.newAgendaName.trim()) {
+      this.notification.add('Please enter an agenda item name', { type: 'warning' });
+      return;
+    }
+
+    try {
+      const maxSequence = this.state.agendaItems.length > 0
+        ? Math.max(...this.state.agendaItems.map(a => a.sequence || 0))
+        : 0;
+
+      const newId = await this.orm.create('dw.agenda', [{
+        name: this.state.newAgendaName,
+        session_id: this.sessionId,
+        meeting_id: this.meetingId,
+        planification_id: this.planificationId,
+        sequence: maxSequence + 10,
+        duration_minutes: 15,
+        timer_state: 'not_started',
+      }]);
+
+      await this.loadAgendaItems();
+      this.state.newAgendaName = "";
+      this.notification.add('Agenda item added', { type: 'success' });
+    } catch (error) {
+      console.error('Failed to add agenda item:', error);
+      this.notification.add('Failed to add agenda item', { type: 'danger' });
+    }
+  }
+
+  async deleteAgendaItem(agendaId) {
+    const confirmed = confirm('Delete this agenda item?');
+    if (!confirmed) return;
+
+    try {
+      await this.orm.unlink('dw.agenda', [agendaId]);
+
+      // Stop timer if running
+      if (this.agendaTimers[agendaId]) {
+        clearInterval(this.agendaTimers[agendaId].interval);
+        delete this.agendaTimers[agendaId];
+      }
+
+      await this.loadAgendaItems();
+      this.notification.add('Agenda item deleted', { type: 'success' });
+    } catch (error) {
+      console.error('Failed to delete agenda item:', error);
+      this.notification.add('Failed to delete agenda item', { type: 'danger' });
+    }
+  }
+
+  async updateAgendaItem(agendaId, field, value) {
+    try {
+      await this.orm.write('dw.agenda', [agendaId], { [field]: value });
+
+      const item = this.state.agendaItems.find(a => a.id === agendaId);
+      if (item) {
+        item[field] = value;
+      }
+
+      if (this._updateTimeout) clearTimeout(this._updateTimeout);
+      this._updateTimeout = setTimeout(() => {
+        this.notification.add('Agenda updated', { type: 'success', timeout: 1000 });
+      }, 500);
+    } catch (error) {
+      console.error('Failed to update agenda item:', error);
+      this.notification.add('Failed to update agenda', { type: 'danger' });
+    }
+  }
+
+  startEditAgenda(agendaId) {
+    this.state.editingAgendaId = agendaId;
+  }
+
+  async saveAgendaEdit(agendaId) {
+    const item = this.state.agendaItems.find(a => a.id === agendaId);
+    if (item && item.name.trim()) {
+      await this.updateAgendaItem(agendaId, 'name', item.name);
+      this.state.editingAgendaId = null;
+    }
+  }
+
+  cancelAgendaEdit() {
+    this.state.editingAgendaId = null;
+    this.loadAgendaItems(); // Reload to reset changes
+  }
+
+  // Drag and Drop for reordering
+  onAgendaDragStart(ev, agendaId) {
+    this.state.draggedAgendaId = agendaId;
+    ev.dataTransfer.effectAllowed = 'move';
+  }
+
+  onAgendaDragOver(ev) {
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = 'move';
+  }
+
+  async onAgendaDrop(ev, targetAgendaId) {
+    ev.preventDefault();
+
+    if (this.state.draggedAgendaId === targetAgendaId) return;
+
+    try {
+      const items = [...this.state.agendaItems];
+      const draggedIndex = items.findIndex(a => a.id === this.state.draggedAgendaId);
+      const targetIndex = items.findIndex(a => a.id === targetAgendaId);
+
+      if (draggedIndex === -1 || targetIndex === -1) return;
+
+      // Remove dragged item
+      const [draggedItem] = items.splice(draggedIndex, 1);
+
+      // Insert at new position
+      items.splice(targetIndex, 0, draggedItem);
+
+      // Update sequences
+      const updates = items.map((item, index) => ({
+        id: item.id,
+        sequence: (index + 1) * 10
+      }));
+
+      for (const update of updates) {
+        await this.orm.write('dw.agenda', [update.id], { sequence: update.sequence });
+      }
+
+      await this.loadAgendaItems();
+      this.notification.add('Agenda reordered', { type: 'success' });
+    } catch (error) {
+      console.error('Failed to reorder agenda:', error);
+      this.notification.add('Failed to reorder agenda', { type: 'danger' });
+    }
+  }
+
+  onAgendaDragEnd() {
+    this.state.draggedAgendaId = null;
+  }
+
+  // ================== AGENDA TIMERS ==================
+
+  async startAgendaTimer(agendaId) {
+    try {
+      await this.orm.call('dw.agenda', 'action_start_timer', [agendaId]);
+      await this.loadAgendaItems();
+      this.startAgendaTimerUI(agendaId);
+    } catch (error) {
+      console.error('Failed to start timer:', error);
+      this.notification.add('Failed to start timer', { type: 'danger' });
+    }
+  }
+
+  async pauseAgendaTimer(agendaId) {
+    try {
+      await this.orm.call('dw.agenda', 'action_pause_timer', [agendaId]);
+      await this.loadAgendaItems();
+      this.pauseAgendaTimerUI(agendaId);
+    } catch (error) {
+      console.error('Failed to pause timer:', error);
+      this.notification.add('Failed to pause timer', { type: 'danger' });
+    }
+  }
+
+  async stopAgendaTimer(agendaId) {
+    try {
+      await this.orm.call('dw.agenda', 'action_stop_timer', [agendaId]);
+      await this.loadAgendaItems();
+      this.stopAgendaTimerUI(agendaId);
+    } catch (error) {
+      console.error('Failed to stop timer:', error);
+      this.notification.add('Failed to stop timer', { type: 'danger' });
+    }
+  }
+
+  async resetAgendaTimer(agendaId) {
+    try {
+      await this.orm.call('dw.agenda', 'action_reset_timer', [agendaId]);
+      await this.loadAgendaItems();
+      this.resetAgendaTimerUI(agendaId);
+    } catch (error) {
+      console.error('Failed to reset timer:', error);
+      this.notification.add('Failed to reset timer', { type: 'danger' });
+    }
+  }
+
+  // ---------- UI TIMER MANAGEMENT ----------
+
+  initializeRunningTimers() {
+    // Start UI timers for any agenda items that are currently running
+    this.state.agendaItems.forEach(item => {
+      if (item.timer_state === 'running') {
+        this.startAgendaTimerUI(item.id);
+      }
+    });
+  }
+
+  startAgendaTimerUI(agendaId) {
+    const item = this.state.agendaItems.find(i => i.id === agendaId);
+    if (!item) return;
+
+    // Clear existing timer if any
+    if (this.agendaTimers[agendaId]) {
+      clearInterval(this.agendaTimers[agendaId].interval);
+    }
+
+    this.agendaTimers[agendaId] = {
+      startTime: Date.now() / 1000 - (item.elapsed_seconds || 0),
+      interval: setInterval(() => this.updateAgendaTimerUI(agendaId), 1000)
+    };
+  }
+
+  pauseAgendaTimerUI(agendaId) {
+    if (this.agendaTimers[agendaId]) {
+      clearInterval(this.agendaTimers[agendaId].interval);
+    }
+  }
+
+  stopAgendaTimerUI(agendaId) {
+    if (this.agendaTimers[agendaId]) {
+      clearInterval(this.agendaTimers[agendaId].interval);
+      delete this.agendaTimers[agendaId];
+    }
+  }
+
+  resetAgendaTimerUI(agendaId) {
+    this.stopAgendaTimerUI(agendaId);
+
+    const elapsedEl = document.querySelector(`[data-agenda-elapsed="${agendaId}"]`);
+    const remainingEl = document.querySelector(`[data-agenda-remaining="${agendaId}"]`);
+    const progressEl = document.querySelector(`[data-agenda-progress="${agendaId}"]`);
+
+    if (elapsedEl) elapsedEl.textContent = '00:00';
+    if (remainingEl) remainingEl.textContent = '00:00';
+    if (progressEl) {
+      progressEl.style.width = '0%';
+      progressEl.classList.remove('overtime');
+    }
+  }
+
+  updateAgendaTimerUI(agendaId) {
+    const item = this.state.agendaItems.find(i => i.id === agendaId);
+    if (!item || !this.agendaTimers[agendaId]) return;
+
+    const now = Date.now() / 1000;
+    const elapsed = now - this.agendaTimers[agendaId].startTime;
+    const totalSeconds = item.duration_minutes * 60;
+    const remaining = Math.max(0, totalSeconds - elapsed);
+    const progress = Math.min(100, (elapsed / totalSeconds) * 100);
+
+    const elapsedEl = document.querySelector(`[data-agenda-elapsed="${agendaId}"]`);
+    const remainingEl = document.querySelector(`[data-agenda-remaining="${agendaId}"]`);
+    const progressEl = document.querySelector(`[data-agenda-progress="${agendaId}"]`);
+
+    if (elapsedEl) elapsedEl.textContent = this.formatTime(elapsed);
+    if (remainingEl) remainingEl.textContent = this.formatTime(remaining);
+    if (progressEl) {
+      progressEl.style.width = `${progress}%`;
+
+      // Add overtime class if over time
+      if (elapsed > totalSeconds) {
+        progressEl.classList.add('overtime');
+
+        // Notify once when entering overtime
+        if (item.timer_state !== 'overtime') {
+          item.timer_state = 'overtime';
+          this.notification.add(
+            `Agenda "${item.name}" is in overtime!`,
+            { type: 'warning', sticky: true }
+          );
+        }
+      }
+    }
+  }
+
+  formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  }
+
+  getTimerStateClass(state) {
+    const stateClasses = {
+      'not_started': 'timer-not-started',
+      'running': 'timer-running',
+      'paused': 'timer-paused',
+      'completed': 'timer-completed',
+      'overtime': 'timer-overtime',
+    };
+    return stateClasses[state] || '';
+  }
+
+  getTimerStateIcon(state) {
+    const icons = {
+      'not_started': 'fa-clock-o',
+      'running': 'fa-play-circle',
+      'paused': 'fa-pause-circle',
+      'completed': 'fa-check-circle',
+      'overtime': 'fa-exclamation-circle',
+    };
+    return icons[state] || 'fa-clock-o';
+  }
+
 
   // ================== MÉTHODES DE CLASSE (EN DEHORS DE setup()) ==================
 

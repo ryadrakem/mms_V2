@@ -236,74 +236,191 @@
                         <div id="jitsi-meet-container" class="jitsi-container"/>
 
                         <!-- Loading -->
-                        <div class="video-loading" t-if="state.loading &amp;&amp; !state.error">
+                        <div class="video-loading" t-if="state.loading &amp; !state.error">
                             <div class="loading-spinner">
                                 <div class="spinner-ring"/>
                             </div>
-                            <p>Loading meeting session...</p>
-                        </div>
-
-                        <!-- Error -->
-                        <div class="video-error" t-if="state.error">
-                            <div class="error-icon">
-                                <i class="fa fa-exclamation-triangle"/>
-                            </div>
-                            <h3>Connection Error</h3>
-                            <p t-esc="state.error"/>
-                            <div class="error-actions">
-                                <button class="btn-retry" t-on-click="retryConnection">
-                                    <i class="fa fa-refresh"/>
-                                    Retry
-                                </button>
-                                <button class="btn-secondary" t-on-click="goBack">
-                                    <i class="fa fa-arrow-left"/>
-                                    Back
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Timer -->
-                        <div class="meeting-timer">
-                            <i class="fa fa-circle recording-indicator"/>
-                            <span t-esc="state.meetingDuration"/>
-                        </div>
-
-                        <!-- PiP Controls (only visible in PiP mode) -->
-                        <div class="pip-controls" t-if="state.showVideoPip">
-                            <button t-on-click="() => onTabChange('video')" title="Expand to full size">
-                                <i class="fa fa-expand"/>
-                            </button>
-                            <button t-on-click="closeVideoPip" title="Hide video">
-                                <i class="fa fa-times"/>
-                            </button>
                         </div>
                     </div>
 
-                    <!-- Tab Content Areas -->
+                    <!-- AGENDA Section - NEW -->
                     <div class="main-tab-content" t-if="state.activeMainTab === 'agenda'">
-                        <div class="meeting-actions-section">
-                            <div class="actions-header">
+                        <div class="agenda-section">
+                            <div class="agenda-header">
                                 <h3>
-                                    <i class="fa fa-list"/>
-                                    Agenda Items
+                                    <i class="fa fa-list-ol"/>
+                                    Ordre du Jour
                                 </h3>
+                                <div class="agenda-header-actions" t-if="state.session.can_edit_agenda">
+                                    <div class="add-agenda-form">
+                                        <input
+                                                type="text"
+                                                class="agenda-input"
+                                                placeholder="Nouveau point à l'ordre du jour..."
+                                                t-model="state.newAgendaName"
+                                                t-on-keyup="(ev) => ev.key === 'Enter' &amp; addAgendaItem()"/>
+                                        <button class="btn-add-agenda" t-on-click="addAgendaItem">
+                                            <i class="fa fa-plus"/>
+                                            Ajouter
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="agenda-body">
-                                <t t-if="state.session.subject_order?.length">
-                                    <t t-foreach="state.session.subject_order" t-as="item" t-key="item.id">
-                                        <div class="agenda-item">
-                                            <div class="agenda-title">
-                                                <t t-esc="item.name"/>
+
+                            <div class="agenda-list">
+                                <t t-if="state.agendaItems?.length">
+                                    <t t-foreach="state.agendaItems" t-as="agenda" t-key="agenda.id">
+                                        <div class="agenda-item"
+                                             t-att-class="getTimerStateClass(agenda.timer_state)"
+                                             draggable="true"
+                                             t-on-dragstart="(ev) => onAgendaDragStart(ev, agenda.id)"
+                                             t-on-dragover="onAgendaDragOver"
+                                             t-on-drop="(ev) => onAgendaDrop(ev, agenda.id)"
+                                             t-on-dragend="onAgendaDragEnd">
+
+                                            <!-- Agenda Item Header -->
+                                            <div class="agenda-item-header">
+                                                <div class="agenda-drag-handle">
+                                                    <i class="fa fa-bars"/>
+                                                </div>
+                                                <div class="agenda-sequence">
+                                                    <t t-esc="agenda_index + 1"/>
+                                                </div>
+                                                <div class="agenda-title-section">
+                                                    <t t-if="state.editingAgendaId === agenda.id">
+                                                        <input
+                                                                type="text"
+                                                                class="agenda-title-input"
+                                                                t-model="agenda.name"
+                                                                t-on-keyup="(ev) => ev.key === 'Enter' ? saveAgendaEdit(agenda.id) : ev.key === 'Escape' ? cancelAgendaEdit() : null"/>
+                                                        <button class="btn-icon-sm" t-on-click="() => saveAgendaEdit(agenda.id)">
+                                                            <i class="fa fa-check text-success"/>
+                                                        </button>
+                                                        <button class="btn-icon-sm" t-on-click="cancelAgendaEdit">
+                                                            <i class="fa fa-times text-danger"/>
+                                                        </button>
+                                                    </t>
+                                                    <t t-else="">
+                                                        <h4 class="agenda-title">
+                                                            <i t-att-class="'fa ' + getTimerStateIcon(agenda.timer_state)"/>
+                                                            <t t-esc="agenda.name"/>
+                                                        </h4>
+                                                        <button class="btn-icon-sm"
+                                                                t-if="state.session.can_edit_agenda"
+                                                                t-on-click="() => startEditAgenda(agenda.id)">
+                                                            <i class="fa fa-pencil"/>
+                                                        </button>
+                                                    </t>
+                                                </div>
+                                                <div class="agenda-actions">
+                                                    <button class="btn-icon-sm danger"
+                                                            t-if="state.session.can_edit_agenda"
+                                                            t-on-click="() => deleteAgendaItem(agenda.id)">
+                                                        <i class="fa fa-trash"/>
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <div class="agenda-description" t-if="item.description">
-                                                <t t-esc="item.description"/>
+
+                                            <!-- Timer Section -->
+                                            <div class="agenda-timer-section">
+                                                <div class="timer-info">
+                                                    <div class="timer-duration">
+                                                        <label>Durée prévue:</label>
+                                                        <t t-if="state.session.can_edit_agenda">
+                                                            <input
+                                                                    type="number"
+                                                                    class="duration-input"
+                                                                    min="1"
+                                                                    max="240"
+                                                                    t-att-value="agenda.duration_minutes"
+                                                                    t-on-change="(ev) => updateAgendaItem(agenda.id, 'duration_minutes', parseInt(ev.target.value))"/>
+                                                            <span>min</span>
+                                                        </t>
+                                                        <t t-else="">
+                                                            <span class="duration-display">
+                                                                <t t-esc="agenda.duration_minutes"/> min
+                                                            </span>
+                                                        </t>
+                                                    </div>
+                                                    <div class="timer-stats">
+                                                        <div class="timer-stat">
+                                                            <label>Écoulé:</label>
+                                                            <span class="timer-value" t-att-data-agenda-elapsed="agenda.id">
+                                                                <t t-esc="formatTime(agenda.elapsed_seconds || 0)"/>
+                                                            </span>
+                                                        </div>
+                                                        <div class="timer-stat">
+                                                            <label>Restant:</label>
+                                                            <span class="timer-value" t-att-data-agenda-remaining="agenda.id">
+                                                                <t t-esc="formatTime(Math.max(0, agenda.duration_minutes * 60 - (agenda.elapsed_seconds || 0)))"/>
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Progress Bar -->
+                                                <div class="timer-progress-container">
+                                                    <div class="timer-progress-bar"
+                                                         t-att-data-agenda-progress="agenda.id"
+                                                         t-att-style="'width: ' + Math.min(100, ((agenda.elapsed_seconds || 0) / (agenda.duration_minutes * 60)) * 100) + '%'">
+                                                    </div>
+                                                </div>
+
+                                                <!-- Timer Controls -->
+                                                <div class="timer-controls">
+                                                    <t t-if="agenda.timer_state === 'not_started'">
+                                                        <button class="btn-timer start" t-on-click="() => startAgendaTimer(agenda.id)">
+                                                            <i class="fa fa-play"/>
+                                                            Démarrer
+                                                        </button>
+                                                    </t>
+                                                    <t t-elif="agenda.timer_state === 'running' or agenda.timer_state === 'overtime'">
+                                                        <button class="btn-timer pause" t-on-click="() => pauseAgendaTimer(agenda.id)">
+                                                            <i class="fa fa-pause"/>
+                                                            Pause
+                                                        </button>
+                                                        <button class="btn-timer stop" t-on-click="() => stopAgendaTimer(agenda.id)">
+                                                            <i class="fa fa-stop"/>
+                                                            Terminer
+                                                        </button>
+                                                    </t>
+                                                    <t t-elif="agenda.timer_state === 'paused'">
+                                                        <button class="btn-timer resume" t-on-click="() => startAgendaTimer(agenda.id)">
+                                                            <i class="fa fa-play"/>
+                                                            Reprendre
+                                                        </button>
+                                                        <button class="btn-timer stop" t-on-click="() => stopAgendaTimer(agenda.id)">
+                                                            <i class="fa fa-stop"/>
+                                                            Terminer
+                                                        </button>
+                                                    </t>
+                                                    <t t-elif="agenda.timer_state === 'completed'">
+                                                        <button class="btn-timer reset" t-on-click="() => resetAgendaTimer(agenda.id)">
+                                                            <i class="fa fa-refresh"/>
+                                                            Réinitialiser
+                                                        </button>
+                                                    </t>
+                                                </div>
+
+                                                <!-- Timer State Badge -->
+                                                <div class="timer-state-badge" t-att-class="agenda.timer_state">
+                                                    <t t-if="agenda.timer_state === 'not_started'">Pas démarré</t>
+                                                    <t t-elif="agenda.timer_state === 'running'">En cours</t>
+                                                    <t t-elif="agenda.timer_state === 'paused'">En pause</t>
+                                                    <t t-elif="agenda.timer_state === 'completed'">Terminé</t>
+                                                    <t t-elif="agenda.timer_state === 'overtime'">⚠️ Dépassement</t>
+                                                </div>
                                             </div>
                                         </div>
                                     </t>
                                 </t>
                                 <t t-else="">
                                     <div class="empty-agenda">
-                                        <p>No agenda items</p>
+                                        <i class="fa fa-list-ol"/>
+                                        <p>Aucun point à l'ordre du jour</p>
+                                        <p class="empty-help" t-if="state.session.can_edit_agenda">
+                                            Ajoutez des points à l'ordre du jour ci-dessus
+                                        </p>
                                     </div>
                                 </t>
                             </div>

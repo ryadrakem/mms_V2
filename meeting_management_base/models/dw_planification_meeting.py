@@ -17,16 +17,206 @@ class DwMeetingDocument(models.Model):
         ondelete='cascade',
         required=True,
     )
-    attachments = fields.Binary(string='Attachments')
+    attachments = fields.Binary(string='Attachments',required=True)
 
 class DwAgenda(models.Model):
     _name = 'dw.agenda'
     _description = 'Agenda'
+    _order = 'sequence, id'
 
     name = fields.Char(string='Ordre du jour', required=True)
+    sequence = fields.Integer(string='Sequence', default=10)
     planification_id = fields.Many2one('dw.planification.meeting', string='Planification Meeting')
     meeting_id = fields.Many2one('dw.meeting', string='Meeting')
     session_id = fields.Many2one('dw.meeting.session', string='session')
+    # Timer fields - NOUVEAUX CHAMPS
+    duration_minutes = fields.Integer(
+        string='Duration (minutes)',
+        default=15,
+        help='Durée prévue pour cet ordre du jour en minutes'
+    )
+    timer_state = fields.Selection([
+        ('not_started', 'Not Started'),
+        ('running', 'Running'),
+        ('paused', 'Paused'),
+        ('completed', 'Completed'),
+        ('overtime', 'Overtime')
+    ], string='Timer State', default='not_started', tracking=True)
+
+    timer_start_time = fields.Datetime(string='Timer Start Time')
+    timer_pause_time = fields.Datetime(string='Timer Pause Time')
+    timer_end_time = fields.Datetime(string='Timer End Time')
+    elapsed_seconds = fields.Integer(string='Elapsed Seconds', default=0)
+    remaining_seconds = fields.Integer(
+        string='Remaining Seconds',
+        compute='_compute_remaining_seconds',
+        store=False
+    )
+
+    @api.depends('duration_minutes', 'elapsed_seconds')
+    def _compute_remaining_seconds(self):
+        """Calculate remaining time in seconds"""
+        for record in self:
+            total_seconds = record.duration_minutes * 60
+            record.remaining_seconds = max(0, total_seconds - record.elapsed_seconds)
+
+    def action_start_timer(self):
+        """Start or resume the timer"""
+        self.ensure_one()
+        now = fields.Datetime.now()
+
+        if self.timer_state == 'not_started':
+            self.write({
+                'timer_state': 'running',
+                'timer_start_time': now,
+                'elapsed_seconds': 0
+            })
+            _logger.info(f"Timer started for agenda item: {self.name}")
+
+        elif self.timer_state == 'paused':
+            if self.timer_pause_time:
+                pause_duration = (now - self.timer_pause_time).total_seconds()
+                adjusted_start = self.timer_start_time + timedelta(seconds=pause_duration)
+                self.write({
+                    'timer_state': 'running',
+                    'timer_start_time': adjusted_start,
+                    'timer_pause_time': False
+                })
+            _logger.info(f"Timer resumed for agenda item: {self.name}")
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Timer Started'),
+                'message': _('Timer started for: %s') % self.name,
+                'type': 'success',
+                'sticky': False,
+            }
+        }
+
+    def action_pause_timer(self):
+        """Pause the timer"""
+        self.ensure_one()
+
+        if self.timer_state == 'running':
+            now = fields.Datetime.now()
+            if self.timer_start_time:
+                elapsed = (now - self.timer_start_time).total_seconds()
+                self.write({
+                    'timer_state': 'paused',
+                    'timer_pause_time': now,
+                    'elapsed_seconds': int(elapsed)
+                })
+            _logger.info(f"Timer paused for agenda item: {self.name}")
+
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Timer Paused'),
+                    'message': _('Timer paused for: %s') % self.name,
+                    'type': 'info',
+                    'sticky': False,
+                }
+            }
+
+    def action_stop_timer(self):
+        """Stop the timer and mark as completed"""
+        self.ensure_one()
+        now = fields.Datetime.now()
+
+        if self.timer_state in ['running', 'paused', 'overtime']:
+            if self.timer_state == 'running' and self.timer_start_time:
+                elapsed = (now - self.timer_start_time).total_seconds()
+                self.elapsed_seconds = int(elapsed)
+
+            self.write({
+                'timer_state': 'completed',
+                'timer_end_time': now
+            })
+            _logger.info(f"Timer stopped for agenda item: {self.name}")
+
+            return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': _('Timer Completed'),
+                    'message': _('Timer completed for: %s') % self.name,
+                    'type': 'success',
+                    'sticky': False,
+                }
+            }
+
+    def action_reset_timer(self):
+        """Reset the timer to initial state"""
+        self.ensure_one()
+        self.write({
+            'timer_state': 'not_started',
+            'timer_start_time': False,
+            'timer_pause_time': False,
+            'timer_end_time': False,
+            'elapsed_seconds': 0
+        })
+        _logger.info(f"Timer reset for agenda item: {self.name}")
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': _('Timer Reset'),
+                'message': _('Timer reset for: %s') % self.name,
+                'type': 'info',
+                'sticky': False,
+            }
+        }
+
+    @api.model
+    def get_timer_data(self, agenda_id):
+        """Get current timer data for real-time updates"""
+        record = self.browse(agenda_id)
+        if not record.exists():
+            return {}
+
+        now = fields.Datetime.now()
+        elapsed_seconds = 0
+
+        if record.timer_state == 'running' and record.timer_start_time:
+            elapsed_seconds = int((now - record.timer_start_time).total_seconds())
+        elif record.timer_state in ['paused', 'completed', 'overtime']:
+            elapsed_seconds = record.elapsed_seconds
+
+        total_seconds = record.duration_minutes * 60
+        remaining_seconds = max(0, total_seconds - elapsed_seconds)
+
+        return {
+            'id': record.id,
+            'name': record.name,
+            'duration_minutes': record.duration_minutes,
+            'timer_state': record.timer_state,
+            'elapsed_seconds': elapsed_seconds,
+            'remaining_seconds': remaining_seconds,
+            'is_overtime': elapsed_seconds > total_seconds
+        }
+
+    @api.model
+    def check_overtime_and_notify(self):
+        """Vérifier les agendas en overtime et envoyer des notifications"""
+        now = fields.Datetime.now()
+        overtime_agendas = self.search([
+            ('timer_state', '=', 'running'),
+            ('timer_start_time', '!=', False)
+        ])
+
+        for agenda in overtime_agendas:
+            if agenda.timer_start_time:
+                elapsed = (now - agenda.timer_start_time).total_seconds()
+                if elapsed > agenda.duration_minutes * 60:
+                    # Marquer comme overtime
+                    agenda.write({'timer_state': 'overtime'})
+                    # Notification (vous pouvez étendre avec des bus.bus pour les popups)
+                    _logger.info(f"Agenda '{agenda.name}' is in overtime!")
+                    # Ici, vous pouvez ajouter une notification via bus.bus ou chatter
 
 
 class DwPlanificationMeeting(models.Model):
@@ -411,10 +601,8 @@ class DwPlanificationMeeting(models.Model):
             )
 
         # Check for overrun conflicts before creating meeting
-        # Pass ignore_time_window=True to force immediate check
         if self.room_id and self._handle_meeting_overrun(ignore_time_window=True):
             self.env.cr.commit()
-
             raise ValidationError(
                 "⚠️ Cannot start meeting - room is still occupied.\n\n"
                 "The previous meeting is still in progress.\n"
@@ -422,13 +610,29 @@ class DwPlanificationMeeting(models.Model):
                 "Please wait a few minutes and try again."
             )
 
-        # Create the MEETING record
+        # ═══════════════════════════════════════════════════════════════════
+        # ÉTAPE 1: Copier les agendas pour le MEETING
+        # ═══════════════════════════════════════════════════════════════════
+        meeting_agendas = []
+        for agenda in self.subject_order.sorted('sequence'):
+            meeting_agenda = self.env['dw.agenda'].create({
+                'name': agenda.name,
+                'sequence': agenda.sequence,
+                'duration_minutes': agenda.duration_minutes,
+                # planification_id reste vide pour les agendas du meeting
+                # meeting_id sera assigné après la création du meeting
+            })
+            meeting_agendas.append(meeting_agenda.id)
+
+        # ═══════════════════════════════════════════════════════════════════
+        # ÉTAPE 2: Créer le MEETING avec les agendas copiés
+        # ═══════════════════════════════════════════════════════════════════
         self.actual_start_datetime = fields.Datetime.now()
         meeting = self.env['dw.meeting'].create({
             'name': self.name,
             'planned_start_datetime': self.planned_start_datetime,
             'duration': self.duration,
-            'subject_order': [(6, 0, self.subject_order.ids)],
+            'subject_order': [(6, 0, meeting_agendas)],  # Utiliser les agendas copiés
             'planification_id': self.id,
             'form_planification': True,
             'actual_start_datetime': fields.Datetime.now(),
@@ -443,16 +647,42 @@ class DwPlanificationMeeting(models.Model):
             'state': 'in_progress',
         })
 
+        # ═══════════════════════════════════════════════════════════════════
+        # ÉTAPE 3: Mettre à jour les agendas du meeting avec meeting_id
+        # ═══════════════════════════════════════════════════════════════════
+        self.env['dw.agenda'].browse(meeting_agendas).write({
+            'meeting_id': meeting.id
+        })
+
         self.write({
             'state': 'started',
             'meeting_id': meeting.id,
         })
 
+        # ═══════════════════════════════════════════════════════════════════
+        # ÉTAPE 4: Créer les SESSIONS avec des agendas copiés pour chacune
+        # ═══════════════════════════════════════════════════════════════════
         Session = self.env['dw.meeting.session']
         user_session = False
 
         for participant in self.participant_ids:
             if participant.user_id:
+                # ────────────────────────────────────────────────────────────
+                # Copier les agendas pour CETTE SESSION spécifique
+                # ────────────────────────────────────────────────────────────
+                session_agendas = []
+                for agenda in self.subject_order.sorted('sequence'):
+                    session_agenda = self.env['dw.agenda'].create({
+                        'name': agenda.name,
+                        'sequence': agenda.sequence,
+                        'duration_minutes': agenda.duration_minutes,
+                        # session_id sera assigné après la création de la session
+                    })
+                    session_agendas.append(session_agenda.id)
+
+                # ────────────────────────────────────────────────────────────
+                # Créer la session avec les agendas copiés
+                # ────────────────────────────────────────────────────────────
                 session = Session.create({
                     'name': f"Session {meeting.name}, {participant.name}",
                     'meeting_id': meeting.id,
@@ -465,8 +695,15 @@ class DwPlanificationMeeting(models.Model):
                     'is_action_assigner': participant.is_action_assigner,
                     'actual_start_datetime': fields.Datetime.now(),
                     'display_camera': self.display_camera,
-                    'subject_order': [(6, 0, self.subject_order.ids)],
+                    'subject_order': [(6, 0, session_agendas)],  # Agendas copiés
                     'project_id': self.project_id.id,
+                })
+
+                # ────────────────────────────────────────────────────────────
+                # Mettre à jour les agendas de cette session avec session_id
+                # ────────────────────────────────────────────────────────────
+                self.env['dw.agenda'].browse(session_agendas).write({
+                    'session_id': session.id
                 })
 
                 if participant.user_id.id == self.env.user.id:
