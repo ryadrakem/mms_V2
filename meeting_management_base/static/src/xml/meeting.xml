@@ -56,18 +56,20 @@
                                             <div class="participant-avatar">
                                                 <t t-esc="p.name.slice(0, 2).toUpperCase()"/>
                                                 <span t-att-class="'status-badge status-' + (p.attendance_status || 'default')"
-                                                t-att-title="getStatusLabel(p.attendance_status)"/>
+                                                      t-att-title="getStatusLabel(p.attendance_status)"
+                                                      t-if="state.meeting.state !== 'done'"
+                                                />
                                             </div>
                                             <div class="participant-info">
                                                 <div class="participant-name">
                                                     <t t-esc="p.name"/>
                                                 </div>
                                                 <div class="participant-status">
-                                                    <t t-if="p.attendance_status === 'present'">
-                                                        <i class="fa fa-circle text-success"/> Present
+                                                    <t t-if="p.is_late">
+                                                        <i class="fa fa-circle text-warning"/> Late
                                                     </t>
-                                                    <t t-elif="p.attendance_status === 'pause'">
-                                                        <i class="fa fa-circle text-warning"/> Paused
+                                                    <t t-elif="['present', 'pause'].includes(p.attendance_status)">
+                                                        <i class="fa fa-circle text-success"/> Present
                                                     </t>
                                                     <t t-elif="p.attendance_status === 'absent'">
                                                         <i class="fa fa-circle text-danger"/> Absent
@@ -147,6 +149,7 @@
                             <span>Details</span>
                         </button>
                         <button
+                                t-if="state.meeting.pv"
                                 class="tab-nav-button"
                                 t-att-class="{ 'active': state.activeMainTab === 'pv' }"
                                 t-on-click="() => this.state.activeMainTab = 'pv'">
@@ -282,19 +285,19 @@
                         </div>
                     </div>
                     <!-- PV section-->
-                    <div class="main-tab-content" t-if="state.activeMainTab === 'pv'">
-                        <div class="meeting-notes-section">
-                            <div class="notes-header">
-                                <h3>
-                                    <i class="fa fa-file-text-o"/>
-                                    PV
-                                </h3>
-                            </div>
-                            <div class="notes-editor">
-                                <pre t-esc="state.meeting.pv"/>
+                        <div class="main-tab-content" t-if="state.activeMainTab === 'pv' or state.meeting.pv">
+                            <div class="meeting-notes-section">
+                                <div class="notes-header">
+                                    <h3>
+                                        <i class="fa fa-file-text-o"/>
+                                        PV
+                                    </h3>
+                                </div>
+                                <div class="notes-editor">
+                                    <pre t-esc="state.meeting.pv"/>
+                                </div>
                             </div>
                         </div>
-                    </div>
                 </main>
             </div>
         </div>

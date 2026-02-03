@@ -247,6 +247,7 @@ class DwPlanificationMeeting(models.Model):
     actual_duration = fields.Float(string='Duration (hours)', default=1.0, tracking=True)
 
     # specific to planification
+    is_rec_save = fields.Boolean(string='Is Saved', default=False)
     equipment_ids = fields.Many2many('dw.equipment', string='Equipements')
     meeting_id = fields.Many2one('dw.meeting', string='Meetings', ondelete='cascade')
     project_id = fields.Many2one('dw.project', string='Project', domain=lambda self: self._get_allowed_projects_domain())
@@ -845,7 +846,6 @@ class DwPlanificationMeeting(models.Model):
     """
     # TODO : we have to check about this create for the calendar integration suggested by claude.
     """
-
     # @api.model_create_multi
     # def create(self, vals_list):
     #     """Créer l'événement calendrier lors de la création"""
@@ -854,6 +854,12 @@ class DwPlanificationMeeting(models.Model):
     #         if record.sync_with_calendar and record.state in ['planned', 'confirmed']:
     #             record._create_calendar_event()
     #     return records
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        records.write({'is_rec_save': True})
+        return records
 
     def write(self, vals):
         """Mettre à jour l'événement calendrier lors de la modification"""

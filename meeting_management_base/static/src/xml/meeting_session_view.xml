@@ -54,8 +54,11 @@
                                         <div class="participant-item">
                                             <div class="participant-avatar">
                                                 <t t-esc="p.name.slice(0, 2).toUpperCase()"/>
+
                                                 <span t-att-class="'status-badge status-' + (p.attendance_status || 'default')"
-                                                      t-att-title="getStatusLabel(p.attendance_status)"/>
+                                                      t-att-title="getStatusLabel(p.attendance_status)"
+                                                      t-if="state.session.state !== 'done'"
+                                                />
                                             </div>
                                             <div class="participant-info">
                                                 <div class="participant-name">

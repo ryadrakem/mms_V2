@@ -60,7 +60,7 @@ class DwParticipant(models.Model):
         ('excused', 'Excused'),
     ], string='Attendance', default='default')
 
-    is_late = fields.Boolean(string='Late', store=True, readonly=True)
+    is_late = fields.Boolean(string='Late', store=True, readonly=False)
 
     def set_attachment_2_visible(self):
         self.ensure_one()
