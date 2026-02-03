@@ -110,8 +110,8 @@
                             <field name="project_id" readonly="state != 'draft'"/>
                             <field name="is_rec_save" invisible="1"/>
                             <field name="unique_participant_ids" invisible="1" widget="many2many_tags"/>
-                            <field name="pv_writer_id2" domain="[('id', 'in', unique_participant_ids)]" invisible="not has_pv or not participant_ids"/>
-                            <field name="host_id" domain="[('id', 'in', unique_participant_ids)]" invisible="not participant_ids"/>
+                            <field name="pv_writer_id2" domain="[('id', 'in', unique_participant_ids)]" invisible="not is_rec_saved or not has_pv or not participant_ids"/>
+                            <field name="host_id" domain="[('id', 'in', unique_participant_ids)]" invisible="not is_rec_save or not participant_ids"/>
                             <field name="quorum" readonly="state != 'draft'"/>
                         </group>
                     </group>
