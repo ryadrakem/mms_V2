@@ -262,6 +262,12 @@ class DwPlanificationMeeting(models.Model):
     times_postponed = fields.Integer(string='Times Postponed')
     quorum = fields.Integer(string='Quorum (%)', default=50, help="Minimum percentage of participants who must accept.")
 
+    unique_participant_ids = fields.Many2many(
+        'dw.participant',
+        string="Unique Participants",
+        compute="_compute_unique_participants",
+        store=True
+    )
     pv_writer_id2 = fields.Many2one(
         'dw.participant',
         string='PV Writer',
@@ -308,6 +314,18 @@ class DwPlanificationMeeting(models.Model):
         'meeting_id',
         string='Documents'
     )
+
+    @api.onchange('participant_ids', 'permanent_members_id')
+    @api.depends('participant_ids', 'participant_ids.user_id')
+    def _compute_unique_participants(self):
+        for rec in self:
+            seen_users = set()
+            unique_participants = self.env['dw.participant']
+            for p in rec.participant_ids:
+                if p.user_id and p.user_id.id not in seen_users:
+                    seen_users.add(p.user_id.id)
+                    unique_participants |= p
+            rec.unique_participant_ids = unique_participants
 
     @api.onchange('pv_writer_id2')
     @api.depends('pv_writer_id2')
