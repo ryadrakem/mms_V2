@@ -21,6 +21,7 @@ export class MeetingSessionView extends Component {
     this.orm = this.env.services.orm;
     this.actionService = this.env.services.action;
     this.notification = this.env.services.notification;
+    this.agendaTimers = {};
 
     this.state = useState({
       loading: true,
@@ -80,6 +81,12 @@ export class MeetingSessionView extends Component {
       jitsiRoomId: null,
       pv: "",
       jitsiInitialized: false,
+      pipManuallyClosed: false, // Track if user closed the PiP with X button
+
+      agendaItems: [],
+      draggedAgendaId: null,
+      editingAgendaId: null,
+      newAgendaName: "",
     });
 
     this.sessionId = null;
@@ -117,6 +124,28 @@ export class MeetingSessionView extends Component {
     this._initializeVoiceRecorder = this._initializeVoiceRecorder.bind(this);
     this._initializeVoiceRecorderOnPVTab = this._initializeVoiceRecorderOnPVTab.bind(this);
     this.downloadDocument = this.downloadDocument.bind(this);
+    this.addAgendaItem = this.addAgendaItem.bind(this);
+    this.deleteAgendaItem = this.deleteAgendaItem.bind(this);
+    this.updateAgendaItem = this.updateAgendaItem.bind(this);
+    this.startEditAgenda = this.startEditAgenda.bind(this);
+    this.saveAgendaEdit = this.saveAgendaEdit.bind(this);
+    this.cancelAgendaEdit = this.cancelAgendaEdit.bind(this);
+    this.onAgendaDragStart = this.onAgendaDragStart.bind(this);
+    this.onAgendaDragOver = this.onAgendaDragOver.bind(this);
+    this.onAgendaDrop = this.onAgendaDrop.bind(this);
+    this.onAgendaDragEnd = this.onAgendaDragEnd.bind(this);
+    this.startAgendaTimer = this.startAgendaTimer.bind(this);
+    this.pauseAgendaTimer = this.pauseAgendaTimer.bind(this);
+    this.stopAgendaTimer = this.stopAgendaTimer.bind(this);
+    this.resetAgendaTimer = this.resetAgendaTimer.bind(this);
+    this.formatTime = this.formatTime.bind(this);
+    this.getTimerStateClass = this.getTimerStateClass.bind(this);
+    this.getTimerStateIcon = this.getTimerStateIcon.bind(this);
+    this.getStatusLabel = this.getStatusLabel.bind(this);
+
+    // Expose global functions so Owl can resolve them via ctx in the template
+    this.parseInt = parseInt;
+    this.Math = Math;
 
     onWillStart(async () => {
       const context = this.props.action?.context || {};
@@ -140,6 +169,7 @@ export class MeetingSessionView extends Component {
       await this.loadAvailableAssignees();
       await this.loadAvailableProjects();
       await this.loadPlanificationDocuments();
+      await this.loadAgendaItems();
     });
 
     onMounted(async () => {
@@ -153,6 +183,11 @@ export class MeetingSessionView extends Component {
       }, 10000);
 
       await this.refreshParticipantStatus();
+
+      // Initialize PiP drag functionality
+      this.initializePipDrag();
+
+      this.initializeRunningTimers();
     });
 
     onWillUnmount(() => {
@@ -175,8 +210,338 @@ export class MeetingSessionView extends Component {
           console.warn('Error cleaning up voice recorder:', e);
         }
       }
+      // Cleanup PiP drag functionality
+      if (this._cleanupPipDrag) {
+        this._cleanupPipDrag();
+      }
+
+      Object.keys(this.agendaTimers).forEach(agendaId => {
+        if (this.agendaTimers[agendaId]?.interval) {
+          clearInterval(this.agendaTimers[agendaId].interval);
+        }
+      });
     });
   }
+  // ================== AGENDA MANAGEMENT ==================
+  async loadAgendaItems() {
+    try {
+      const agendas = await this.orm.searchRead(
+        'dw.agenda',
+        [['session_id', '=', this.sessionId]],
+        ['id', 'name', 'sequence', 'duration_minutes', 'timer_state',
+         'elapsed_seconds', 'timer_start_time', 'timer_pause_time'],
+        { order: 'sequence, id' }
+      );
+
+      this.state.agendaItems = agendas;
+      this.state.session.subject_order = agendas;
+    } catch (error) {
+      console.error('Failed to load agenda items:', error);
+      this.notification.add('Failed to load agenda', { type: 'danger' });
+    }
+  }
+
+  async addAgendaItem() {
+    if (!this.state.newAgendaName.trim()) {
+      this.notification.add('Please enter an agenda item name', { type: 'warning' });
+      return;
+    }
+
+    try {
+      const maxSequence = this.state.agendaItems.length > 0
+        ? Math.max(...this.state.agendaItems.map(a => a.sequence || 0))
+        : 0;
+
+      const newId = await this.orm.create('dw.agenda', [{
+        name: this.state.newAgendaName,
+        session_id: this.sessionId,
+        meeting_id: this.meetingId,
+        planification_id: this.planificationId,
+        sequence: maxSequence + 10,
+        duration_minutes: 15,
+        timer_state: 'not_started',
+      }]);
+
+      await this.loadAgendaItems();
+      this.state.newAgendaName = "";
+      this.notification.add('Agenda item added', { type: 'success' });
+    } catch (error) {
+      console.error('Failed to add agenda item:', error);
+      this.notification.add('Failed to add agenda item', { type: 'danger' });
+    }
+  }
+
+  async deleteAgendaItem(agendaId) {
+    const confirmed = confirm('Delete this agenda item?');
+    if (!confirmed) return;
+
+    try {
+      await this.orm.unlink('dw.agenda', [agendaId]);
+
+      // Stop timer if running
+      if (this.agendaTimers[agendaId]) {
+        clearInterval(this.agendaTimers[agendaId].interval);
+        delete this.agendaTimers[agendaId];
+      }
+
+      await this.loadAgendaItems();
+      this.notification.add('Agenda item deleted', { type: 'success' });
+    } catch (error) {
+      console.error('Failed to delete agenda item:', error);
+      this.notification.add('Failed to delete agenda item', { type: 'danger' });
+    }
+  }
+
+  async updateAgendaItem(agendaId, field, value) {
+    try {
+      await this.orm.write('dw.agenda', [agendaId], { [field]: value });
+
+      const item = this.state.agendaItems.find(a => a.id === agendaId);
+      if (item) {
+        item[field] = value;
+      }
+
+      if (this._updateTimeout) clearTimeout(this._updateTimeout);
+      this._updateTimeout = setTimeout(() => {
+        this.notification.add('Agenda updated', { type: 'success', timeout: 1000 });
+      }, 500);
+    } catch (error) {
+      console.error('Failed to update agenda item:', error);
+      this.notification.add('Failed to update agenda', { type: 'danger' });
+    }
+  }
+
+  startEditAgenda(agendaId) {
+    this.state.editingAgendaId = agendaId;
+  }
+
+  async saveAgendaEdit(agendaId) {
+    const item = this.state.agendaItems.find(a => a.id === agendaId);
+    if (item && item.name.trim()) {
+      await this.updateAgendaItem(agendaId, 'name', item.name);
+      this.state.editingAgendaId = null;
+    }
+  }
+
+  cancelAgendaEdit() {
+    this.state.editingAgendaId = null;
+    this.loadAgendaItems(); // Reload to reset changes
+  }
+
+  // Drag and Drop for reordering
+  onAgendaDragStart(ev, agendaId) {
+    this.state.draggedAgendaId = agendaId;
+    ev.dataTransfer.effectAllowed = 'move';
+  }
+
+  onAgendaDragOver(ev) {
+    ev.preventDefault();
+    ev.dataTransfer.dropEffect = 'move';
+  }
+
+  async onAgendaDrop(ev, targetAgendaId) {
+    ev.preventDefault();
+
+    if (this.state.draggedAgendaId === targetAgendaId) return;
+
+    try {
+      const items = [...this.state.agendaItems];
+      const draggedIndex = items.findIndex(a => a.id === this.state.draggedAgendaId);
+      const targetIndex = items.findIndex(a => a.id === targetAgendaId);
+
+      if (draggedIndex === -1 || targetIndex === -1) return;
+
+      // Remove dragged item
+      const [draggedItem] = items.splice(draggedIndex, 1);
+
+      // Insert at new position
+      items.splice(targetIndex, 0, draggedItem);
+
+      // Update sequences
+      const updates = items.map((item, index) => ({
+        id: item.id,
+        sequence: (index + 1) * 10
+      }));
+
+      for (const update of updates) {
+        await this.orm.write('dw.agenda', [update.id], { sequence: update.sequence });
+      }
+
+      await this.loadAgendaItems();
+      this.notification.add('Agenda reordered', { type: 'success' });
+    } catch (error) {
+      console.error('Failed to reorder agenda:', error);
+      this.notification.add('Failed to reorder agenda', { type: 'danger' });
+    }
+  }
+
+  onAgendaDragEnd() {
+    this.state.draggedAgendaId = null;
+  }
+
+  // ================== AGENDA TIMERS ==================
+
+  async startAgendaTimer(agendaId) {
+    try {
+      await this.orm.call('dw.agenda', 'action_start_timer', [agendaId]);
+      await this.loadAgendaItems();
+      this.startAgendaTimerUI(agendaId);
+    } catch (error) {
+      console.error('Failed to start timer:', error);
+      this.notification.add('Failed to start timer', { type: 'danger' });
+    }
+  }
+
+  async pauseAgendaTimer(agendaId) {
+    try {
+      await this.orm.call('dw.agenda', 'action_pause_timer', [agendaId]);
+      await this.loadAgendaItems();
+      this.pauseAgendaTimerUI(agendaId);
+    } catch (error) {
+      console.error('Failed to pause timer:', error);
+      this.notification.add('Failed to pause timer', { type: 'danger' });
+    }
+  }
+
+  async stopAgendaTimer(agendaId) {
+    try {
+      await this.orm.call('dw.agenda', 'action_stop_timer', [agendaId]);
+      await this.loadAgendaItems();
+      this.stopAgendaTimerUI(agendaId);
+    } catch (error) {
+      console.error('Failed to stop timer:', error);
+      this.notification.add('Failed to stop timer', { type: 'danger' });
+    }
+  }
+
+  async resetAgendaTimer(agendaId) {
+    try {
+      await this.orm.call('dw.agenda', 'action_reset_timer', [agendaId]);
+      await this.loadAgendaItems();
+      this.resetAgendaTimerUI(agendaId);
+    } catch (error) {
+      console.error('Failed to reset timer:', error);
+      this.notification.add('Failed to reset timer', { type: 'danger' });
+    }
+  }
+
+  // ---------- UI TIMER MANAGEMENT ----------
+
+  initializeRunningTimers() {
+    // Start UI timers for any agenda items that are currently running
+    this.state.agendaItems.forEach(item => {
+      if (item.timer_state === 'running') {
+        this.startAgendaTimerUI(item.id);
+      }
+    });
+  }
+
+  startAgendaTimerUI(agendaId) {
+    const item = this.state.agendaItems.find(i => i.id === agendaId);
+    if (!item) return;
+
+    // Clear existing timer if any
+    if (this.agendaTimers[agendaId]) {
+      clearInterval(this.agendaTimers[agendaId].interval);
+    }
+
+    this.agendaTimers[agendaId] = {
+      startTime: Date.now() / 1000 - (item.elapsed_seconds || 0),
+      interval: setInterval(() => this.updateAgendaTimerUI(agendaId), 1000)
+    };
+  }
+
+  pauseAgendaTimerUI(agendaId) {
+    if (this.agendaTimers[agendaId]) {
+      clearInterval(this.agendaTimers[agendaId].interval);
+    }
+  }
+
+  stopAgendaTimerUI(agendaId) {
+    if (this.agendaTimers[agendaId]) {
+      clearInterval(this.agendaTimers[agendaId].interval);
+      delete this.agendaTimers[agendaId];
+    }
+  }
+
+  resetAgendaTimerUI(agendaId) {
+    this.stopAgendaTimerUI(agendaId);
+
+    const elapsedEl = document.querySelector(`[data-agenda-elapsed="${agendaId}"]`);
+    const remainingEl = document.querySelector(`[data-agenda-remaining="${agendaId}"]`);
+    const progressEl = document.querySelector(`[data-agenda-progress="${agendaId}"]`);
+
+    if (elapsedEl) elapsedEl.textContent = '00:00';
+    if (remainingEl) remainingEl.textContent = '00:00';
+    if (progressEl) {
+      progressEl.style.width = '0%';
+      progressEl.classList.remove('overtime');
+    }
+  }
+
+  updateAgendaTimerUI(agendaId) {
+    const item = this.state.agendaItems.find(i => i.id === agendaId);
+    if (!item || !this.agendaTimers[agendaId]) return;
+
+    const now = Date.now() / 1000;
+    const elapsed = now - this.agendaTimers[agendaId].startTime;
+    const totalSeconds = item.duration_minutes * 60;
+    const remaining = Math.max(0, totalSeconds - elapsed);
+    const progress = Math.min(100, (elapsed / totalSeconds) * 100);
+
+    const elapsedEl = document.querySelector(`[data-agenda-elapsed="${agendaId}"]`);
+    const remainingEl = document.querySelector(`[data-agenda-remaining="${agendaId}"]`);
+    const progressEl = document.querySelector(`[data-agenda-progress="${agendaId}"]`);
+
+    if (elapsedEl) elapsedEl.textContent = this.formatTime(elapsed);
+    if (remainingEl) remainingEl.textContent = this.formatTime(remaining);
+    if (progressEl) {
+      progressEl.style.width = `${progress}%`;
+
+      // Add overtime class if over time
+      if (elapsed > totalSeconds) {
+        progressEl.classList.add('overtime');
+
+        // Notify once when entering overtime
+        if (item.timer_state !== 'overtime') {
+          item.timer_state = 'overtime';
+          this.notification.add(
+            `Agenda "${item.name}" is in overtime!`,
+            { type: 'warning', sticky: true }
+          );
+        }
+      }
+    }
+  }
+
+  formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  }
+
+  getTimerStateClass(state) {
+    const stateClasses = {
+      'not_started': 'timer-not-started',
+      'running': 'timer-running',
+      'paused': 'timer-paused',
+      'completed': 'timer-completed',
+      'overtime': 'timer-overtime',
+    };
+    return stateClasses[state] || '';
+  }
+
+  getTimerStateIcon(state) {
+    const icons = {
+      'not_started': 'fa-clock-o',
+      'running': 'fa-play-circle',
+      'paused': 'fa-pause-circle',
+      'completed': 'fa-check-circle',
+      'overtime': 'fa-exclamation-circle',
+    };
+    return icons[state] || 'fa-clock-o';
+  }
+
 
   // ================== MÉTHODES DE CLASSE (EN DEHORS DE setup()) ==================
 
@@ -789,8 +1154,10 @@ export class MeetingSessionView extends Component {
         videoContainer.classList.remove('pip-mode');
         videoContainer.classList.add('main-mode');
         this.state.showVideoPip = false;
-    } else if (this.state.session.display_camera) {
-        // Show video in PiP mode
+        // Reset the manually closed flag when user goes to video tab
+        this.state.pipManuallyClosed = false;
+    } else if (this.state.session.display_camera && !this.state.pipManuallyClosed) {
+        // Show video in PiP mode only if camera is enabled and user didn't manually close it
         videoContainer.classList.remove('main-mode');
         videoContainer.classList.add('pip-mode');
         this.state.showVideoPip = true;
@@ -811,11 +1178,211 @@ export class MeetingSessionView extends Component {
   }
 
   closeVideoPip() {
+    // Hide PiP but keep camera available on video tab
     this.state.showVideoPip = false;
+    this.state.pipManuallyClosed = true; // Mark that user manually closed the PiP
+
     const videoContainer = document.querySelector('.video-conference-container');
     if (videoContainer) {
-        videoContainer.classList.remove('pip-mode', 'main-mode');
+        // Remove PiP mode - video will show in main mode when user switches to video tab
+        videoContainer.classList.remove('pip-mode');
     }
+
+    // Note: We keep display_camera as true so video remains available on video tab
+    // The pipManuallyClosed flag prevents PiP from reappearing on other tabs
+  }
+
+  /**
+   * Initialize drag and resize functionality for PiP mode
+   */
+  initializePipDrag() {
+    const videoContainer = document.querySelector('.video-conference-container');
+    if (!videoContainer) return;
+
+    // Drag variables
+    let isDragging = false;
+    let isResizing = false;
+    let currentX, currentY;
+    let initialX, initialY;
+    let startWidth, startHeight;
+    let startMouseX, startMouseY;
+
+    // Calculate size limits based on viewport (30% to 100%)
+    const getMinSize = () => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      // 30% of viewport, maintaining 16:9 aspect ratio
+      const minWidth = Math.max(vw * 0.30, 320); // At least 320px for clarity
+      const minHeight = minWidth / (16/9);
+      return { width: minWidth, height: minHeight };
+    };
+
+    const getMaxSize = () => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      // 100% of viewport (with some padding)
+      const maxWidth = vw - 40; // 20px padding on each side
+      const maxHeight = vh - 100; // Space for header and some padding
+      return { width: maxWidth, height: maxHeight };
+    };
+
+    const dragStart = (e) => {
+      // Only allow dragging in PiP mode
+      if (!videoContainer.classList.contains('pip-mode')) return;
+
+      // Check if clicking on resize handle (bottom-right 30px area for easier grabbing)
+      const rect = videoContainer.getBoundingClientRect();
+      const isResizeHandle = (
+        e.clientX > rect.right - 30 &&
+        e.clientY > rect.bottom - 30
+      );
+
+      // Prevent dragging if clicking on buttons
+      if (e.target.closest('button')) return;
+
+      if (isResizeHandle) {
+        isResizing = true;
+        startWidth = videoContainer.offsetWidth;
+        startHeight = videoContainer.offsetHeight;
+        startMouseX = e.clientX;
+        startMouseY = e.clientY;
+        videoContainer.style.cursor = 'se-resize';
+      } else {
+        isDragging = true;
+
+        if (e.type === 'touchstart') {
+          initialX = e.touches[0].clientX - (videoContainer._xOffset || 0);
+          initialY = e.touches[0].clientY - (videoContainer._yOffset || 0);
+        } else {
+          initialX = e.clientX - (videoContainer._xOffset || 0);
+          initialY = e.clientY - (videoContainer._yOffset || 0);
+        }
+
+        videoContainer.style.cursor = 'grabbing';
+      }
+    };
+
+    const drag = (e) => {
+      e.preventDefault();
+
+      if (isResizing) {
+        const deltaX = e.clientX - startMouseX;
+        const deltaY = e.clientY - startMouseY;
+
+        const minSize = getMinSize();
+        const maxSize = getMaxSize();
+
+        let newWidth = startWidth + deltaX;
+        let newHeight = startHeight + deltaY;
+
+        // Maintain aspect ratio (16:9)
+        const aspectRatio = 16 / 9;
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+          newHeight = newWidth / aspectRatio;
+        } else {
+          newWidth = newHeight * aspectRatio;
+        }
+
+        // Apply size constraints
+        newWidth = Math.max(minSize.width, Math.min(maxSize.width, newWidth));
+        newHeight = Math.max(minSize.height, Math.min(maxSize.height, newHeight));
+
+        // Ensure aspect ratio is maintained after constraints
+        const constrainedHeight = newWidth / aspectRatio;
+        if (constrainedHeight <= maxSize.height) {
+          newHeight = constrainedHeight;
+        } else {
+          newWidth = newHeight * aspectRatio;
+        }
+
+        videoContainer.style.width = newWidth + 'px';
+        videoContainer.style.height = newHeight + 'px';
+
+      } else if (isDragging) {
+        if (e.type === 'touchmove') {
+          currentX = e.touches[0].clientX - initialX;
+          currentY = e.touches[0].clientY - initialY;
+        } else {
+          currentX = e.clientX - initialX;
+          currentY = e.clientY - initialY;
+        }
+
+        videoContainer._xOffset = currentX;
+        videoContainer._yOffset = currentY;
+
+        // Apply transform
+        videoContainer.style.transform = `translate(${currentX}px, ${currentY}px)`;
+      }
+    };
+
+    const dragEnd = () => {
+      if (isResizing) {
+        isResizing = false;
+        updateCursor();
+      }
+      if (isDragging) {
+        isDragging = false;
+        videoContainer.style.cursor = 'grab';
+      }
+    };
+
+    const updateCursorOnMove = (e) => {
+      if (!videoContainer.classList.contains('pip-mode')) return;
+      if (isDragging || isResizing) return;
+
+      const rect = videoContainer.getBoundingClientRect();
+      const isResizeHandle = (
+        e.clientX > rect.right - 30 &&
+        e.clientY > rect.bottom - 30
+      );
+
+      if (isResizeHandle) {
+        videoContainer.style.cursor = 'se-resize';
+      } else {
+        videoContainer.style.cursor = 'grab';
+      }
+    };
+
+    // Add event listeners
+    videoContainer.addEventListener('mousedown', dragStart);
+    videoContainer.addEventListener('mousemove', updateCursorOnMove);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', dragEnd);
+
+    // Touch events for mobile
+    videoContainer.addEventListener('touchstart', dragStart, { passive: false });
+    document.addEventListener('touchmove', drag, { passive: false });
+    document.addEventListener('touchend', dragEnd);
+
+    // Set cursor style for PiP mode
+    const updateCursor = () => {
+      if (videoContainer.classList.contains('pip-mode')) {
+        videoContainer.style.cursor = 'grab';
+      } else {
+        videoContainer.style.cursor = '';
+        videoContainer.style.transform = '';
+        videoContainer.style.width = '';
+        videoContainer.style.height = '';
+        videoContainer._xOffset = 0;
+        videoContainer._yOffset = 0;
+      }
+    };
+
+    // Watch for class changes
+    const observer = new MutationObserver(updateCursor);
+    observer.observe(videoContainer, { attributes: true, attributeFilter: ['class'] });
+
+    // Store cleanup function
+    this._cleanupPipDrag = () => {
+      videoContainer.removeEventListener('mousedown', dragStart);
+      videoContainer.removeEventListener('mousemove', updateCursorOnMove);
+      document.removeEventListener('mousemove', drag);
+      document.removeEventListener('mouseup', dragEnd);
+      videoContainer.removeEventListener('touchstart', dragStart);
+      document.removeEventListener('touchmove', drag);
+      document.removeEventListener('touchend', dragEnd);
+      observer.disconnect();
+    };
   }
 
   pauseJitsi() {
@@ -970,6 +1537,11 @@ export class MeetingSessionView extends Component {
 
   async toggleCamera() {
     this.state.session.display_camera = !this.state.session.display_camera;
+
+    // If user is turning camera on, reset the manually closed flag
+    if (this.state.session.display_camera) {
+      this.state.pipManuallyClosed = false;
+    }
 
     await this.orm.write("dw.meeting.session", [this.sessionId], {
       display_camera: this.state.session.display_camera,

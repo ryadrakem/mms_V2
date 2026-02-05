@@ -121,13 +121,18 @@
                         <page string="Participants">
                             <field name="participant_ids" readonly="state != 'draft'"/>
                         </page>
+
+                        <!-- AGENDA - SIMPLE LIST VIEW (NO TIMER BUTTONS) -->
                         <page string="Agenda">
                             <field name="subject_order" nolabel="1" readonly="state != 'draft'">
                                 <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
                                     <field name="name"/>
+                                    <field name="duration_minutes" string="Duration (min)"/>
                                 </list>
                             </field>
                         </page>
+
                         <page string="Meeting Outcome" invisible="state not in ('done','cancelled')">
                             <group>
                                 <group>
@@ -296,6 +301,7 @@
             </calendar>
         </field>
     </record>
+
     <!-- Action -->
     <record id="dw_planification_meeting_action" model="ir.actions.act_window">
         <field name="name">Planification Meetings</field>

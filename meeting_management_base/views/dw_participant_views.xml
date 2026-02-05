@@ -39,6 +39,7 @@
                     </div>
                     <group>
                         <field name="is_external"/>
+                        <field name="is_late"/>
                         <field name="department" invisible="is_external"/>
                         <field name="external_department" invisible="not is_external"/>
                         <field name="job" invisible="is_external"/>
