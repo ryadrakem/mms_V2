@@ -109,8 +109,9 @@
                                    readonly="state != 'draft'"/>
                             <field name="equipment_ids" widget="many2many_tags" invisible="not equipment_ids and state != 'draft'" readonly="state != 'draft'"/>
                             <field name="project_id" readonly="state != 'draft'"/>
-                            <field name="pv_writer_id2" invisible="not has_pv or not participant_ids"/>
-                            <field name="host_id" invisible="not participant_ids"/>
+                            <field name="unique_participant_ids" invisible="1" widget="many2many_tags"/>
+                            <field name="pv_writer_id2" domain="[('id', 'in', unique_participant_ids)]" invisible="not has_pv or not participant_ids"/>
+                            <field name="host_id" domain="[('id', 'in', unique_participant_ids)]" invisible="not participant_ids"/>
                             <field name="quorum" readonly="state != 'draft'"/>
                         </group>
                     </group>
