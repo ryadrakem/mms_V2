@@ -1,0 +1,39 @@
+<smartdz>
+    <data noupdate="1">
+        <record id="participant_role_president" model="dw.participant.role">
+            <field name="name">Président</field>
+            <field name="description">Président du conseil.</field>
+            <field name="is_system" eval="True"/>
+            <field name="is_member" eval="True"/>
+            <field name="is_president" eval="True"/>
+        </record>
+
+        <record id="participant_role_secretariat" model="dw.participant.role">
+            <field name="name">Secrétaire</field>
+            <field name="description">Secrétaire du Conseil.</field>
+            <field name="is_board_secretariat" eval="True"/>
+            <field name="is_system" eval="True"/>
+        </record>
+
+        <record id="participant_role_administrator" model="dw.participant.role">
+            <field name="name">Administrateur</field>
+            <field name="description">Administrateur.</field>
+            <field name="is_system" eval="True"/>
+            <field name="is_member" eval="True"/>
+        </record>
+
+        <record id="participant_role_guest" model="dw.participant.role">
+            <field name="name">Invité</field>
+            <field name="description">Invité dont la présence n'est pas obligatoire.</field>
+            <field name="is_invited" eval="True"/>
+            <field name="is_system" eval="True"/>
+        </record>
+
+        <record id="participant_role_summoned" model="dw.participant.role">
+            <field name="name">Convoqué</field>
+            <field name="description">Invité dont la présence est obligatoire.</field>
+            <field name="is_summoned" eval="True"/>
+            <field name="is_system" eval="True"/>
+        </record>
+    </data>
+</smartdz>

@@ -1,0 +1,18 @@
+<smartdz>
+    <data noupdate="0">
+        <record id="group_ca" model="dw.permanent.members">
+            <field name="name">Membre du Conseil d'administration</field>
+            <field name="is_ca" eval="True"/>
+        </record>
+
+        <record id="group_ag" model="dw.permanent.members">
+            <field name="name">Membre de l'assemblé générale</field>
+            <field name="is_ag" eval="True"/>
+        </record>
+
+        <record id="group_agex" model="dw.permanent.members">
+            <field name="name">Membre de l'assemblé générale extraordinaire</field>
+            <field name="is_agex" eval="True"/>
+        </record>
+    </data>
+</smartdz>

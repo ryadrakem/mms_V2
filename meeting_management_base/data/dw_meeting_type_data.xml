@@ -12,9 +12,21 @@
             <field name="name">Presentation</field>
             <field name="description">A formal meeting for discussion.</field>
         </record>
+        <record id="meeting_type_ca" model="dw.meeting.type">
+            <field name="name">Conseil d'administration</field>
+            <field name="description">A formal meeting for board of directors.</field>
+        </record>
         <record id="meeting_type_negociation" model="dw.meeting.type">
             <field name="name">Negociation</field>
             <field name="description">A formal meeting for discussion.</field>
+        </record>
+        <record id="meeting_type_ag" model="dw.meeting.type">
+            <field name="name">Assemblée Générale</field>
+            <field name="description">A formal meeting for general meetings.</field>
+        </record>
+        <record id="meeting_type_age" model="dw.meeting.type">
+            <field name="name">Assemblée Générale Extraordinaire</field>
+            <field name="description">A formal meeting for extraordinary general meetings.</field>
         </record>
     </data>
 </smartdz>

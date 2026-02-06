@@ -1,0 +1,29 @@
+<smartdz>
+    <menuitem id="menu_corporate_meetings"
+              name="Corporate Meetings"
+              sequence="2"/>
+
+    <menuitem id="menu_ca"
+              name="CA"
+              parent="menu_corporate_meetings"
+              action="dw_corp_ca_planification_meeting_action"
+              sequence="1"/>
+
+    <menuitem id="menu_ag"
+              name="AG"
+              parent="menu_corporate_meetings"
+              action="dw_corp_ag_planification_meeting_action"
+              sequence="2"/>
+
+    <menuitem id="menu_age"
+              name="AGEX"
+              parent="menu_corporate_meetings"
+              action="dw_corp_agex_planification_meeting_action"
+              sequence="3"/>
+    <menuitem id="menu_corp_permanent_members"
+              name="Members"
+              parent="menu_corporate_meetings"
+              action="action_corp_dw_permanent_members"
+              sequence="3"/>
+
+</smartdz>
