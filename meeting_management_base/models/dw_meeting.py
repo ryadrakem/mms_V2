@@ -30,6 +30,13 @@ class DwMeeting(models.Model):
     form_planification = fields.Boolean(string='Created from the planification meetings', default=False)
     planification_id = fields.Many2one('dw.planification.meeting', string='Associated Planifications')
     project_id = fields.Many2one('dw.project', string='Project')
+    use_agenda_timer = fields.Boolean(
+        string='Use Agenda Timer',
+        related='planification_id.use_agenda_timer',
+        store=True,
+        readonly=True,
+        help='Enable timer for each agenda item during the meeting'
+    )
     # from session
     actual_start_datetime = fields.Datetime(string='Actual Start Date & Time', tracking=True)
     actual_end_datetime = fields.Datetime(string='Actual End Date & Time', store=True)
@@ -410,4 +417,3 @@ class DwMeetingDecision(models.Model):
     #             'meeting_id': self.id,
     #         }
     #     }
-

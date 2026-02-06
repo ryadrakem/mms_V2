@@ -63,6 +63,7 @@ export class MeetingSessionView extends Component {
         display_camera: false,
         actual_duration: false,
         has_remote_participants: false,
+        use_agenda_timer: true,  // ⭐ AJOUT: Activer les timers par défaut
       },
 
       localParticipantId: null,
@@ -428,6 +429,12 @@ export class MeetingSessionView extends Component {
   // ---------- UI TIMER MANAGEMENT ----------
 
   initializeRunningTimers() {
+    // ⭐ AJOUT: Ne démarrer les timers que si use_agenda_timer est activé
+    if (!this.state.session.use_agenda_timer) {
+      console.log('⏱️ Agenda timers disabled - skipping initialization');
+      return;
+    }
+
     // Start UI timers for any agenda items that are currently running
     this.state.agendaItems.forEach(item => {
       if (item.timer_state === 'running') {
@@ -704,7 +711,8 @@ export class MeetingSessionView extends Component {
           "actual_start_datetime",
           "display_camera",
           "actual_duration",
-          "has_remote_participants"
+          "has_remote_participants",
+          "use_agenda_timer"  // ⭐ AJOUT: Charger le champ use_agenda_timer
         ]
       );
 
@@ -763,6 +771,7 @@ export class MeetingSessionView extends Component {
         display_camera: sessionData.display_camera || false,
         actual_duration: sessionData.actual_duration || null,
         has_remote_participants: sessionData.has_remote_participants || false,
+        use_agenda_timer: sessionData.use_agenda_timer !== undefined ? sessionData.use_agenda_timer : true,  // ⭐ AJOUT: Récupérer use_agenda_timer du serveur
         documents: [],
       };
 

@@ -228,6 +228,12 @@ class DwPlanificationMeeting(models.Model):
     objet = fields.Char(string='Objet')
     is_external = fields.Boolean(string='External', help="If the meeting implies external participants")
     is_off_site = fields.Boolean(string='Off Site', help="If the meeting location is outside the company")
+    use_agenda_timer = fields.Boolean(
+        string='Use Agenda Timer',
+        default=True,
+        tracking=True,
+        help='Enable timer for each agenda item during the meeting'
+    )
     is_presence_constraint = fields.Boolean(string='Presence Constraint', help="Keeps the meeting from starting if a required member did not accept the invitation or if the minimum number of attendees is not reached")
     meeting_type_id = fields.Many2one('dw.meeting.type', string='Meeting Type')
     # subject_order = fields.Html(string='Agenda')

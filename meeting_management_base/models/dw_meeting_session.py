@@ -29,6 +29,13 @@ class DwMeetingSession(models.Model):
     personal_notes = fields.Text(string="My Notes / MoM")
     requirements = fields.Html(string="My Requirements")
     has_remote_participants = fields.Boolean(string='Has Remote Participants',store=True)
+    use_agenda_timer = fields.Boolean(
+        string='Use Agenda Timer',
+        related='meeting_id.use_agenda_timer',
+        store=True,
+        readonly=True,
+        help='Enable timer for each agenda item during the meeting'
+    )
     # specific to session
     is_connected = fields.Boolean(string="Currently Connected", default=False)
     is_host = fields.Boolean(string="Host User", related="participant_id.is_host", store=True)

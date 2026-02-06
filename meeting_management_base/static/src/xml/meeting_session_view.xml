@@ -324,8 +324,8 @@
                                                 </div>
                                             </div>
 
-                                            <!-- Timer Section -->
-                                            <div class="agenda-timer-section">
+                                            <!-- Timer Section - SEULEMENT SI use_agenda_timer EST ACTIVÉ -->
+                                            <div class="agenda-timer-section" t-if="state.session.use_agenda_timer">
                                                 <div class="timer-info">
                                                     <div class="timer-duration">
                                                         <label>Durée prévue:</label>
