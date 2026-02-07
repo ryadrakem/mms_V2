@@ -68,6 +68,20 @@ class DwMeeting(models.Model):
         store=True
     )
 
+    attendance_lines_json = fields.Text(string='Lignes de présence (JSON)', default='[]')
+
+    def action_sync_attendance(self, lines_json):
+        self.ensure_one()
+        # Sauvegarde
+        self.write({'attendance_lines_json': lines_json})
+
+        # Notification Temps Réel via le Bus
+        channel = f"meeting_channel_{self.id}"
+        self.env['bus.bus']._sendone(channel, 'attendance_update', {
+            'lines': lines_json
+        })
+        return True
+
     @api.depends('participant_ids', 'participant_ids.role_id')
     def _compute_host_participant(self):
         """Find the host participant"""

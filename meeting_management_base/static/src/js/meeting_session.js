@@ -3,6 +3,7 @@ import { registry } from "@web/core/registry";
 import { Component, useState, onWillStart, onMounted, onWillUnmount } from "@smartdz/owl";
 import { loadJS } from "@web/core/assets";
 import VoicePVRecorder from './voice_pv_recorder';
+import { useBus } from "@web/core/utils/hooks";
 
 export class MeetingSessionView extends Component {
   static template = "meeting_management_base.MeetingSessionView";
@@ -25,6 +26,7 @@ export class MeetingSessionView extends Component {
     this.printAttendanceSheet = this.printAttendanceSheet.bind(this);
     this.addAttendanceLine = this.addAttendanceLine.bind(this);
     this.removeAttendanceLine = this.removeAttendanceLine.bind(this);
+    this.meetingChannel = `meeting_channel_${this.props.action.context.active_id || this.props.action.params.meeting_id}`;
 
     this.state = useState({
       loading: true,
@@ -156,7 +158,7 @@ export class MeetingSessionView extends Component {
       const context = this.props.action?.context || {};
       this.sessionId = context.active_id || context.default_session_id;
       this.planificationId = context.default_planification_id;
-
+      this.env.services.bus_service.addChannel(`meeting_channel_${this.meetingId}`);
       if (!this.sessionId) {
         this.state.error = "No session ID provided";
         this.state.loading = false;
@@ -175,6 +177,15 @@ export class MeetingSessionView extends Component {
       await this.loadAvailableProjects();
       await this.loadPlanificationDocuments();
       await this.loadAgendaItems();
+    });
+
+    useBus(this.env.services.bus_service, "attendance_update", (payload) => {
+        // Cette fonction se lance quand le serveur envoie une notif
+        console.log("🔄 Mise à jour présence reçue !", payload);
+        this.state.attendanceLines = JSON.parse(payload.lines);
+
+        // Petit feedback visuel discret
+        this.notification.add("Tableau de présence synchronisé", { type: "info", sticky: false });
     });
 
     onMounted(async () => {
@@ -559,73 +570,88 @@ export class MeetingSessionView extends Component {
     méthode d'impression feuille de presence
     */
     async saveAttendanceState() {
-        if (!this.sessionId) {
-            console.warn("⚠️ Impossible de sauvegarder : pas de session ID");
-            return;
-        }
+        if (!this.sessionId) return;
 
         try {
-            // Filtrer uniquement les lignes manuelles (isEditable: true)
-            const manualLines = this.state.attendanceLines.filter(line => line.isEditable);
+            // On récupère toutes les lignes (manuelles + participants)
+            const allLines = this.state.attendanceLines.map(line => ({
+                id: line.id || null,
+                name: line.name,
+                quality: line.quality || '',
+                isEditable: line.isEditable || false,
+                isParticipant: line.isParticipant || false
+            }));
 
-            // Sauvegarder dans la base de données
-            await this.orm.write(
+            const jsonString = JSON.stringify(allLines);
+
+            // APPEL RPC À LA NOUVELLE MÉTHODE PYTHON
+            await this.orm.call(
                 'dw.meeting.session',
-                [this.sessionId],
-                {
-                    attendance_lines_json: JSON.stringify(manualLines)
-                }
+                'save_and_broadcast_attendance',
+                [this.sessionId, jsonString]
             );
 
-            console.log("💾 État feuille de présence sauvegardé:", manualLines.length, "ligne(s) manuelle(s)");
+            console.log("📡 Données envoyées et diffusées aux autres participants");
         } catch (error) {
-            console.error("❌ Erreur lors de la sauvegarde de la feuille de présence:", error);
+            console.error("❌ Erreur de synchro :", error);
         }
     }
     async loadAttendanceLines() {
         try {
-            const lines = [];
+            // 1. Récupérer le JSON sauvegardé dans la session ou le meeting
+            let savedJson = this.state.session.attendance_lines_json; // Si dispo dans le state session initial
 
-            // Charger les participants existants
-            if (this.state.session.participants?.length) {
-                this.state.session.participants.forEach(participant => {
-                    lines.push({
-                        id: participant.id,
-                        name: participant.name,
-                        quality: '',
-                        isEditable: false,
-                        isParticipant: true
-                    });
-                });
-            }
-
-            // Charger les lignes manuelles sauvegardées
-            if (this.sessionId) {
-                const session = await this.orm.read(
+            // Si pas dans le state initial, on peut faire un appel RPC pour être sûr (optionnel si vos champs sont bien chargés)
+            if (!savedJson && this.sessionId) {
+                const sessionData = await this.orm.read(
                     'dw.meeting.session',
                     [this.sessionId],
                     ['attendance_lines_json']
                 );
-
-                if (session[0]?.attendance_lines_json) {
-                    try {
-                        const manualLines = JSON.parse(session[0].attendance_lines_json);
-                        manualLines.forEach(line => {
-                            if (line.isEditable) {
-                                lines.push(line);
-                            }
-                        });
-                    } catch (e) {
-                        console.warn('Erreur parsing JSON des lignes:', e);
-                    }
-                }
+                savedJson = sessionData[0]?.attendance_lines_json;
             }
 
-            this.state.attendanceLines = lines;
-            console.log("✅ Lignes de présence chargées:", lines.length);
+            // 2. LOGIQUE DE CHARGEMENT
+            // Si on a du JSON valide (et qu'il n'est pas vide "[]"), on l'utilise comme source unique.
+            if (savedJson && savedJson !== "[]" && savedJson.length > 2) {
+                try {
+                    this.state.attendanceLines = JSON.parse(savedJson);
+                    console.log("✅ Chargement depuis la sauvegarde (JSON)");
+                } catch (e) {
+                    console.warn("⚠️ Erreur parsing JSON, retour aux participants par défaut", e);
+                    this._loadDefaultParticipants();
+                }
+            } else {
+                // Sinon (première fois), on charge les participants par défaut
+                console.log("ℹ️ Première ouverture : Chargement des participants par défaut");
+                this._loadDefaultParticipants();
+            }
+
         } catch (error) {
             console.error("❌ Erreur chargement lignes de présence:", error);
             this.state.attendanceLines = [];
+        }
+    }
+
+    // Nouvelle méthode helper pour charger les participants par défaut
+    _loadDefaultParticipants() {
+        const lines = [];
+        if (this.state.session.participants?.length) {
+            this.state.session.participants.forEach(participant => {
+                lines.push({
+                    id: participant.id,
+                    name: participant.name,
+                    quality: '',
+                    // ⭐ ON MET TOUT LE MONDE EN EDITABLE POUR POUVOIR LES SUPPRIMER
+                    isEditable: true,
+                    isParticipant: true
+                });
+            });
+        }
+        this.state.attendanceLines = lines;
+        // On sauvegarde immédiatement cet état initial pour "figer" la liste
+        if (lines.length > 0) {
+            this.saveAttendanceState();
         }
     }
 

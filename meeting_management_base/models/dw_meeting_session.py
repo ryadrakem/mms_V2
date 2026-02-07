@@ -68,9 +68,15 @@ class DwMeetingSession(models.Model):
     )
 
     attendance_lines_json = fields.Text(
-        string='Lignes de présence (JSON)',
-        help='Stocke les lignes de présence ajoutées manuellement au format JSON'
+        related='meeting_id.attendance_lines_json',
+        readonly=False,  # Important pour pouvoir écrire dessus
+        store=True
     )
+
+    def save_and_broadcast_attendance(self, lines_json):
+        self.ensure_one()
+        # On délègue au meeting pour gérer le broadcast
+        return self.meeting_id.action_sync_attendance(lines_json)
 
     def get_all_attendance_lines(self):
         """Retourne l'état sauvegardé du tableau"""

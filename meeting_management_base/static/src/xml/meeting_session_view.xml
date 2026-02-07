@@ -741,10 +741,11 @@
                                             <tr t-foreach="state.attendanceLines" t-as="line" t-key="line_index">
                                                 <td class="participant-name">
                                                     <!-- ⭐ Input éditable uniquement pour le host -->
-                                                    <t t-if="line.isEditable and state.session.is_host">
+                                                    <t t-if="state.session.is_host">
                                                         <input type="text"
                                                                class="attendance-input"
                                                                t-model="line.name"
+                                                               t-on-change="saveAttendanceState"
                                                                placeholder="Nom du participant..."/>
                                                     </t>
                                                     <t t-else="">
@@ -756,7 +757,6 @@
                                                 <td class="empty-cell"></td>
                                                 <td class="action-cell" t-if="state.session.is_host">
                                                     <button class="btn-icon-sm danger"
-                                                            t-if="line.isEditable"
                                                             t-on-click="() => removeAttendanceLine(line_index)">
                                                         <i class="fa fa-trash"/>
                                                     </button>
