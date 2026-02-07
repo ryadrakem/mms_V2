@@ -1,6 +1,6 @@
 /** @odoo-module **/
 import { registry } from "@web/core/registry";
-import { Component, useState, onWillStart, onMounted, onWillUnmount, useRef } from "@smartdz/owl";
+import { Component, useState, onWillStart, onMounted, onWillUnmount, useRef, markup } from "@smartdz/owl";
 import { loadJS } from "@web/core/assets";
 import { useService } from "@web/core/utils/hooks";
 
@@ -174,6 +174,9 @@ export class MeetingView extends Component {
         ? meetingData.planification_id[0]
         : meetingData.planification_id;
 
+      // ✅ FIX: Convert PV HTML to markup for safe rendering
+      const pvContent = meetingData.pv || "";
+
       this.state.meeting = {
         id: this.meetingId,
         name: meetingData.name || "",
@@ -199,7 +202,7 @@ export class MeetingView extends Component {
         room_id: Array.isArray(meetingData.room_id)
           ? meetingData.room_id[1]
           : null,
-        pv: meetingData.pv || "",
+        pv: markup(pvContent),  // ✅ FIX: Mark as safe HTML
         pv_status: meetingData.pv_status || "draft",
         pv_can_edit: meetingData.pv_can_edit || false,
         pv_signed_document: meetingData.pv_signed_document || null,
@@ -342,8 +345,13 @@ export class MeetingView extends Component {
 
     async savePv() {
         try {
+            // ✅ FIX: Extract plain HTML string from markup before saving
+            const pvHtml = typeof this.state.meeting.pv === 'string'
+                ? this.state.meeting.pv
+                : this.state.meeting.pv.toString();
+
             await this.orm.write("dw.meeting", [this.meetingId], {
-                pv: this.state.meeting.pv,
+                pv: pvHtml,
             });
 
             this.notification.add("PV saved successfully", {

@@ -1,6 +1,6 @@
 /** @odoo-module **/
 import { registry } from "@web/core/registry";
-import { Component, useState, onWillStart, onMounted, onWillUnmount } from "@smartdz/owl";
+import { Component, useState, onWillStart, onMounted, onWillUnmount, markup } from "@smartdz/owl";
 import { loadJS } from "@web/core/assets";
 import VoicePVRecorder from './voice_pv_recorder';
 
@@ -85,6 +85,7 @@ export class MeetingSessionView extends Component {
       meetingTypeName: "",
       jitsiRoomId: null,
       pv: "",
+      pvEditing: false,  // ✅ ADD: Track PV edit mode
       jitsiInitialized: false,
       pipManuallyClosed: false, // Track if user closed the PiP with X button
 
@@ -112,6 +113,7 @@ export class MeetingSessionView extends Component {
     this.toggleAgenda = this.toggleAgenda.bind(this);
     this.saveNotes = this.saveNotes.bind(this);
     this.savePv = this.savePv.bind(this);
+    this.togglePvEdit = this.togglePvEdit.bind(this);
     this.addNewAction = this.addNewAction.bind(this);
     this.updateAction = this.updateAction.bind(this);
     this.deleteAction = this.deleteAction.bind(this);
@@ -1019,7 +1021,9 @@ export class MeetingSessionView extends Component {
       );
       if (meetings && meetings.length > 0) {
         this.state.jitsiRoomId = meetings[0].jitsi_room_id;
-        this.state.pv = meetings[0].pv || "";
+        // Mark PV as safe HTML
+        const pvContent = meetings[0].pv || "";
+        this.state.pv = markup(pvContent);
       }
       await this.loadAttendanceLines();
       this.state.loading = false;
@@ -1713,6 +1717,10 @@ export class MeetingSessionView extends Component {
     });
   }
 
+  togglePvEdit() {
+    this.state.pvEditing = !this.state.pvEditing;
+  }
+
   // ================== SAVE OPERATIONS ==================
 
   async saveNotes() {
@@ -1737,8 +1745,13 @@ export class MeetingSessionView extends Component {
         throw new Error("No meeting ID available");
       }
 
+      // ✅ FIX: Extract plain HTML string from markup before saving
+      const pvHtml = typeof this.state.pv === 'string'
+        ? this.state.pv
+        : this.state.pv.toString();
+
       await this.orm.write("dw.meeting", [this.meetingId], {
-        pv: this.state.pv,
+        pv: pvHtml,
       });
 
       this.notification.add("PV saved successfully", {
@@ -1788,7 +1801,8 @@ export class MeetingSessionView extends Component {
       );
 
       if (meetings && meetings.length > 0) {
-        this.state.pv = meetings[0].pv || "";
+        const pvContent = meetings[0].pv || "";
+        this.state.pv = markup(pvContent);
       }
 
       this.notification.add("PV template generated successfully", {
@@ -1814,7 +1828,8 @@ export class MeetingSessionView extends Component {
         ["pv"]
       );
       if (meetings && meetings.length > 0) {
-        this.state.pv = meetings[0].pv || "";
+        const pvContent = meetings[0].pv || "";
+        this.state.pv = markup(pvContent);
       }
     }
   }

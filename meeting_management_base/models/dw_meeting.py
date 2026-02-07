@@ -52,7 +52,11 @@ class DwMeeting(models.Model):
     summary = fields.Html(string='Summary')
     note_ids = fields.One2many('dw.meeting.note', 'meeting_id', string='Notes')
     decision_ids = fields.One2many('dw.meeting.decision', 'meeting_id', string='Decisions')
-    pv = fields.Html(string='PV')
+    pv = fields.Html(
+        string="Procès-Verbal",
+        sanitize=False,
+        sanitize_tags=False,
+    )
 
     # NEW PV FIELDS
     pv_status = fields.Selection([
