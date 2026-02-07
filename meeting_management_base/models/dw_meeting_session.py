@@ -4,6 +4,8 @@ from datetime import timedelta
 import logging
 import json
 
+_logger = logging.getLogger(__name__)
+
 class DwMeetingSession(models.Model):
     _name = 'dw.meeting.session'
     _description = 'User Meeting Session'
@@ -71,44 +73,32 @@ class DwMeetingSession(models.Model):
     )
 
     def get_all_attendance_lines(self):
-        """
-        Retourne toutes les lignes de présence :
-        - Les participants de la session
-        - Les lignes ajoutées manuellement
-        """
+        """Retourne l'état sauvegardé du tableau"""
         self.ensure_one()
-
         lines = []
 
-        # 1. Ajouter les participants existants
-        for participant in self.participant_ids:
-            lines.append({
-                'id': participant.id,
-                'name': participant.name,
-                'quality': '',
-                'arrival_time': '',
-                'is_participant': True,
-                'is_editable': False,
-            })
-
-        # 2. Ajouter les lignes manuelles du JSON
         if self.attendance_lines_json:
-            try:
-                manual_lines = json.loads(self.attendance_lines_json)
-                for line in manual_lines:
-                    # Ajouter uniquement si c'est une ligne manuelle (isEditable=True)
-                    if line.get('isEditable', False):
-                        lines.append({
-                            'id': None,
-                            'name': line.get('name', ''),
-                            'quality': '',
-                            'arrival_time': '',
-                            'is_participant': False,
-                            'is_editable': True,
-                        })
-            except json.JSONDecodeError:
-                pass
+            saved_lines = json.loads(self.attendance_lines_json)
+            for line in saved_lines:
+                quality = ''
+                if line.get('isParticipant') and line.get('id'):
+                    participant = self.participant_ids.filtered(lambda p: p.id == line['id'])
+                    if participant:
+                        if participant.is_host:
+                            quality = 'Président'
+                        elif participant.is_pv:
+                            quality = 'Secrétaire'
 
+                lines.append({
+                    'name': line.get('name', ''),
+                    'quality': quality,
+                    'is_participant': line.get('isParticipant', False),
+                })
+            return lines
+
+        # Fallback: charger tous les participants si pas de sauvegarde
+        for participant in self.participant_ids:
+            lines.append({'name': participant.name, 'quality': ''})
         return lines
 
     @api.depends('meeting_id', 'meeting_id.participant_ids')

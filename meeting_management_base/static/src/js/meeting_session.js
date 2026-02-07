@@ -558,7 +558,31 @@ export class MeetingSessionView extends Component {
     /**
     méthode d'impression feuille de presence
     */
-   async loadAttendanceLines() {
+    async saveAttendanceState() {
+        if (!this.sessionId) {
+            console.warn("⚠️ Impossible de sauvegarder : pas de session ID");
+            return;
+        }
+
+        try {
+            // Filtrer uniquement les lignes manuelles (isEditable: true)
+            const manualLines = this.state.attendanceLines.filter(line => line.isEditable);
+
+            // Sauvegarder dans la base de données
+            await this.orm.write(
+                'dw.meeting.session',
+                [this.sessionId],
+                {
+                    attendance_lines_json: JSON.stringify(manualLines)
+                }
+            );
+
+            console.log("💾 État feuille de présence sauvegardé:", manualLines.length, "ligne(s) manuelle(s)");
+        } catch (error) {
+            console.error("❌ Erreur lors de la sauvegarde de la feuille de présence:", error);
+        }
+    }
+    async loadAttendanceLines() {
         try {
             const lines = [];
 
@@ -568,14 +592,14 @@ export class MeetingSessionView extends Component {
                     lines.push({
                         id: participant.id,
                         name: participant.name,
-                        quality: '', // Sera rempli automatiquement lors de l'impression
-                        isEditable: false, // Les participants de la session ne sont pas éditables
+                        quality: '',
+                        isEditable: false,
                         isParticipant: true
                     });
                 });
             }
 
-            // Charger les lignes manuelles sauvegardées (si elles existent)
+            // Charger les lignes manuelles sauvegardées
             if (this.sessionId) {
                 const session = await this.orm.read(
                     'dw.meeting.session',
@@ -605,7 +629,8 @@ export class MeetingSessionView extends Component {
         }
     }
 
-    addAttendanceLine() {
+    async addAttendanceLine() {  // ✅ IMPORTANT: Ajouter "async"
+        // Ajouter la nouvelle ligne dans le state
         this.state.attendanceLines.push({
             id: null,
             name: '',
@@ -614,6 +639,10 @@ export class MeetingSessionView extends Component {
             isParticipant: false
         });
 
+        // ✅ NOUVEAU: Sauvegarder immédiatement l'état
+        await this.saveAttendanceState();
+
+        // Notification utilisateur
         this.notification.add("Ligne ajoutée", {
             type: "success",
         });
@@ -627,66 +656,57 @@ export class MeetingSessionView extends Component {
         }, 100);
     }
 
-    removeAttendanceLine(index) {
+    async removeAttendanceLine(index) {  // ✅ IMPORTANT: Ajouter "async"
+        // Demander confirmation
         const confirmed = confirm("Supprimer cette ligne ?");
-        if (confirmed) {
-            this.state.attendanceLines.splice(index, 1);
-            this.notification.add("Ligne supprimée", {
-                type: "success",
-            });
-        }
+        if (!confirmed) return;
+
+        // Supprimer la ligne du state
+        this.state.attendanceLines.splice(index, 1);
+
+        // ✅ NOUVEAU: Sauvegarder immédiatement l'état
+        await this.saveAttendanceState();
+
+        // Notification utilisateur
+        this.notification.add("Ligne supprimée", {
+            type: "success",
+        });
     }
 
     async printAttendanceSheet() {
         try {
-            console.log("📄 Tentative d'impression - Session ID:", this.sessionId);
-
             if (!this.sessionId) {
                 throw new Error("Aucune session ID disponible");
             }
 
-            // ✅ ÉTAPE 1: Sauvegarder les lignes manuelles ajoutées dans la base de données
-            const manualLines = this.state.attendanceLines.filter(line => line.isEditable);
+            // ✅ Sauvegarder TOUTES les lignes visibles
+            const allVisibleLines = this.state.attendanceLines.map(line => ({
+                name: line.name,
+                quality: line.quality || '',
+                isEditable: line.isEditable,
+                isParticipant: line.isParticipant,
+                id: line.id || null
+            }));
 
-            if (manualLines.length > 0) {
-                await this.orm.write(
-                    'dw.meeting.session',
-                    [this.sessionId],
-                    {
-                        attendance_lines_json: JSON.stringify(manualLines)
-                    }
-                );
-                console.log("✅ Lignes manuelles sauvegardées:", manualLines.length);
-            }
+            await this.orm.write('dw.meeting.session', [this.sessionId], {
+                attendance_lines_json: JSON.stringify(allVisibleLines)
+            });
 
-            // ✅ ÉTAPE 2: Générer le PDF
-            const action = {
+            // Générer PDF
+            await this.actionService.doAction({
                 type: 'ir.actions.report',
                 report_type: 'qweb-pdf',
                 report_name: 'meeting_management_base.report_attendance_sheet_document',
-                context: {
-                    active_id: this.sessionId,
-                    active_ids: [this.sessionId],
-                },
-            };
-
-            console.log("📄 Action à exécuter:", action);
-
-            await this.actionService.doAction(action);
-
-            this.notification.add("Génération de la feuille de présence...", {
-                type: "info",
+                context: { active_id: this.sessionId, active_ids: [this.sessionId] }
             });
 
+            this.notification.add("Feuille générée", { type: "success" });
         } catch (error) {
-            console.error("❌ Erreur complète:", error);
-            console.error("❌ Stack trace:", error.stack);
-
-            this.notification.add(`Erreur: ${error.message || error}`, {
-                type: "danger",
-            });
+            console.error("Erreur:", error);
+            this.notification.add("Erreur génération", { type: "danger" });
         }
     }
+
   /**
    * Initialize voice recorder for PV editing
    * This is now called when PV tab becomes active, not on component mount

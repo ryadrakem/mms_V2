@@ -742,7 +742,6 @@
                                                 <td class="empty-cell"></td>
                                                 <td class="action-cell">
                                                     <button class="btn-icon-sm danger"
-                                                            t-if="line.isEditable"
                                                             t-on-click="() => removeAttendanceLine(line_index)">
                                                         <i class="fa fa-trash"/>
                                                     </button>
