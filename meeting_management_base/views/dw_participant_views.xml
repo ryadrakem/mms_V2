@@ -33,15 +33,15 @@
                             <field name="available_partner_ids" invisible="1"/>
                             <field name="partner_id" invisible="not is_external"
                                    placeholder="select external participant"
-                                   domain="[('id', 'in', available_partner_ids)]"/>
-                            <field name="employee_id" invisible="is_external" placeholder="select employee"/>
+                                   domain="[('id', 'in', available_partner_ids),('id', 'not in', existing_meeting_partner_ids)]"/>
+                            <field name="employee_id" invisible="is_external" domain="[('id', 'not in', existing_meeting_employee_ids)]" placeholder="select employee"/>
                         </h1>
                     </div>
                     <group>
                         <field name="is_external"/>
                         <field name="is_late"/>
                         <field name="is_host"/>
-                        <field name="permanent_members_id"/>
+                        <field name="permanent_members_id" invisible="1"/>
                         <field name="department" invisible="is_external"/>
                         <field name="external_department" invisible="not is_external"/>
                         <field name="job" invisible="is_external"/>

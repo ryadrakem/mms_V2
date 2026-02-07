@@ -16,14 +16,14 @@
                 <sheet>
                     <group>
                         <field name="name"/>
-                        <field name="is_ca"/>
-                        <field name="is_ag"/>
-                        <field name="is_agex"/>
+                        <field name="is_ca" invisible="1"/>
+                        <field name="is_ag" invisible="1"/>
+                        <field name="is_agex" invisible="1"/>
                     </group>
 
                     <notebook>
                         <page string="Participants">
-                            <field name="participant_ids" context="{'form_view_ref' : 'mms_corporate_meetings.dw_corp_participant_view_form'}"/>
+                            <field name="participant_ids" context="{'form_view_ref' : 'mms_corporate_meetings.dw_corp_permanent_participant_view_form'}"/>
                         </page>
                     </notebook>
                 </sheet>

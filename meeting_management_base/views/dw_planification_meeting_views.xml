@@ -116,16 +116,17 @@
                                    invisible="not has_pv or not participant_ids"/>
                             <field name="host_id" string="host" domain="[('id', 'in', participant_ids)]"
                                    invisible="not participant_ids"/>
-                            <field name="use_agenda_timer" readonly="state != 'draft'"/>
-                            <field name="quorum" readonly="state != 'draft'" invisible="'use_quorum_percentage', '=', False"/>
-                            <field name="quorum_number" readonly="state != 'draft'" invisible="'use_quorum_percentage', '=', True"/>
+                            <field name="quorum" readonly="state != 'draft'"
+                                   invisible="'use_quorum_percentage', '=', False"/>
+                            <field name="quorum_number" readonly="state != 'draft'"
+                                   invisible="'use_quorum_percentage', '=', True"/>
                         </group>
                     </group>
 
                     <!-- Notebook -->
                     <notebook>
                         <page string="Participants">
-                            <field name="participant_ids" readonly="state != 'draft'"/>
+                            <field name="participant_ids" context="{'form_view_ref' : 'meeting_management_base.dw_participant_view_form'}" readonly="state != 'draft'"/>
                         </page>
 
                         <!-- AGENDA - SIMPLE LIST VIEW (NO TIMER BUTTONS) -->
@@ -134,7 +135,8 @@
                                 <list editable="bottom">
                                     <field name="sequence" widget="handle"/>
                                     <field name="name"/>
-                                    <field name="duration_minutes" string="Duration (min)" column_invisible="not parent.use_agenda_timer"/>
+                                    <field name="duration_minutes" string="Duration (min)"
+                                           column_invisible="not parent.use_agenda_timer"/>
                                 </list>
                             </field>
                         </page>
@@ -171,6 +173,7 @@
                                         <field name="is_presence_constraint"
                                                readonly="state not in ('draft', 'confirmed', 'planned')"/>
                                         <field name="calendar_event_id" invisible="1"/>
+                                        <field name="use_agenda_timer" readonly="state != 'draft'"/>
                                     </group>
                                 </group>
                                 <group>

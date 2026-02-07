@@ -720,7 +720,8 @@
                                             <th style="width: 35%;">Nom des Participants</th>
                                             <th style="width: 20%;">Qualité</th>
                                             <th style="width: 20%;">Heure d'arrivée</th>
-                                            <th style="width: 25%;">Signature</th>
+                                            <th style="width: 20%;">Signature</th>
+                                            <th style="width: 5%;"></th>
                                         </tr>
                                     </thead>
                                     <tbody>

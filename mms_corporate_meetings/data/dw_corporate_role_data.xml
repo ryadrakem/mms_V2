@@ -12,6 +12,7 @@
             <field name="name">Secrétaire</field>
             <field name="description">Secrétaire du Conseil.</field>
             <field name="is_board_secretariat" eval="True"/>
+            <field name="is_member" eval="True"/>
             <field name="is_system" eval="True"/>
         </record>
 

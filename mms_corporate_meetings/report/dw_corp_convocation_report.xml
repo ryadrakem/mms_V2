@@ -18,7 +18,9 @@
                             </tr>
                             <tr>
                                 <td style="width:30%;">
-                                    <span>Ref CA/MA/N08/2025</span>
+                                    <span style="text-decoration: underline;">Ref.</span>
+                                    <span>:</span>
+                                    <span>CA/MA/N08/2025</span>
                                 </td>
                                 <td style="width:40%; text-align:center;"></td>
                                 <td style="width:30%; text-align:right;">
@@ -54,9 +56,10 @@
                                         <t t-elif="o.meeting_type_id.is_age">
                                             <span>Membre de l'Assemblé Générale Exceptionnelle</span>
                                         </t>
+                                        <br/>
+                                        <span t-esc="o.company_id.name"/>
                                     </t>
                                     <br/>
-                                    <span t-esc="o.company_id.name"/>
                                 </td>
                             </tr>
                         </table>
@@ -93,21 +96,25 @@
                         </table>
                         <br/>
                         <br/>
-                        <table style="width:100%;">
-                            <tr style="width:100%;">
-                                <td style="width:100%;">
-                                    <span>L'ordre du jour est le suivant :</span>
-                                </td>
-                            </tr>
-                            <t t-foreach="o.subject_order" t-as="s">
-                                <tr>
-                                    <td>
-                                        <span>-</span>
-                                        <span t-esc="s.name"/>
+                        <t t-if="o.subject_order">
+                            <table style="width:100%;">
+                                <tr style="width:100%;">
+                                    <td style="width:100%;">
+                                        <span>L'ordre du jour est le suivant :</span>
                                     </td>
                                 </tr>
-                            </t>
-                        </table>
+                                <t t-foreach="o.subject_order" t-as="s">
+                                    <tr>
+                                        <td>
+                                            <span>-</span>
+                                            <span t-esc="s.name"/>
+                                        </td>
+                                    </tr>
+                                </t>
+                            </table>
+                        </t>
+                        <br/>
+                        <br/>
                         <table>
                             <tr>
                                 <td>
@@ -119,9 +126,72 @@
                                 </td>
                             </tr>
                         </table>
+                        <br/>
+                        <br/>
+                        <br/>
+                        <table style="width:100%;">
+                            <tr style="width:100%;">
+                                <td style=" width: 50%;">
 
+                                </td>
+                                <td style="width: 50%; font-weight:bold; white-space: nowrap;text-decoration: underline;">
+                                    <t t-if="o.meeting_type_id.is_ca">
+                                        <span style="white-space: nowrap;">LE PRESIDENT DU CONSEIL D'ADMINISTRATION
+                                        </span>
+                                    </t>
+                                    <t t-elif="o.meeting_type_id.is_ag">
+                                        <span>LE PRESIDENT DE L'ASSEMBLE GENERALE</span>
+                                    </t>
+                                    <t t-elif="o.meeting_type_id.is_age">
+                                        <span>LE PRESIDENT DE L'ASSEMBLE GENERALE EXCEPTIONNELLE</span>
+                                    </t>
+                                    <br/>
+                                </td>
+                            </tr>
+                            <tr style="width:100%; height: 200px;">
+                                <td style="width: 50%;">
+                                </td>
+                                <td style="width: 50%; font-weight:bold;text-decoration: underline;text-align:right;">
+                                    <span t-esc="o.host_id.name"/>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <br/>
+                        <t t-if="o.document_ids">
+                            <div style="page-break-inside: avoid;">
+                                <table style="width:100%;">
+                                    <tr style="width:100%;">
+                                        <td style="width:100%;">
+                                            <span style="text-decoration: underline; font-weight:bold;">P.J:</span>
+                                        </td>
+                                    </tr>
+                                    <t t-foreach="o.document_ids" t-as="s">
+                                        <tr>
+                                            <td>
+                                                <span>-</span>
+                                                <span t-esc="s.name"/>
+                                            </td>
+                                        </tr>
+                                    </t>
+                                </table>
+                            </div>
+                        </t>
                         <!-- Optional: force page break after each participant -->
                         <div style="page-break-after: always;"></div>
+                    </div>
+                    <div class="footer">
+                        <div style="font-size: 12px;white-space: nowrap;text-align:center; border-top:1pt solid #FF0000; width:100%;">
+                            <span t-esc="o.company_id.street">,</span>
+                            <span t-esc="o.company_id.street2">,</span>
+                            <span t-esc="o.company_id.city">,</span>
+                            <span t-esc="o.company_id.state_id.name">,</span>
+                            <span t-esc="o.company_id.zip">,</span>
+                            <span>-</span>
+                            <span t-esc="o.company_id.country_id.name"/>
+                            <br/>
+                            <span t-esc="o.company_id.website"/>
+                        </div>
                     </div>
                 </t>
             </t>

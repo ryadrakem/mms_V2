@@ -40,7 +40,8 @@ class DwParticipant(models.Model):
     ], string='Invitation Status', default='pending')
     is_host = fields.Boolean(string="Host", compute='_compute_is_host', store=True, readonly=True)
     is_pv = fields.Boolean(string="Rédacteur PV", store=True, readonly=False)
-    planification_is_send_email = fields.Boolean(related="meeting_planification_id.is_send_email", store=True, readonly=False)
+    planification_is_send_email = fields.Boolean(related="meeting_planification_id.is_send_email", store=True,
+                                                 readonly=False)
     planification_state = fields.Selection(related="meeting_planification_id.state", store=True, readonly=False)
     is_action_assigner = fields.Boolean(string="Action Assigner", store=True, readonly=False)
     user_id = fields.Many2one('res.users', string='User', compute='_compute_user_id', store=True, readonly=True)
@@ -89,8 +90,6 @@ class DwParticipant(models.Model):
         self.is_attachments_4_visible = False
         self.attachments_4 = False
 
-
-
     @api.depends('is_external')
     def _compute_available_partner_ids(self):
         """Compute partners that are not linked to any employee"""
@@ -113,7 +112,6 @@ class DwParticipant(models.Model):
                 rec.available_partner_ids = available_partners
             else:
                 rec.available_partner_ids = self.env['res.partner'].search([])
-
 
     @api.depends('meeting_planification_id.host_id')
     def _compute_is_host(self):
@@ -143,29 +141,6 @@ class DwParticipant(models.Model):
                 token_string = f"{record.id}-{record.meeting_planification_id.id}-{secret}"
                 record.access_token = hashlib.sha256(token_string.encode()).hexdigest()
         return True
-
-    # TODO: this constraint is triggered once the whole record is being created, need to find a way to trigger it before
-    # @api.constrains('employee_id', 'partner_id', 'meeting_planification_id')
-    # def _check_unique_participant(self):
-    #     for record in self:
-    #         if record.meeting_planification_id:
-    #             if record.employee_id:
-    #                 duplicate = self.search([
-    #                     ('meeting_planification_id', '=', record.meeting_planification_id.id),
-    #                     ('employee_id', '=', record.employee_id.id),
-    #                     ('id', '!=', record.id)
-    #                 ])
-    #                 if duplicate:
-    #                     raise ValidationError('This employee is already a participant in this meeting!')
-    #
-    #             if record.partner_id:
-    #                 duplicate = self.search([
-    #                     ('meeting_planification_id', '=', record.meeting_planification_id.id),
-    #                     ('partner_id', '=', record.partner_id.id),
-    #                     ('id', '!=', record.id)
-    #                 ])
-    #                 if duplicate:
-    #                     raise ValidationError('This partner is already a participant in this meeting!')
 
     @api.onchange('is_external')
     def _onchange_is_external(self):
@@ -197,3 +172,55 @@ class DwParticipant(models.Model):
                     raise ValidationError('Cannot be host without user account')
                 if record.is_pv:
                     raise ValidationError('Cannot be PV writer without user account')
+
+    # to avoid duplicate participants in permanent groups
+    existing_employee_ids = fields.Many2many(
+        'hr.employee',
+        compute='_compute_existing_employee_ids',
+        store=False
+    )
+
+
+    @api.depends('permanent_members_id.participant_ids.employee_id')
+    def _compute_existing_employee_ids(self):
+        for rec in self:
+            if rec.permanent_members_id:
+                rec.existing_employee_ids = rec.permanent_members_id.participant_ids.employee_id
+            else:
+                rec.existing_employee_ids = False
+
+
+    # avoid duplicate participants in the planification
+    existing_meeting_employee_ids = fields.Many2many(
+        'hr.employee',
+        compute='_compute_existing_meeting_employee_ids',
+        store=False
+    )
+
+    existing_meeting_partner_ids = fields.Many2many(
+        'res.partner',
+        compute='_compute_existing_meeting_partner_ids',
+        store=False
+    )
+
+    @api.depends('meeting_planification_id', 'meeting_planification_id.participant_ids.employee_id')
+    def _compute_existing_meeting_employee_ids(self):
+        for rec in self:
+            if rec.meeting_planification_id:
+                employees = rec.meeting_planification_id.participant_ids.employee_id
+                if rec.employee_id:
+                    employees = employees - rec.employee_id
+                rec.existing_meeting_employee_ids = employees
+            else:
+                rec.existing_meeting_employee_ids = self.env['hr.employee']
+
+    @api.depends('meeting_planification_id', 'meeting_planification_id.participant_ids.partner_id')
+    def _compute_existing_meeting_partner_ids(self):
+        for rec in self:
+            if rec.meeting_planification_id:
+                partners = rec.meeting_planification_id.participant_ids.partner_id
+                if rec.partner_id:
+                    partners = partners - rec.partner_id
+                rec.existing_meeting_partner_ids = partners
+            else:
+                rec.existing_meeting_partner_ids = self.env['res.partner']

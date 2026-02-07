@@ -345,7 +345,6 @@ class DwPlanificationMeeting(models.Model):
     )
 
     @api.onchange('pv_writer_id2')
-    @api.depends('pv_writer_id2')
     def _compute_set_pv_writer(self):
         for rec in self:
             rec.participant_ids.write({'is_pv': False})
@@ -920,6 +919,13 @@ class DwPlanificationMeeting(models.Model):
 
     def write(self, vals):
         result = super().write(vals)
+
+        if 'pv_writer_id2' in vals:
+            for rec in self:
+                rec.participant_ids.write({'is_pv': False})
+
+                if rec.pv_writer_id2:
+                    rec.pv_writer_id2.write({'is_pv': True})
 
         if 'state' in vals and vals['state'] in ['planned']:
             for record in self:

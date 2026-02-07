@@ -13,3 +13,4 @@ class DwPermanentMembers(models.Model):
         string='Participants'
     )
 
+
