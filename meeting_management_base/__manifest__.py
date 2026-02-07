@@ -25,6 +25,7 @@
         "views/dw_requirements_views.xml",
         "views/dw_room_views.xml",
         "views/dw_resevations.xml",
+        'views/dw_attendance_sheet_report.xml',
         "views/dw_meeting_session_view.xml",
         "views/res_config_settings_view.xml",
         "views/dw_meeting_summary.xml",

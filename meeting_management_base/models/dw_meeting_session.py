@@ -2,6 +2,7 @@ from smartdz import models, fields, api, _
 from smartdz.exceptions import ValidationError
 from datetime import timedelta
 import logging
+import json
 
 class DwMeetingSession(models.Model):
     _name = 'dw.meeting.session'
@@ -63,6 +64,52 @@ class DwMeetingSession(models.Model):
         compute='_compute_participant_ids',
         string='Participants',
     )
+
+    attendance_lines_json = fields.Text(
+        string='Lignes de présence (JSON)',
+        help='Stocke les lignes de présence ajoutées manuellement au format JSON'
+    )
+
+    def get_all_attendance_lines(self):
+        """
+        Retourne toutes les lignes de présence :
+        - Les participants de la session
+        - Les lignes ajoutées manuellement
+        """
+        self.ensure_one()
+
+        lines = []
+
+        # 1. Ajouter les participants existants
+        for participant in self.participant_ids:
+            lines.append({
+                'id': participant.id,
+                'name': participant.name,
+                'quality': '',
+                'arrival_time': '',
+                'is_participant': True,
+                'is_editable': False,
+            })
+
+        # 2. Ajouter les lignes manuelles du JSON
+        if self.attendance_lines_json:
+            try:
+                manual_lines = json.loads(self.attendance_lines_json)
+                for line in manual_lines:
+                    # Ajouter uniquement si c'est une ligne manuelle (isEditable=True)
+                    if line.get('isEditable', False):
+                        lines.append({
+                            'id': None,
+                            'name': line.get('name', ''),
+                            'quality': '',
+                            'arrival_time': '',
+                            'is_participant': False,
+                            'is_editable': True,
+                        })
+            except json.JSONDecodeError:
+                pass
+
+        return lines
 
     @api.depends('meeting_id', 'meeting_id.participant_ids')
     def _compute_participant_ids(self):

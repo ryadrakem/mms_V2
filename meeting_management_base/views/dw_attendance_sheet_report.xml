@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<smartdz>
+    <!-- Template principal pour la feuille de présence -->
+    <template id="report_attendance_sheet_document">
+        <t t-call="web.html_container">
+            <t t-call="web.basic_layout">
+                <t t-foreach="docs" t-as="session">
+                    <!-- Layout personnalisé sans external_layout pour contrôler header/footer -->
+                    <div class="page"
+                         style="position: relative; padding: 20px; font-family: Arial, Helvetica, sans-serif;">
+
+                        <!-- ========== HEADER ========== -->
+                        <div style="border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px;">
+                            <table style="width: 100%; border: 0;">
+                                <tr>
+                                    <td style="width: 30%; vertical-align: top;">
+                                        <!-- Logo de la company -->
+                                        <img t-if="session.env.company.logo"
+                                             t-att-src="'data:image/png;base64,%s' % session.env.company.logo.decode('utf-8')"
+                                             style="max-height: 80px; max-width: 150px;"
+                                             alt="Logo"/>
+                                    </td>
+                                    <td style="width: 40%; text-align: center; vertical-align: middle;">
+                                        <!-- Titre au milieu -->
+                                        <h2 style="margin: 0; font-size: 24px; font-weight: bold; color: #2c3e50;">
+                                            FEUILLE DE PRÉSENCE
+                                        </h2>
+                                        <div style="margin-top: 8px; font-size: 14px; color: #7f8c8d;"
+                                             t-if="session.meeting_type_id">
+                                            <t t-esc="session.meeting_type_id.name"/>
+                                        </div>
+                                    </td>
+                                    <td style="width: 30%; text-align: right; vertical-align: top; font-size: 11px; color: #555;">
+                                        <!-- Adresse de la company -->
+                                        <div t-if="session.env.company.street">
+                                            <t t-esc="session.env.company.street"/>
+                                        </div>
+                                        <div t-if="session.env.company.zip or session.env.company.city">
+                                            <t t-if="session.env.company.zip" t-esc="session.env.company.zip"/>
+                                            <t t-if="session.env.company.city" t-esc="session.env.company.city"/>
+                                        </div>
+                                        <div t-if="session.env.company.phone">
+                                            Tél:
+                                            <t t-esc="session.env.company.phone"/>
+                                        </div>
+                                        <div t-if="session.env.company.email">
+                                            <t t-esc="session.env.company.email"/>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- ========== INFORMATIONS DE LA RÉUNION ========== -->
+                        <div style="margin-bottom: 25px;">
+                            <table style="width: 100%; border: 0; font-size: 12px;">
+                                <tr>
+                                    <td style="width: 50%; padding: 5px 10px;">
+                                        <strong>Réunion:</strong>
+                                        <span t-esc="session.name" style="margin-left: 10px;"/>
+                                    </td>
+                                    <td style="width: 50%; padding: 5px 10px;">
+                                        <strong>Date:</strong>
+                                        <span style="margin-left: 10px;">
+                                            <t t-if="session.planned_start_datetime">
+                                                <t t-esc="session.planned_start_datetime.strftime('%d/%m/%Y')"/>
+                                            </t>
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 5px 10px;">
+                                        <strong>Heure de début:</strong>
+                                        <span style="margin-left: 10px;">
+                                            <t t-if="session.planned_start_datetime">
+                                                <t t-esc="session.planned_start_datetime.strftime('%H:%M')"/>
+                                            </t>
+                                            <t t-else="">--:--</t>
+                                        </span>
+                                    </td>
+                                    <td style="padding: 5px 10px;">
+                                        <strong>Heure de fin:</strong>
+                                        <span style="margin-left: 10px;">
+                                            <t t-if="session.planned_end_time">
+                                                <t t-esc="session.planned_end_time.strftime('%H:%M')"/>
+                                            </t>
+                                            <t t-elif="session.actual_end_datetime">
+                                                <t t-esc="session.actual_end_datetime.strftime('%H:%M')"/>
+                                            </t>
+                                            <t t-else="">--:--</t>
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr t-if="session.objet">
+                                    <td colspan="2" style="padding: 5px 10px;">
+                                        <strong>Objet:</strong>
+                                        <span t-esc="session.objet" style="margin-left: 10px;"/>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- ========== TABLEAU DES PARTICIPANTS ========== -->
+                        <t t-set="attendance_lines" t-value="session.get_all_attendance_lines()"/>
+
+                        <table style="width: 100%; border-collapse: collapse; border: 2px solid #2c3e50; margin-bottom: 30px;">
+                            <thead>
+                                <tr style="background-color: #34495e; color: white;">
+                                    <th style="border: 1px solid #2c3e50; padding: 12px; text-align: left; width: 5%;">
+                                        N°
+                                    </th>
+                                    <th style="border: 1px solid #2c3e50; padding: 12px; text-align: left; width: 35%;">
+                                        Nom et Prénom
+                                    </th>
+                                    <th style="border: 1px solid #2c3e50; padding: 12px; text-align: center; width: 20%;">
+                                        Qualité
+                                    </th>
+                                    <th style="border: 1px solid #2c3e50; padding: 12px; text-align: center; width: 15%;">
+                                        Heure d'arrivée
+                                    </th>
+                                    <th style="border: 1px solid #2c3e50; padding: 12px; text-align: center; width: 25%;">
+                                        Signature
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-if="attendance_lines and len(attendance_lines) &gt; 0">
+                                    <tr t-foreach="attendance_lines" t-as="line">
+                                        <td style="border: 1px solid #bdc3c7; padding: 10px; text-align: center; background-color: #ecf0f1;">
+                                            <t t-esc="line_index + 1"/>
+                                        </td>
+                                        <td style="border: 1px solid #bdc3c7; padding: 10px; min-height: 50px; vertical-align: top;">
+                                            <t t-esc="line.get('name', '')"/>
+                                        </td>
+                                        <td style="border: 1px solid #bdc3c7; padding: 10px; min-height: 50px; vertical-align: top; text-align: center;">
+                                            <!-- Espace pour écrire qualité  -->
+                                        </td>
+                                        <td style="border: 1px solid #bdc3c7; padding: 10px; min-height: 50px; background-color: #f9f9f9;">
+                                            <!-- Espace pour écrire l'heure d'arrivée -->
+                                        </td>
+                                        <td style="border: 1px solid #bdc3c7; padding: 10px; min-height: 50px; background-color: #f9f9f9;">
+                                            <!-- Espace pour la signature -->
+                                        </td>
+                                    </tr>
+                                </t>
+                                <t t-else="">
+                                    <tr>
+                                        <td colspan="5"
+                                            style="border: 1px solid #bdc3c7; padding: 30px; text-align: center; font-style: italic; color: #7f8c8d;">
+                                            Aucun participant enregistré
+                                        </td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+
+                        <!-- ========== PRÉSIDENT ET SECRÉTAIRE ========== -->
+                        <div style="margin-top: 40px; margin-bottom: 60px;">
+                            <table style="width: 100%; border: 0;">
+                                <tr>
+                                    <td style="width: 50%; padding: 10px; vertical-align: top;">
+                                        <div style="font-size: 13px; font-weight: bold; margin-bottom: 5px;">
+                                            Président de la réunion:
+                                        </div>
+                                    </td>
+                                    <td style="width: 50%; padding: 10px; vertical-align: top;">
+                                        <t t-set="pv_participant"
+                                           t-value="session.participant_ids.filtered(lambda p: p.is_pv)"/>
+                                        <t t-if="pv_participant">
+                                            <div style="font-size: 13px; font-weight: bold; margin-bottom: 5px;">
+                                                Secrétaire de séance:
+                                            </div>
+                                        </t>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- ========== FOOTER (en bas de page) ========== -->
+                        <div style="position: absolute; bottom: 20px; left: 20px; right: 20px; border-top: 1px solid #bdc3c7; padding-top: 10px; font-size: 10px; color: #7f8c8d; text-align: center;">
+                            <div t-if="session.env.company.street">
+                                <t t-esc="session.env.company.street"/>
+                                <t t-if="session.env.company.zip or session.env.company.city">
+                                    -
+                                    <t t-if="session.env.company.zip" t-esc="session.env.company.zip"/>
+                                    <t t-if="session.env.company.city" t-esc="session.env.company.city"/>
+                                </t>
+                            </div>
+                        </div>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <!-- Action du rapport -->
+    <record id="action_report_attendance_sheet" model="ir.actions.report">
+        <field name="name">Feuille de Présence</field>
+        <field name="model">dw.meeting.session</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">meeting_management_base.report_attendance_sheet_document</field>
+        <field name="report_file">meeting_management_base.report_attendance_sheet_document</field>
+        <field name="print_report_name">'Feuille_Presence_%s' % (object.name.replace('/', '_'))</field>
+        <field name="binding_model_id" ref="model_dw_meeting_session"/>
+        <field name="binding_type">report</field>
+    </record>
+</smartdz>

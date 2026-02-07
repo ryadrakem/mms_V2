@@ -222,6 +222,12 @@
                             <span>PV</span>
                         </button>
                         <button class="tab-nav-button"
+                                t-att-class="{ 'active': state.activeMainTab === 'attendance' }"
+                                t-on-click="() => onTabChange('attendance')">
+                            <i class="fa fa-check-square-o"/>
+                            <span>Feuille de présence</span>
+                        </button>
+                        <button class="tab-nav-button"
                                 t-att-class="{ 'active': state.activeMainTab === 'video' }"
                                 t-if="state.session.state !== 'done' and state.session.use_vc"
                                 t-on-click="() => onTabChange('video')">
@@ -296,7 +302,8 @@
                                                                 class="agenda-title-input"
                                                                 t-model="agenda.name"
                                                                 t-on-keyup="(ev) => ev.key === 'Enter' ? saveAgendaEdit(agenda.id) : ev.key === 'Escape' ? cancelAgendaEdit() : null"/>
-                                                        <button class="btn-icon-sm" t-on-click="() => saveAgendaEdit(agenda.id)">
+                                                        <button class="btn-icon-sm"
+                                                                t-on-click="() => saveAgendaEdit(agenda.id)">
                                                             <i class="fa fa-check text-success"/>
                                                         </button>
                                                         <button class="btn-icon-sm" t-on-click="cancelAgendaEdit">
@@ -341,20 +348,23 @@
                                                         </t>
                                                         <t t-else="">
                                                             <span class="duration-display">
-                                                                <t t-esc="agenda.duration_minutes"/> min
+                                                                <t t-esc="agenda.duration_minutes"/>
+                                                                min
                                                             </span>
                                                         </t>
                                                     </div>
                                                     <div class="timer-stats">
                                                         <div class="timer-stat">
                                                             <label>Écoulé:</label>
-                                                            <span class="timer-value" t-att-data-agenda-elapsed="agenda.id">
+                                                            <span class="timer-value"
+                                                                  t-att-data-agenda-elapsed="agenda.id">
                                                                 <t t-esc="formatTime(agenda.elapsed_seconds || 0)"/>
                                                             </span>
                                                         </div>
                                                         <div class="timer-stat">
                                                             <label>Restant:</label>
-                                                            <span class="timer-value" t-att-data-agenda-remaining="agenda.id">
+                                                            <span class="timer-value"
+                                                                  t-att-data-agenda-remaining="agenda.id">
                                                                 <t t-esc="formatTime(Math.max(0, agenda.duration_minutes * 60 - (agenda.elapsed_seconds || 0)))"/>
                                                             </span>
                                                         </div>
@@ -372,33 +382,39 @@
                                                 <!-- Timer Controls -->
                                                 <div class="timer-controls">
                                                     <t t-if="agenda.timer_state === 'not_started'">
-                                                        <button class="btn-timer start" t-on-click="() => startAgendaTimer(agenda.id)">
+                                                        <button class="btn-timer start"
+                                                                t-on-click="() => startAgendaTimer(agenda.id)">
                                                             <i class="fa fa-play"/>
                                                             Démarrer
                                                         </button>
                                                     </t>
                                                     <t t-elif="agenda.timer_state === 'running' or agenda.timer_state === 'overtime'">
-                                                        <button class="btn-timer pause" t-on-click="() => pauseAgendaTimer(agenda.id)">
+                                                        <button class="btn-timer pause"
+                                                                t-on-click="() => pauseAgendaTimer(agenda.id)">
                                                             <i class="fa fa-pause"/>
                                                             Pause
                                                         </button>
-                                                        <button class="btn-timer stop" t-on-click="() => stopAgendaTimer(agenda.id)">
+                                                        <button class="btn-timer stop"
+                                                                t-on-click="() => stopAgendaTimer(agenda.id)">
                                                             <i class="fa fa-stop"/>
                                                             Terminer
                                                         </button>
                                                     </t>
                                                     <t t-elif="agenda.timer_state === 'paused'">
-                                                        <button class="btn-timer resume" t-on-click="() => startAgendaTimer(agenda.id)">
+                                                        <button class="btn-timer resume"
+                                                                t-on-click="() => startAgendaTimer(agenda.id)">
                                                             <i class="fa fa-play"/>
                                                             Reprendre
                                                         </button>
-                                                        <button class="btn-timer stop" t-on-click="() => stopAgendaTimer(agenda.id)">
+                                                        <button class="btn-timer stop"
+                                                                t-on-click="() => stopAgendaTimer(agenda.id)">
                                                             <i class="fa fa-stop"/>
                                                             Terminer
                                                         </button>
                                                     </t>
                                                     <t t-elif="agenda.timer_state === 'completed'">
-                                                        <button class="btn-timer reset" t-on-click="() => resetAgendaTimer(agenda.id)">
+                                                        <button class="btn-timer reset"
+                                                                t-on-click="() => resetAgendaTimer(agenda.id)">
                                                             <i class="fa fa-refresh"/>
                                                             Réinitialiser
                                                         </button>
@@ -674,6 +690,81 @@
                                         automatiquement. Utilisez "Ajouter Séparation" pour les délimiter visuellement.
                                     </span>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Attendance Section -->
+                    <div class="main-tab-content" t-if="state.activeMainTab === 'attendance'">
+                        <div class="attendance-sheet-section">
+                            <div class="attendance-header">
+                                <h3>
+                                    <i class="fa fa-check-square-o"/>
+                                    Tableau de Feuille de Présence
+                                </h3>
+                                <div class="attendance-header-actions">
+                                    <button class="btn-add-attendance-line" t-on-click="addAttendanceLine">
+                                        <i class="fa fa-plus"/>
+                                        Ajouter une ligne
+                                    </button>
+                                    <button class="btn-print-attendance" t-on-click="printAttendanceSheet">
+                                        <i class="fa fa-print"/>
+                                        Imprimer la Feuille
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="attendance-table-container">
+                                <table class="attendance-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 35%;">Nom des Participants</th>
+                                            <th style="width: 20%;">Qualité</th>
+                                            <th style="width: 20%;">Heure d'arrivée</th>
+                                            <th style="width: 25%;">Signature</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <t t-if="state.attendanceLines?.length">
+                                            <tr t-foreach="state.attendanceLines" t-as="line" t-key="line_index">
+                                                <td class="participant-name">
+                                                    <t t-if="line.isEditable">
+                                                        <input type="text"
+                                                               class="attendance-input"
+                                                               t-model="line.name"
+                                                               placeholder="Nom du participant..."/>
+                                                    </t>
+                                                    <t t-else="">
+                                                        <t t-esc="line.name"/>
+                                                    </t>
+                                                </td>
+                                                <td class="empty-cell"></td>
+                                                <td class="empty-cell"></td>
+                                                <td class="empty-cell"></td>
+                                                <td class="action-cell">
+                                                    <button class="btn-icon-sm danger"
+                                                            t-if="line.isEditable"
+                                                            t-on-click="() => removeAttendanceLine(line_index)">
+                                                        <i class="fa fa-trash"/>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </t>
+                                        <t t-else="">
+                                            <tr>
+                                                <td colspan="5" class="empty-state">
+                                                    Aucun participant
+                                                </td>
+                                            </tr>
+                                        </t>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="attendance-footer">
+                                <p class="help-text">
+                                    <i class="fa fa-info-circle"/>
+                                    Cette feuille sera imprimée pour remplissage manuel lors de la réunion.
+                                </p>
                             </div>
                         </div>
                     </div>

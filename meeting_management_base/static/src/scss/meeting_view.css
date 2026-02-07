@@ -1605,3 +1605,334 @@
     margin-bottom: 0.5rem;
   }
 }
+
+/* ========== ATTENDANCE SHEET STYLES ========== */
+.attendance-sheet-section {
+    background: white;
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden; /* ✅ Empêcher le débordement de la section */
+}
+
+.attendance-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #e5e7eb;
+    flex-shrink: 0; /* ✅ Empêcher la réduction de l'en-tête */
+}
+
+.attendance-header h3 {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.attendance-header h3 i {
+    color: #3b82f6;
+}
+
+.attendance-header-actions {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-print-attendance,
+.btn-add-attendance-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-print-attendance {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-print-attendance:hover {
+    background: #2563eb;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.btn-add-attendance-line {
+    background: #10b981;
+    color: white;
+}
+
+.btn-add-attendance-line:hover {
+    background: #059669;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-print-attendance:active,
+.btn-add-attendance-line:active {
+    transform: translateY(0);
+}
+
+.attendance-info {
+    background: #f9fafb;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 12px;
+    flex-shrink: 0; /* ✅ Empêcher la réduction */
+}
+
+.attendance-info .info-row {
+    display: flex;
+    gap: 8px;
+}
+
+.attendance-info .info-row strong {
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.attendance-info .info-row span {
+    color: #1f2937;
+}
+
+/* ✅ SOLUTION PROBLÈME 2: Conteneur avec scroll */
+.attendance-table-container {
+    flex: 1; /* ✅ Prendre tout l'espace disponible */
+    overflow-x: auto;
+    overflow-y: auto; /* ✅ AJOUT: Activer le scroll vertical */
+    max-height: calc(100vh - 400px); /* ✅ AJOUT: Hauteur maximale dynamique */
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 16px;
+}
+
+.attendance-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}
+
+.attendance-table thead {
+    background: #f3f4f6;
+    position: sticky; /* ✅ AJOUT: Garder l'en-tête visible lors du scroll */
+    top: 0;
+    z-index: 10;
+}
+
+.attendance-table thead tr {
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.attendance-table thead th {
+    padding: 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #374151;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-right: 1px solid #e5e7eb;
+    background: #f3f4f6; /* ✅ Important pour sticky header */
+}
+
+.attendance-table thead th:last-child {
+    border-right: none;
+}
+
+.attendance-table tbody tr {
+    border-bottom: 1px solid #e5e7eb;
+    transition: background 0.2s;
+}
+
+.attendance-table tbody tr:hover {
+    background: #f9fafb;
+}
+
+.attendance-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.attendance-table tbody td {
+    padding: 16px;
+    color: #1f2937;
+    border-right: 1px solid #e5e7eb;
+    min-height: 60px;
+    vertical-align: top; /* ✅ AJOUT: Aligner le contenu en haut */
+}
+
+.attendance-table tbody td:last-child {
+    border-right: none;
+}
+
+.attendance-table tbody td.participant-name {
+    font-weight: 500;
+}
+
+.attendance-table tbody td.empty-cell {
+    background: #fafafa;
+}
+
+/* Lignes pour signature manuscrite */
+.attendance-table tbody td.empty-cell:last-child {
+    background: linear-gradient(
+        transparent 95%,
+        #d1d5db 95%,
+        #d1d5db 100%
+    );
+    background-size: 100% 20px;
+}
+
+.attendance-table tbody td.empty-state {
+    text-align: center;
+    color: #9ca3af;
+    padding: 40px;
+    font-style: italic;
+}
+
+/* Action cell pour les boutons de suppression */
+.attendance-table .action-cell {
+    text-align: center;
+    padding: 8px;
+    width: 60px; /* ✅ AJOUT: Largeur fixe pour la colonne d'actions */
+}
+
+.attendance-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.attendance-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.attendance-footer {
+    margin-top: auto; /* ✅ AJOUT: Pousser le footer vers le bas */
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+    flex-shrink: 0; /* ✅ Empêcher la réduction */
+}
+
+.attendance-footer .help-text {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #6b7280;
+    font-size: 14px;
+    margin: 0;
+}
+
+.attendance-footer .help-text i {
+    color: #3b82f6;
+}
+
+/* ✅ AJOUT: Styles pour les boutons d'action dans le tableau */
+.btn-icon-sm {
+    padding: 6px 8px;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-icon-sm:hover {
+    background: #f3f4f6;
+}
+
+.btn-icon-sm.danger {
+    color: #ef4444;
+}
+
+.btn-icon-sm.danger:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+/* Print styles */
+@media print {
+    .attendance-sheet-section {
+        box-shadow: none;
+        padding: 0;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .attendance-header-actions,
+    .attendance-footer {
+        display: none;
+    }
+
+    .attendance-table-container {
+        max-height: none;
+        overflow: visible;
+        border: none;
+    }
+
+    .attendance-table {
+        border: 2px solid #000;
+    }
+
+    .attendance-table thead th,
+    .attendance-table tbody td {
+        border: 1px solid #000;
+        padding: 12px;
+    }
+
+    .attendance-table tbody td.empty-cell {
+        min-height: 50px;
+        height: 50px;
+    }
+
+    .action-cell {
+        display: none;
+    }
+}
+
+/* ✅ AJOUT: Responsive design */
+@media (max-width: 768px) {
+    .attendance-table-container {
+        max-height: calc(100vh - 500px);
+    }
+
+    .attendance-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .attendance-header-actions {
+        flex-direction: column;
+    }
+
+    .btn-print-attendance,
+    .btn-add-attendance-line {
+        width: 100%;
+        justify-content: center;
+    }
+}

@@ -22,12 +22,16 @@ export class MeetingSessionView extends Component {
     this.actionService = this.env.services.action;
     this.notification = this.env.services.notification;
     this.agendaTimers = {};
+    this.printAttendanceSheet = this.printAttendanceSheet.bind(this);
+    this.addAttendanceLine = this.addAttendanceLine.bind(this);
+    this.removeAttendanceLine = this.removeAttendanceLine.bind(this);
 
     this.state = useState({
       loading: true,
       jitsiLoaded: false,
       jitsiAPI: null,
       error: null,
+      attendanceLines: [],
 
       session: {
         id: null,
@@ -551,7 +555,138 @@ export class MeetingSessionView extends Component {
 
 
   // ================== MÉTHODES DE CLASSE (EN DEHORS DE setup()) ==================
+    /**
+    méthode d'impression feuille de presence
+    */
+   async loadAttendanceLines() {
+        try {
+            const lines = [];
 
+            // Charger les participants existants
+            if (this.state.session.participants?.length) {
+                this.state.session.participants.forEach(participant => {
+                    lines.push({
+                        id: participant.id,
+                        name: participant.name,
+                        quality: '', // Sera rempli automatiquement lors de l'impression
+                        isEditable: false, // Les participants de la session ne sont pas éditables
+                        isParticipant: true
+                    });
+                });
+            }
+
+            // Charger les lignes manuelles sauvegardées (si elles existent)
+            if (this.sessionId) {
+                const session = await this.orm.read(
+                    'dw.meeting.session',
+                    [this.sessionId],
+                    ['attendance_lines_json']
+                );
+
+                if (session[0]?.attendance_lines_json) {
+                    try {
+                        const manualLines = JSON.parse(session[0].attendance_lines_json);
+                        manualLines.forEach(line => {
+                            if (line.isEditable) {
+                                lines.push(line);
+                            }
+                        });
+                    } catch (e) {
+                        console.warn('Erreur parsing JSON des lignes:', e);
+                    }
+                }
+            }
+
+            this.state.attendanceLines = lines;
+            console.log("✅ Lignes de présence chargées:", lines.length);
+        } catch (error) {
+            console.error("❌ Erreur chargement lignes de présence:", error);
+            this.state.attendanceLines = [];
+        }
+    }
+
+    addAttendanceLine() {
+        this.state.attendanceLines.push({
+            id: null,
+            name: '',
+            quality: '',
+            isEditable: true,
+            isParticipant: false
+        });
+
+        this.notification.add("Ligne ajoutée", {
+            type: "success",
+        });
+
+        // Auto-scroll vers le bas
+        setTimeout(() => {
+            const container = document.querySelector('.attendance-table-container');
+            if (container) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }, 100);
+    }
+
+    removeAttendanceLine(index) {
+        const confirmed = confirm("Supprimer cette ligne ?");
+        if (confirmed) {
+            this.state.attendanceLines.splice(index, 1);
+            this.notification.add("Ligne supprimée", {
+                type: "success",
+            });
+        }
+    }
+
+    async printAttendanceSheet() {
+        try {
+            console.log("📄 Tentative d'impression - Session ID:", this.sessionId);
+
+            if (!this.sessionId) {
+                throw new Error("Aucune session ID disponible");
+            }
+
+            // ✅ ÉTAPE 1: Sauvegarder les lignes manuelles ajoutées dans la base de données
+            const manualLines = this.state.attendanceLines.filter(line => line.isEditable);
+
+            if (manualLines.length > 0) {
+                await this.orm.write(
+                    'dw.meeting.session',
+                    [this.sessionId],
+                    {
+                        attendance_lines_json: JSON.stringify(manualLines)
+                    }
+                );
+                console.log("✅ Lignes manuelles sauvegardées:", manualLines.length);
+            }
+
+            // ✅ ÉTAPE 2: Générer le PDF
+            const action = {
+                type: 'ir.actions.report',
+                report_type: 'qweb-pdf',
+                report_name: 'meeting_management_base.report_attendance_sheet_document',
+                context: {
+                    active_id: this.sessionId,
+                    active_ids: [this.sessionId],
+                },
+            };
+
+            console.log("📄 Action à exécuter:", action);
+
+            await this.actionService.doAction(action);
+
+            this.notification.add("Génération de la feuille de présence...", {
+                type: "info",
+            });
+
+        } catch (error) {
+            console.error("❌ Erreur complète:", error);
+            console.error("❌ Stack trace:", error.stack);
+
+            this.notification.add(`Erreur: ${error.message || error}`, {
+                type: "danger",
+            });
+        }
+    }
   /**
    * Initialize voice recorder for PV editing
    * This is now called when PV tab becomes active, not on component mount
@@ -866,8 +1001,9 @@ export class MeetingSessionView extends Component {
         this.state.jitsiRoomId = meetings[0].jitsi_room_id;
         this.state.pv = meetings[0].pv || "";
       }
-
+      await this.loadAttendanceLines();
       this.state.loading = false;
+
     } catch (error) {
       console.error("Failed to load session data:", error);
       this.state.error = "Failed to load session data";
