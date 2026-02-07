@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<smartdz>
+
+    <record id="dw_corp_meeting_view_list" model="ir.ui.view">
+        <field name="name">dw.corp.meeting.view.list</field>
+        <field name="model">dw.meeting</field>
+        <field name="arch" type="xml">
+            <list duplicate="false" create="false" delete="true" edit="false">
+                <field name="name"/>
+                <field name="objet"/>
+                <field name="project_id"/>
+                <field name="planned_start_datetime"/>
+                <field name="state"/>
+                <button name="open_meeting"
+                        string="Open Meeting"
+                        type="object"
+                        class="btn-primary"
+                        invisible="state != 'done'"/>
+                <button name="action_join_meeting"
+                        string="Join Meeting"
+                        type="object"
+                        class="btn-success"
+                        invisible="state != 'in_progress'"/>
+                <button name="action_join_meeting"
+                        string="Open session"
+                        type="object"
+                        class="btn-success"
+                        invisible="state != 'done'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="dw_corp_meeting_view_form" model="ir.ui.view">
+        <field name="name">dw.corp.meeting.view.form</field>
+        <field name="model">dw.meeting</field>
+        <field name="arch" type="xml">
+            <form string="Meeting" duplicate="false" create="false" delete="true" edit="false">
+                <!-- Header avec statusbar et boutons -->
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="in_progress,done,cancelled"/>
+                </header>
+
+                <sheet>
+                    <!-- Title -->
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name"
+                                   readonly="form_planification"
+                                   placeholder="e.g. Réunion Projet Meeting app"/>
+                        </h1>
+                    </div>
+
+                    <!-- Basic Info -->
+                    <group>
+                        <group>
+                            <field name="form_planification"
+                                   readonly="1"/>
+                            <field name="objet"
+                                   readonly="form_planification"/>
+                            <field name="planned_start_datetime"
+                                   readonly="form_planification"/>
+                            <field name="planned_end_time"
+                                   readonly="form_planification"/>
+                            <field name="duration" readonly="1" widget="float_time"/>
+                            <field name="actual_start_datetime" readonly="1"/>
+                            <field name="actual_end_datetime" readonly="1"/>
+                            <field name="actual_duration" widget="float_time" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="is_external" widget="boolean_button"
+                                   readonly="form_planification"/>
+                            <field name="location_id"
+                                   readonly="form_planification"/>
+                            <field name="summary"/>
+                            <field name="pv"/>
+                            <field name="project_id"/>
+                        </group>
+                    </group>
+
+                    <!-- Notebook -->
+                    <notebook>
+                        <page string="Actions">
+                            <field name="actions_ids"/>
+                        </page>
+                        <page string="Participants">
+                            <field name="participant_ids"
+                                   readonly="form_planification"/>
+                        </page>
+                        <page string="Agenda">
+                            <field name="subject_order"
+                                   readonly="form_planification"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="dw_corp_ca_meeting_action" model="ir.actions.act_window">
+        <field name="name">Meeting CA</field>
+        <field name="res_model">dw.meeting</field>
+        <field name="view_mode">list</field>
+        <field name="domain">[('is_ca', '=', True)]</field>
+        <field name="view_ids"
+               eval="[(5, 0, 0),
+                          (0, 0, {'view_mode': 'list', 'view_id': ref('dw_corp_meeting_view_list')}),
+                          (0, 0, {'view_mode': 'form', 'view_id': ref('dw_corp_meeting_view_form')})]"/>
+    </record>
+
+    <record id="dw_corp_ag_meeting_action" model="ir.actions.act_window">
+        <field name="name">Meeting AG</field>
+        <field name="res_model">dw.meeting</field>
+        <field name="view_mode">list</field>
+        <field name="domain">[('is_ag', '=', True)]</field>
+        <field name="view_ids"
+               eval="[(5, 0, 0),
+                          (0, 0, {'view_mode': 'list', 'view_id': ref('dw_corp_meeting_view_list')}),
+                          (0, 0, {'view_mode': 'form', 'view_id': ref('dw_corp_meeting_view_form')})]"/>
+    </record>
+
+    <record id="dw_corp_agex_meeting_action" model="ir.actions.act_window">
+        <field name="name">Meeting AGEX</field>
+        <field name="res_model">dw.meeting</field>
+        <field name="view_mode">list</field>
+        <field name="domain">[('is_agex', '=', True)]</field>
+        <field name="view_ids"
+               eval="[(5, 0, 0),
+                          (0, 0, {'view_mode': 'list', 'view_id': ref('dw_corp_meeting_view_list')}),
+                          (0, 0, {'view_mode': 'form', 'view_id': ref('dw_corp_meeting_view_form')})]"/>
+    </record>
+</smartdz>
+

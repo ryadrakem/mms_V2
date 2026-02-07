@@ -1,29 +1,80 @@
 <smartdz>
+
+    <!--    corporate meetings root-->
     <menuitem id="menu_corporate_meetings"
               name="Corporate Meetings"
               sequence="2"/>
 
-    <menuitem id="menu_ca"
+    <!--    all ca-->
+    <menuitem id="menu_ca_root"
               name="CA"
               parent="menu_corporate_meetings"
+              sequence="1"/>
+
+    <menuitem id="menu_planification_ca"
+              name="Planification"
+              parent="menu_ca_root"
               action="dw_corp_ca_planification_meeting_action"
               sequence="1"/>
 
-    <menuitem id="menu_ag"
-              name="AG"
-              parent="menu_corporate_meetings"
-              action="dw_corp_ag_planification_meeting_action"
+    <menuitem id="menu_meeting_ca"
+              name="Réunion"
+              parent="menu_ca_root"
+              action="dw_corp_ca_meeting_action"
               sequence="2"/>
 
-    <menuitem id="menu_age"
+    <!--    all ag-->
+    <menuitem id="menu_ag_root"
+              name="AG"
+              parent="menu_corporate_meetings"
+              sequence="2"/>
+
+    <menuitem id="menu_ag_planification"
+              name="Planification"
+              parent="menu_ag_root"
+              action="dw_corp_ag_planification_meeting_action"
+              sequence="1"/>
+
+    <menuitem id="menu_ag_meeting"
+              name="Réunions"
+              parent="menu_ag_root"
+              action="dw_corp_ag_meeting_action"
+              sequence="2"/>
+
+    <!--    all age-->
+    <menuitem id="menu_agex_root"
               name="AGEX"
               parent="menu_corporate_meetings"
-              action="dw_corp_agex_planification_meeting_action"
               sequence="3"/>
+
+    <menuitem id="menu_planifiction_agex"
+              name="Planification"
+              parent="menu_agex_root"
+              action="dw_corp_agex_planification_meeting_action"
+              sequence="1"/>
+
+    <menuitem id="menu_meeting_agex"
+              name="Réunions"
+              parent="menu_agex_root"
+              action="dw_corp_agex_meeting_action"
+              sequence="2"/>
+
+    <!--    members-->
     <menuitem id="menu_corp_permanent_members"
               name="Members"
               parent="menu_corporate_meetings"
               action="action_corp_dw_permanent_members"
-              sequence="3"/>
+              sequence="4"/>
+
+    <record id="dw_corp_open_participants_action" model="ir.actions.act_window">
+        <field name="name">debu participants</field>
+        <field name="res_model">dw.participant</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="debu_participants"
+              name="debug participants"
+              parent="menu_corporate_meetings"
+              action="dw_corp_open_participants_action"
+              sequence="4"/>
 
 </smartdz>

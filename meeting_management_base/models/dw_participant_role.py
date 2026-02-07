@@ -28,12 +28,12 @@ class DwParticipantRole(models.Model):
                 if existing_host:
                     raise ValidationError(_('A host role already exists. Only one host role is allowed.'))
 
-    def write(self, vals):
-        """Prevent modification of system roles"""
-        for record in self:
-            if record.is_system and any(key in vals for key in ['name', 'is_system']):
-                raise UserError(_('Cannot modify system role "%s"') % record.name)
-        return super().write(vals)
+    # def write(self, vals):
+    #     """Prevent modification of system roles"""
+    #     for record in self:
+    #         if record.is_system and any(key in vals for key in ['name', 'is_system']):
+    #             raise UserError(_('Cannot modify system role "%s"') % record.name)
+    #     return super().write(vals)
 
     def unlink(self):
         """Prevent deletion of system roles and roles in use"""

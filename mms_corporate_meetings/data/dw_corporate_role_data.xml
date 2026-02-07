@@ -1,5 +1,5 @@
 <smartdz>
-    <data noupdate="1">
+    <data noupdate="0">
         <record id="participant_role_president" model="dw.participant.role">
             <field name="name">Président</field>
             <field name="description">Président du conseil.</field>

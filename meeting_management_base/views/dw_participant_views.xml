@@ -40,12 +40,15 @@
                     <group>
                         <field name="is_external"/>
                         <field name="is_late"/>
+                        <field name="is_host"/>
+                        <field name="permanent_members_id"/>
                         <field name="department" invisible="is_external"/>
                         <field name="external_department" invisible="not is_external"/>
                         <field name="job" invisible="is_external"/>
                         <field name="external_job" invisible="not is_external"/>
                         <field name="role_id"/>
-                        <field name="invitation_status" readonly="planification_is_send_email" invisible="planification_is_send_email"/>
+                        <field name="invitation_status" readonly="planification_is_send_email"
+                               invisible="planification_is_send_email"/>
                         <field name="is_pv" invisible="1"/>
                         <field name="is_action_assigner"/>
                         <field name="is_presence_required"/>

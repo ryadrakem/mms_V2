@@ -9,13 +9,17 @@
                 <header>
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,confirmed,planned,started,done"/>
+                    <button name="action_print_convocations"
+                            type="object"
+                            string="Print Convocations"
+                            class="btn-primary"/>
                     <button name="action_reset_to_draft" string="Set to Draft"
                             type="object"
-                            invisible="state in ('cancelled','confirmed','planned','done','draft','started') or not is_current_user_host"
+                            invisible="state in ('cancelled','confirmed','planned','done','draft','started')"
                             class="btn-secondary"/>
                     <button name="action_confirm" string="Confirm"
                             type="object"
-                            invisible="state in ('cancelled','planned','done','confirmed','started') or not is_current_user_host"
+                            invisible="state in ('cancelled','planned','done','confirmed','started')"
                             class="btn-primary"/>
                     <button name="action_plan" string="Planify" type="object"
                             invisible="state in ('planned','draft','started','cancelled','done') or not is_current_user_host"
@@ -45,8 +49,14 @@
                             invisible="state != 'cancelled'"/>
                     <div style="padding:15px; background:#f5f7fa; border-radius:10px; margin-bottom:20px;">
                         <h1 style="font-size:32px; font-weight:bold; color:#1a1a1a; margin-bottom:10px; width:100%;">
-                            <field name="name" placeholder="e.g. Réunion Projet ALPHA" readonly="state != 'draft'"/>
+                            <field name="name" placeholder="" readonly="state != 'draft'"/>
                         </h1>
+                        <h2 style="font-size:25px; font-weight:bold; color:#1a1a1a; margin-bottom:10px; width:100%;">
+                            <field name="objet"
+                                   readonly="state != 'draft'"
+                                   placeholder="Objet"
+                                   style="width:100%; min-width:200px;"/>
+                        </h2>
                         <div style="display:flex; gap:20px; flex-wrap:wrap;">
                             <div invisible="not is_external"
                                  style="background:#e1f5fe; padding:15px; border-radius:8px; flex:1; min-width:250px;">
@@ -72,12 +82,10 @@
                             </div>
                             <div style="background:#e8f5e9; padding:15px; border-radius:8px; flex:1; min-width:250px;">
                                 <strong style="font-size:14px; color:#388e3c; display:block; margin-bottom:8px;">
-                                    Object:
+                                    Membres Permanents:
                                 </strong>
                                 <div style="width:100%;">
-                                    <field name="objet"
-                                           readonly="state != 'draft'"
-                                           style="width:100%; min-width:200px;"/>
+                                    <field name="permanent_members_id" style="width:100%;"/>
                                 </div>
                             </div>
                         </div>
@@ -89,7 +97,6 @@
                             <field name="tolerated_late" readonly="state != 'draft'"/>
                             <field name="duration" widget="float_time" readonly="state != 'draft'"/>
                             <field name="planned_end_time"/>
-                            <field name="permanent_members_id"/>
                             <field name="times_postponed" readonly="1"/>
                         </group>
                         <group>
@@ -103,9 +110,10 @@
                                    invisible="not equipment_ids and state != 'draft'" readonly="state != 'draft'"/>
                             <field name="project_id" readonly="state != 'draft'"/>
                             <field name="unique_participant_ids" invisible="1" widget="many2many_tags"/>
-                            <field name="pv_writer_id2" domain="[('id', 'in', unique_participant_ids)]"
+                            <field name="pv_writer_id2"
                                    invisible="not has_pv or not participant_ids"/>
-                            <field name="host_id" domain="[('id', 'in', unique_participant_ids)]"
+                            <field name="host_id"
+                                   string="Président"
                                    invisible="not participant_ids"/>
                             <field name="quorum" readonly="state != 'draft'"/>
                         </group>
@@ -113,10 +121,10 @@
 
                     <notebook>
                         <page string="Members">
-                            <field name="participant_ids" readonly="state != 'draft'"/>
+                            <field name="member_ids" readonly="state != 'draft'"/>
                         </page>
                         <page string="Guests">
-                            <field name="participant_ids" readonly="state != 'draft'"/>
+                            <field name="guest_ids" readonly="state != 'draft'"/>
                         </page>
 
                         <page string="Agenda">

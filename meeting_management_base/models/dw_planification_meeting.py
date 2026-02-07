@@ -248,7 +248,7 @@ class DwPlanificationMeeting(models.Model):
     actual_end_datetime = fields.Datetime(string='Actual End Date & Time', store=True)
     location_id = fields.Many2one('dw.location', string='Location')
     room_id = fields.Many2one('dw.room', string='Room')
-    participant_ids = fields.One2many('dw.participant','meeting_planification_id',  compute='_compute_participant_ids_from_permanent', string='Participants', store=True)
+    participant_ids = fields.One2many('dw.participant','meeting_planification_id', string='Participants', store=True)
     duration = fields.Float(string='Duration (H)', store=True, required=True, default=1.0)
     actual_duration = fields.Float(string='Duration (hours)', default=1.0, tracking=True)
 
@@ -265,7 +265,20 @@ class DwPlanificationMeeting(models.Model):
     use_vc = fields.Boolean(string='Video Conference', default=True, help='If ticked, a video conference page will be available during the meeting')
     has_pv = fields.Boolean(string='PV', default=True, help='If the meeting implies the redaction of an offical report')
     times_postponed = fields.Integer(string='Times Postponed')
+
+    use_quorum_percentage = fields.Boolean(
+        string="Use Quorum Percentage",
+        default=True,
+        help="Enable to use a percentage quorum. Disable to use a fixed number."
+    )
+
+    quorum_number = fields.Integer(
+        string="Quorum (Number)",
+        help="Minimum number of participants who must accept."
+    )
+
     quorum = fields.Integer(string='Quorum (%)', default=50, help="Minimum percentage of participants who must accept.")
+    company_id = fields.Many2one('res.company', string='Company', default=lambda self: self.env.company)
 
     unique_participant_ids = fields.Many2many(
         'dw.participant',
@@ -301,7 +314,7 @@ class DwPlanificationMeeting(models.Model):
 
     host_id = fields.Many2one(
         'dw.participant',
-        string='Host',
+        store=True,
         tracking=True,
     )
 
@@ -339,10 +352,8 @@ class DwPlanificationMeeting(models.Model):
             if rec.pv_writer_id2:
                 rec.pv_writer_id2.is_pv = True
 
-    # copy the members of the permanent members if permanent_members_id is selected
 
     @api.onchange('permanent_members_id')
-    @api.depends('permanent_members_id')
     def _compute_participant_ids_from_permanent(self):
         for rec in self:
             if not rec.permanent_members_id:
@@ -602,13 +613,23 @@ class DwPlanificationMeeting(models.Model):
         total = len(participants)
         accepted = len(participants.filtered(lambda p: p.invitation_status == 'accepted'))
 
-        if total > 0 and self.quorum:
-            required = (total * self.quorum) / 100.0
-            if accepted < required and self.is_presence_constraint:
+        if total > 0 and self.is_presence_constraint:
+            if self.use_quorum_percentage:
+                if not self.quorum:
+                    raise ValidationError("⚠️ Please set the quorum percentage.")
+                required = (total * self.quorum) / 100.0
+                display_required = f"{self.quorum}% ({int(required) if required.is_integer() else round(required, 1)})"
+            else:
+                if not self.quorum_number:
+                    raise ValidationError("⚠️ Please set the quorum number.")
+                required = self.quorum_number
+                display_required = f"{self.quorum_number} participants"
+
+            if accepted < required:
                 raise ValidationError(
                     "⚠️ Cannot start the meeting.\n\n"
                     f"Quorum not reached: {accepted}/{total} participants accepted.\n"
-                    f"Required: {self.quorum}% ({int(required) if required.is_integer() else required:.1f})."
+                    f"Required: {display_required}."
                 )
 
         missing_required = participants.filtered(
@@ -868,20 +889,38 @@ class DwPlanificationMeeting(models.Model):
     """
     # TODO : we have to check about this create for the calendar integration suggested by claude.
     """
-    # @api.model_create_multi
-    # def create(self, vals_list):
-    #     """Créer l'événement calendrier lors de la création"""
-    #     records = super().create(vals_list)
-    #     for record in records:
-    #         if record.sync_with_calendar and record.state in ['planned', 'confirmed']:
-    #             record._create_calendar_event()
-    #     return records
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            group_id = vals.get('permanent_members_id')
+            group = self.env['dw.permanent.members'].browse(group_id)
+            meeting_type_id = vals.get('meeting_type_id')
+            if group_id:
+                meeting_type_id = self.env['dw.meeting.type'].browse(meeting_type_id)
+                if not meeting_type_id.is_corporate:
+                    participants = []
+                    for participant in group.participant_ids:
+                        participants.append((0, 0, {
+                            'name': participant.name,
+                            'employee_id': participant.employee_id.id if participant.employee_id else False,
+                            'role_id': participant.role_id.id if participant.role_id else False,
+                            'department': participant.department.id if participant.department else False,
+                            'job': participant.job.id if participant.job else False,
+                            'is_external': participant.is_external,
+                            'is_action_assigner': participant.is_action_assigner,
+                            'is_presence_required': participant.is_presence_required,
+                            'is_remote': participant.is_remote,
+                            'partner_id': participant.partner_id.id if participant.partner_id else False,
+                        }))
+                    vals['participant_ids'] = participants
+
+        return super().create(vals_list)
+
 
     def write(self, vals):
-        """Mettre à jour l'événement calendrier lors de la modification"""
         result = super().write(vals)
 
-        # Si on passe à l'état planned ou confirmed, créer l'événement
         if 'state' in vals and vals['state'] in ['planned']:
             for record in self:
                 if record.sync_with_calendar and not record.calendar_event_id:
@@ -895,6 +934,30 @@ class DwPlanificationMeeting(models.Model):
             for record in self:
                 if record.sync_with_calendar and record.calendar_event_id:
                     record._update_calendar_event()
+
+        if 'permanent_members_id' in vals:
+            for rec in self:
+                if rec.permanent_members_id:
+                    rec.participant_ids.unlink()
+
+                    participants = []
+                    for participant in rec.permanent_members_id.participant_ids:
+                        participants.append((0, 0, {
+                            'name': participant.name,
+                            'employee_id': participant.employee_id.id if participant.employee_id else False,
+                            'role_id': participant.role_id.id if participant.role_id else False,
+                            'department': participant.department.id if participant.department else False,
+                            'job': participant.job.id if participant.job else False,
+                            'is_external': participant.is_external,
+                            'is_action_assigner': participant.is_action_assigner,
+                            'is_presence_required': participant.is_presence_required,
+                            'is_remote': participant.is_remote,
+                            'partner_id': participant.partner_id.id if participant.partner_id else False,
+                        }))
+
+                    rec.participant_ids = participants
+                else:
+                    rec.participant_ids.unlink()
 
         return result
 

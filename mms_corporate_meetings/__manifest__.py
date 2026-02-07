@@ -16,6 +16,9 @@
         "views/dw_corp_participant_views.xml",
         "views/dw_corp_planification_views.xml",
         "views/dw_corp_permanent_members.xml",
+        "views/dw_corp_meeting_views.xml",
+        #reports
+        "report/dw_corp_convocation_report.xml",
         # menus
         "menus.xml",
 

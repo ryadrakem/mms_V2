@@ -110,13 +110,15 @@
                             <field name="equipment_ids" widget="many2many_tags"
                                    invisible="not equipment_ids and state != 'draft'" readonly="state != 'draft'"/>
                             <field name="project_id" readonly="state != 'draft'"/>
-                            <field name="unique_participant_ids" invisible="1" widget="many2many_tags"/>
-                            <field name="pv_writer_id2" domain="[('id', 'in', unique_participant_ids)]"
+                            <field name="unique_participant_ids" invisible="0" widget="many2many_tags"/>
+                            <field name="participant_ids" invisible="0" widget="many2many_tags"/>
+                            <field name="pv_writer_id2" domain="[('id', 'in', participant_ids)]"
                                    invisible="not has_pv or not participant_ids"/>
-                            <field name="host_id" domain="[('id', 'in', unique_participant_ids)]"
+                            <field name="host_id" string="host" domain="[('id', 'in', participant_ids)]"
                                    invisible="not participant_ids"/>
-                            <field name="quorum" readonly="state != 'draft'"/>
                             <field name="use_agenda_timer" readonly="state != 'draft'"/>
+                            <field name="quorum" readonly="state != 'draft'" invisible="'use_quorum_percentage', '=', False"/>
+                            <field name="quorum_number" readonly="state != 'draft'" invisible="'use_quorum_percentage', '=', True"/>
                         </group>
                     </group>
 
@@ -162,6 +164,7 @@
                                     <group>
                                         <field name="use_the_chat_room" readonly="state != 'draft'"/>
                                         <field name="sync_with_calendar"/>
+                                        <field name="use_quorum_percentage"/>
                                     </group>
                                     <group>
                                         <field name="is_off_site" readonly="state != 'draft'"/>

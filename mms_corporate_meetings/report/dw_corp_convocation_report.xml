@@ -1,0 +1,157 @@
+<smartdz>
+    <template id="convocation_template">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-foreach="o.participant_ids" t-as="p">
+                    <div style="width:100%; margin:0; padding:0;">
+                        <table style="width:100%; table-layout:fixed; border-collapse:collapse;">
+                            <tr>
+                                <td style="text-align:center;">
+                                    <img t-if="o.company_id.logo"
+                                         t-att-src="image_data_uri(o.company_id.logo)"
+                                         style="max-height:120px; max-width:100%;"
+                                         alt="Logo"/>
+                                </td>
+                            </tr>
+                            <tr style="border-top:1pt solid #FF0000;">
+                                <td colspan="3" style="height:15px;"></td>
+                            </tr>
+                            <tr>
+                                <td style="width:30%;">
+                                    <span>Ref CA/MA/N08/2025</span>
+                                </td>
+                                <td style="width:40%; text-align:center;"></td>
+                                <td style="width:30%; text-align:right;">
+                                    <span>Alger le, 27 avril 2025</span>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="page">
+                        <br/>
+                        <br/>
+                        <h4 style="text-align:left">
+                            <span style="text-decoration: underline;">Objet :</span>
+                            <span t-esc="o.objet or ''"/>
+                        </h4>
+                        <br/>
+                        <table style="width:100%;">
+                            <tr style="width:100%;">
+                                <td style=" width: 50%;">
+
+                                </td>
+                                <td style="width: 50%; font-weight:bold;">
+
+                                    <span t-esc="p.name or ''"/>
+                                    <br/>
+                                    <t t-if="p.role_id.is_member">
+                                        <t t-if="o.meeting_type_id.is_ca">
+                                            <span>Membre du Conseil d'administration de</span>
+                                        </t>
+                                        <t t-elif="o.meeting_type_id.is_ag">
+                                            <span>Membre de l'Assemblé Générale</span>
+                                        </t>
+                                        <t t-elif="o.meeting_type_id.is_age">
+                                            <span>Membre de l'Assemblé Générale Exceptionnelle</span>
+                                        </t>
+                                    </t>
+                                    <br/>
+                                    <span t-esc="o.company_id.name"/>
+                                </td>
+                            </tr>
+                        </table>
+                        <br/>
+                        <br/>
+                        <table>
+                            <tr>
+                                <td>
+                                    <t t-if="p.employee_id.gender == 'male'">
+                                        <span>Monsieur,</span>
+                                    </t>
+                                </td>
+                            </tr>
+                            <td>
+                                <span style="white-space: nowrap;">J'ai l'honneur de vous informer de la prochaine
+                                    reunion du conseil d'administion de la
+                                </span>
+                                <br/>
+                                <span>societe qui aura lieu</span>
+                                <span t-esc="o.planned_start_datetime or ''"/>
+                                <t t-if="p.is_remote">
+                                    <span>,a distance,</span>
+                                </t>
+                                <t t-else="">
+                                    <span>,en presentiel,</span>
+                                </t>
+                                <t t-if="o.is_off_site">
+                                    <span>A l'adresse suivante</span>
+                                </t>
+                                <t t-else="">
+                                    <span>au niveau du siege social de la societe.</span>
+                                </t>
+                            </td>
+                        </table>
+                        <br/>
+                        <br/>
+                        <table style="width:100%;">
+                            <tr style="width:100%;">
+                                <td style="width:100%;">
+                                    <span>L'ordre du jour est le suivant :</span>
+                                </td>
+                            </tr>
+                            <t t-foreach="o.subject_order" t-as="s">
+                                <tr>
+                                    <td>
+                                        <span>-</span>
+                                        <span t-esc="s.name"/>
+                                    </td>
+                                </tr>
+                            </t>
+                        </table>
+                        <table>
+                            <tr>
+                                <td>
+                                    <span>Dans l'attente de vous accueillir, je vous prie d'agreer,</span>
+                                    <t t-if="p.employee_id.gender == 'male'">
+                                        <span>Monsieur,</span>
+                                    </t>
+                                    <span>l'expression de ma consideration distinguee.</span>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <!-- Optional: force page break after each participant -->
+                        <div style="page-break-after: always;"></div>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <record id="paperformat_convocation" model="report.paperformat">
+        <field name="name">A4</field>
+        <field name="default" eval="True"/>
+        <field name="format">A4</field>
+        <field name="page_height">0</field>
+        <field name="page_width">0</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">10</field>
+        <field name="margin_bottom">30</field>
+        <field name="margin_left">25</field>
+        <field name="margin_right">25</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">10</field>
+        <field name="dpi">90</field>
+    </record>
+
+    <record id="report_convocation" model="ir.actions.report">
+        <field name="name">Convocation</field>
+        <field name="model">dw.planification.meeting</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">mms_corporate_meetings.convocation_template</field>
+        <field name="report_file">mms_corporate_meetings.convocation_template</field>
+        <field name="binding_model_id" ref="model_dw_planification_meeting"/>
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" ref="mms_corporate_meetings.paperformat_convocation"/>
+    </record>
+</smartdz>

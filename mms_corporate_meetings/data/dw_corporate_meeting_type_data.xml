@@ -4,16 +4,19 @@
             <field name="name">Conseil d'administration</field>
             <field name="description">A formal meeting for board of directors.</field>
             <field name="is_ca" eval="True"/>
+            <field name="is_corporate" eval="True"/>
         </record>
         <record id="meeting_management_base.meeting_type_ag" model="dw.meeting.type">
             <field name="name">Assemblée Générale</field>
             <field name="description">A formal meeting for general meetings.</field>
             <field name="is_ag" eval="True"/>
+            <field name="is_corporate" eval="True"/>
         </record>
         <record id="meeting_management_base.meeting_type_age" model="dw.meeting.type">
             <field name="name">Assemblée Générale Extraordinaire</field>
             <field name="description">A formal meeting for extraordinary general meetings.</field>
             <field name="is_age" eval="True"/>
+            <field name="is_corporate" eval="True"/>
         </record>
     </data>
 </smartdz>

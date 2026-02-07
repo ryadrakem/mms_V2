@@ -7,4 +7,5 @@ class DwMeetingType(models.Model):
     is_ca = fields.Boolean(string='CA')
     is_ag = fields.Boolean(string='AG')
     is_age = fields.Boolean(string='AGE')
+    is_corporate = fields.Boolean(string='Corporate')
 
