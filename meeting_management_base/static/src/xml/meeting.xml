@@ -2,7 +2,6 @@
 <templates>
     <t t-name="meeting_management_base.MeetingView">
         <div class="dw-meeting-view" role="main">
-            <!-- Header -->
             <header class="meeting-header">
                 <div class="meeting-header-left">
                     <button class="btn-back" t-on-click="goBack" title="Back">
@@ -32,9 +31,7 @@
                 </div>
             </header>
 
-            <!-- Content Grid -->
             <div class="meeting-content-grid">
-                <!-- Left Sidebar: Participants -->
                 <aside class="meeting-sidebar">
                     <div class="sidebar-card">
                         <div class="card-header">
@@ -91,9 +88,7 @@
                     </div>
                 </aside>
 
-                <!-- Main: Tabbed Content with Navigation -->
                 <main class="meeting-main">
-                    <!-- Tab Navigation Bar -->
                     <div class="main-tab-navigation">
                         <button
                                 class="tab-nav-button"
@@ -119,7 +114,6 @@
                         </button>
                     </div>
 
-                    <!--agenda section-->
                     <div class="main-tab-content" t-if="state.activeMainTab === 'agenda'">
                         <div class="meeting-actions-section">
                             <div class="actions-header">
@@ -150,7 +144,6 @@
                         </div>
                     </div>
 
-                    <!--details section-->
                     <div class="main-tab-content" t-if="state.activeMainTab === 'details'">
                         <div class="meeting-actions-section">
 
@@ -163,13 +156,11 @@
 
                             <div class="actions-body">
 
-                                <!-- Actual End -->
                                 <div class="info-row" t-if="state.meeting.actual_end_datetime">
                                     <label>Actual End</label>
                                     <span t-esc="state.meeting.actual_end_datetime"/>
                                 </div>
 
-                                <!-- Duration -->
                                 <div class="info-row" t-if="state.meeting.duration">
                                     <label>Planned Duration</label>
                                     <span>
@@ -178,43 +169,36 @@
                                     </span>
                                 </div>
 
-                                <!-- Subject -->
                                 <div class="info-row" t-if="state.meeting.objet">
                                     <label>Subject</label>
                                     <span t-esc="state.meeting.objet"/>
                                 </div>
 
-                                <!-- Meeting Type -->
                                 <div class="info-row" t-if="state.meeting.meeting_type_id">
                                     <label>Type</label>
                                     <span t-esc="state.meeting.meeting_type_id"/>
                                 </div>
 
-                                <!-- Planned Start -->
                                 <div class="info-row" t-if="state.meeting.planned_start_datetime">
                                     <label>Planned Start</label>
                                     <span t-esc="state.meeting.planned_start_datetime"/>
                                 </div>
 
-                                <!-- Planned End -->
                                 <div class="info-row" t-if="state.meeting.planned_end_time">
                                     <label>Planned End</label>
                                     <span t-esc="state.meeting.planned_end_time"/>
                                 </div>
 
-                                <!-- Actual Start -->
                                 <div class="info-row" t-if="state.meeting.actual_start_datetime">
                                     <label>Actual Start</label>
                                     <span t-esc="state.meeting.actual_start_datetime"/>
                                 </div>
 
-                                <!-- Actual Duration -->
                                 <div class="info-row" t-if="state.meeting.actual_duration">
                                     <label>Actual Duration</label>
                                     <span t-esc="state.formattedDuration"/>
                                 </div>
 
-                                <!-- Clients -->
                                 <div class="info-row" t-if="state.meeting.client_ids?.length">
                                     <label>Clients</label>
                                     <span>
@@ -225,13 +209,11 @@
                                     </span>
                                 </div>
 
-                                <!-- Location -->
                                 <div class="info-row" t-if="state.meeting.location_id">
                                     <label>Location</label>
                                     <span t-esc="state.meeting.location_id"/>
                                 </div>
 
-                                <!-- Room -->
                                 <div class="info-row" t-if="state.meeting.room_id">
                                     <label>Room</label>
                                     <span t-esc="state.meeting.room_id"/>
@@ -241,10 +223,8 @@
                         </div>
                     </div>
 
-                    <!-- PV Tab Content -->
                     <div class="main-tab-content" t-if="state.activeMainTab === 'pv'">
                         <div class="meeting-notes-section">
-                            <!-- PV Header with Actions -->
                             <div class="notes-header">
                                 <div class="pv-header-left">
                                     <h3>
@@ -257,9 +237,7 @@
                                     </span>
                                 </div>
 
-                                <!-- PV Actions Toolbar -->
                                 <div class="pv-actions">
-                                    <!-- Generate Template Button -->
                                     <button class="btn-pv-action"
                                             t-on-click="generatePvTemplate"
                                             t-if="state.meeting.pv_can_edit and !state.meeting.pv"
@@ -268,7 +246,6 @@
                                         <span>Generate Template</span>
                                     </button>
 
-                                    <!-- Edit/Save Button -->
                                     <button class="btn-pv-action"
                                             t-on-click="togglePvEdit"
                                             t-if="state.meeting.pv_can_edit and !state.pvEditing"
@@ -284,7 +261,6 @@
                                         <span>Save PV</span>
                                     </button>
 
-                                    <!-- Download Buttons -->
                                     <button class="btn-pv-action"
                                             t-on-click="downloadPvWord"
                                             t-if="state.meeting.pv"
@@ -300,16 +276,14 @@
                                         <span>PDF</span>
                                     </button>
 
-                                    <!-- Upload Signed PV Button -->
                                     <button class="btn-pv-action btn-upload"
-                                            t-on-click="() => document.getElementById('signed-pv-upload').click()"
+                                            t-on-click="triggerFileUpload"
                                             t-if="state.meeting.pv_status === 'final' and state.meeting.pv_can_edit"
                                             title="Upload signed PV">
                                         <i class="fa fa-upload"/>
                                         <span>Upload Signed</span>
                                     </button>
 
-                                    <!-- Set Final Button -->
                                     <button class="btn-pv-action btn-final"
                                             t-on-click="setPvFinal"
                                             t-if="state.meeting.pv_can_edit and state.meeting.pv_status === 'draft' and state.meeting.pv"
@@ -318,7 +292,6 @@
                                         <span>Set Final</span>
                                     </button>
 
-                                    <!-- Send PV Button -->
                                     <button class="btn-pv-action btn-send"
                                             t-on-click="sendPvEmails"
                                             t-if="state.meeting.pv and state.meeting.pv_status !== 'draft'"
@@ -327,7 +300,6 @@
                                         <span>Send to Participants</span>
                                     </button>
 
-                                    <!-- Finalize Button (only show when file is selected) -->
                                     <button class="btn-pv-action btn-finalize"
                                             t-on-click="uploadSignedPv"
                                             t-if="state.meeting.pv_status === 'final' and state.meeting.pv_can_edit and state.selectedFile"
@@ -337,17 +309,14 @@
                                     </button>
                                 </div>
 
-                                <!-- Hidden file input -->
                                 <input type="file"
-                                       id="signed-pv-upload"
+                                       t-ref="signedPvUpload"
                                        accept=".pdf,.doc,.docx"
                                        t-on-change="handleFileSelect"
                                        style="display:none;"/>
                             </div>
 
-                            <!-- PV Content Area -->
                             <div class="pv-content-area">
-                                <!-- Editable PV -->
                                 <div class="notes-editor" t-if="state.pvEditing and state.meeting.pv_can_edit">
                                     <div class="pv-editor-wrapper">
                                         <div
@@ -359,12 +328,10 @@
                                     </div>
                                 </div>
 
-                                <!-- Read-only PV Display -->
                                 <div class="pv-display" t-if="!state.pvEditing and state.meeting.pv">
                                     <div class="pv-content" t-out="state.meeting.pv"/>
                                 </div>
 
-                                <!-- Empty State -->
                                 <div class="pv-empty-state" t-if="!state.meeting.pv">
                                     <i class="fa fa-file-text-o"/>
                                     <p>No PV content yet</p>
@@ -377,7 +344,6 @@
                                 </div>
                             </div>
 
-                            <!-- PV Info Footer -->
                             <div class="pv-footer">
                                 <div class="pv-info">
                                     <span class="info-item">

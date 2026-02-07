@@ -23,6 +23,8 @@ export class MeetingView extends Component {
 
     // Use useRef for proper OWL reference handling
     this.pvEditorRef = useRef("pvEditor");
+    // NEW: Reference for the hidden file input
+    this.signedPvUploadRef = useRef("signedPvUpload");
 
     this.state = useState({
       loading: true,
@@ -75,7 +77,7 @@ export class MeetingView extends Component {
     this.toggleAgenda = this.toggleAgenda.bind(this);
     this.leaveMeeting = this.leaveMeeting.bind(this);
 
-    // NEW PV-related methods
+    // PV-related methods
     this.generatePvTemplate = this.generatePvTemplate.bind(this);
     this.downloadPvWord = this.downloadPvWord.bind(this);
     this.downloadPvPdf = this.downloadPvPdf.bind(this);
@@ -86,6 +88,8 @@ export class MeetingView extends Component {
     this.savePv = this.savePv.bind(this);
     this.togglePvEdit = this.togglePvEdit.bind(this);
     this.onPvInput = this.onPvInput.bind(this);
+    // NEW: Bind the trigger method
+    this.triggerFileUpload = this.triggerFileUpload.bind(this);
 
     onWillStart(async () => {
       const context = this.props.action?.context || {};
@@ -109,6 +113,13 @@ export class MeetingView extends Component {
     onWillUnmount(() => {
       // Cleanup if needed
     });
+  }
+
+  // NEW: Safely trigger the hidden file input click
+  triggerFileUpload() {
+    if (this.signedPvUploadRef.el) {
+        this.signedPvUploadRef.el.click();
+    }
   }
 
   updatePvEditor() {
@@ -157,7 +168,7 @@ export class MeetingView extends Component {
 
       const meetingData = meetings[0];
 
-this.meetingId = meetingData.id;
+      this.meetingId = meetingData.id;
 
       this.planificationId = Array.isArray(meetingData.planification_id)
         ? meetingData.planification_id[0]
