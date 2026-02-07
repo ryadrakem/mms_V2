@@ -358,7 +358,190 @@ class DwMeeting(models.Model):
             raise UserError(_("Failed to generate Word document: %s") % str(e))
 
     def _generate_pv_word_document(self):
-        """Generate Word document for PV based on template"""
+        """Generate Word document for PV from actual HTML content"""
+        self.ensure_one()
+
+        # If no PV content, use the template
+        if not self.pv:
+            return self._generate_pv_word_document_template()
+
+        from html.parser import HTMLParser
+        from docx.shared import Pt, RGBColor
+        from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+
+        # Create new Document
+        doc = Document()
+
+        # Set document margins
+        sections = doc.sections
+        for section in sections:
+            section.top_margin = Inches(1)
+            section.bottom_margin = Inches(1)
+            section.left_margin = Inches(1)
+            section.right_margin = Inches(1)
+
+        # Parse HTML and convert to Word
+        class HTMLToWordParser(HTMLParser):
+            def __init__(self, document):
+                super().__init__()
+                self.doc = document
+                self.current_paragraph = None
+                self.current_run = None
+                self.in_list = False
+                self.list_style = None
+                self.bold = False
+                self.italic = False
+                self.underline = False
+                self.heading_level = 0
+                self.in_table = False
+                self.current_table = None
+                self.current_row = None
+                self.current_cell = None
+
+            def handle_starttag(self, tag, attrs):
+                attrs_dict = dict(attrs)
+
+                if tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
+                    self.heading_level = int(tag[1])
+                    self.current_paragraph = self.doc.add_paragraph()
+                    self.current_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER if self.heading_level <= 2 else WD_PARAGRAPH_ALIGNMENT.LEFT
+                    self.current_run = self.current_paragraph.add_run()
+                    self.current_run.bold = True
+                    if self.heading_level == 1:
+                        self.current_run.font.size = Pt(16)
+                    elif self.heading_level == 2:
+                        self.current_run.font.size = Pt(14)
+                    elif self.heading_level == 3:
+                        self.current_run.font.size = Pt(12)
+
+                elif tag == 'p':
+                    self.current_paragraph = self.doc.add_paragraph()
+                    style = attrs_dict.get('style', '')
+                    if 'text-align: center' in style or 'text-align:center' in style:
+                        self.current_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+                    elif 'text-align: justify' in style or 'text-align:justify' in style:
+                        self.current_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.JUSTIFY
+                    elif 'text-align: right' in style or 'text-align:right' in style:
+                        self.current_paragraph.alignment = WD_PARAGRAPH_ALIGNMENT.RIGHT
+                    self.current_run = self.current_paragraph.add_run()
+
+                elif tag == 'div':
+                    # Start a new paragraph for div
+                    if self.current_paragraph is None or self.current_paragraph.text:
+                        self.current_paragraph = self.doc.add_paragraph()
+                        self.current_run = self.current_paragraph.add_run()
+
+                elif tag in ['ul', 'ol']:
+                    self.in_list = True
+                    self.list_style = 'List Bullet' if tag == 'ul' else 'List Number'
+
+                elif tag == 'li':
+                    if self.in_list:
+                        self.current_paragraph = self.doc.add_paragraph(style=self.list_style)
+                        self.current_run = self.current_paragraph.add_run()
+
+                elif tag == 'br':
+                    if self.current_run:
+                        self.current_run.add_break()
+
+                elif tag in ['strong', 'b']:
+                    self.bold = True
+                    if self.current_run:
+                        self.current_run = self.current_paragraph.add_run()
+                        self.current_run.bold = True
+
+                elif tag in ['em', 'i']:
+                    self.italic = True
+                    if self.current_run:
+                        self.current_run = self.current_paragraph.add_run()
+                        self.current_run.italic = True
+
+                elif tag == 'u':
+                    self.underline = True
+                    if self.current_run:
+                        self.current_run = self.current_paragraph.add_run()
+                        self.current_run.underline = True
+
+                elif tag == 'table':
+                    self.in_table = True
+                    # We'll add table support if needed
+
+            def handle_endtag(self, tag):
+                if tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
+                    self.heading_level = 0
+                    self.current_paragraph = None
+                    self.current_run = None
+
+                elif tag == 'p':
+                    self.current_paragraph = None
+                    self.current_run = None
+
+                elif tag in ['ul', 'ol']:
+                    self.in_list = False
+                    self.list_style = None
+
+                elif tag == 'li':
+                    self.current_paragraph = None
+                    self.current_run = None
+
+                elif tag in ['strong', 'b']:
+                    self.bold = False
+                    if self.current_paragraph:
+                        self.current_run = self.current_paragraph.add_run()
+
+                elif tag in ['em', 'i']:
+                    self.italic = False
+                    if self.current_paragraph:
+                        self.current_run = self.current_paragraph.add_run()
+
+                elif tag == 'u':
+                    self.underline = False
+                    if self.current_paragraph:
+                        self.current_run = self.current_paragraph.add_run()
+
+                elif tag == 'table':
+                    self.in_table = False
+
+            def handle_data(self, data):
+                # Clean up whitespace
+                data = data.strip()
+                if not data:
+                    return
+
+                # If no current paragraph, create one
+                if self.current_paragraph is None:
+                    self.current_paragraph = self.doc.add_paragraph()
+                    self.current_run = self.current_paragraph.add_run()
+
+                # If no current run, create one
+                if self.current_run is None:
+                    self.current_run = self.current_paragraph.add_run()
+
+                # Add the text
+                self.current_run.add_text(data)
+
+        # Parse the HTML content
+        parser = HTMLToWordParser(doc)
+
+        # Clean HTML (remove div wrapper if present)
+        html_content = self.pv
+        if html_content.startswith('<div'):
+            # Extract content between first div
+            import re
+            match = re.search(r'<div[^>]*>(.*)</div>', html_content, re.DOTALL)
+            if match:
+                html_content = match.group(1)
+
+        try:
+            parser.feed(html_content)
+        except Exception as e:
+            _logger.warning(f"Error parsing HTML: {e}. Using template instead.")
+            return self._generate_pv_word_document_template()
+
+        return doc
+
+    def _generate_pv_word_document_template(self):
+        """Generate static Word document template (fallback)"""
         self.ensure_one()
 
         # Create new Document
