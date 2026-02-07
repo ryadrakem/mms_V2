@@ -702,14 +702,26 @@
                                     Tableau de Feuille de Présence
                                 </h3>
                                 <div class="attendance-header-actions">
-                                    <button class="btn-add-attendance-line" t-on-click="addAttendanceLine">
-                                        <i class="fa fa-plus"/>
-                                        Ajouter une ligne
-                                    </button>
-                                    <button class="btn-print-attendance" t-on-click="printAttendanceSheet">
-                                        <i class="fa fa-print"/>
-                                        Imprimer la Feuille
-                                    </button>
+                                    <!-- ⭐ BOUTONS VISIBLES UNIQUEMENT POUR LE HOST -->
+                                    <t t-if="state.session.is_host">
+                                        <button class="btn-add-attendance-line" t-on-click="addAttendanceLine">
+                                            <i class="fa fa-plus"/>
+                                            Ajouter une ligne
+                                        </button>
+                                        <button class="btn-print-attendance" t-on-click="printAttendanceSheet">
+                                            <i class="fa fa-print"/>
+                                            Imprimer la Feuille
+                                        </button>
+                                    </t>
+
+                                    <!-- ⭐ MESSAGE SI L'UTILISATEUR N'EST PAS LE HOST -->
+                                    <t t-else="">
+                                        <div class="host-only-message">
+                                            <i class="fa fa-info-circle"/>
+                                            <span>Seul le président peut modifier et imprimer la feuille de présence
+                                            </span>
+                                        </div>
+                                    </t>
                                 </div>
                             </div>
 
@@ -720,15 +732,16 @@
                                             <th style="width: 35%;">Nom des Participants</th>
                                             <th style="width: 20%;">Qualité</th>
                                             <th style="width: 20%;">Heure d'arrivée</th>
-                                            <th style="width: 20%;">Signature</th>
-                                            <th style="width: 5%;"></th>
+                                            <th style="width: 25%;">Signature</th>
+                                            <th style="width: 60px;" t-if="state.session.is_host"></th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <t t-if="state.attendanceLines?.length">
                                             <tr t-foreach="state.attendanceLines" t-as="line" t-key="line_index">
                                                 <td class="participant-name">
-                                                    <t t-if="line.isEditable">
+                                                    <!-- ⭐ Input éditable uniquement pour le host -->
+                                                    <t t-if="line.isEditable and state.session.is_host">
                                                         <input type="text"
                                                                class="attendance-input"
                                                                t-model="line.name"
@@ -741,8 +754,9 @@
                                                 <td class="empty-cell"></td>
                                                 <td class="empty-cell"></td>
                                                 <td class="empty-cell"></td>
-                                                <td class="action-cell">
+                                                <td class="action-cell" t-if="state.session.is_host">
                                                     <button class="btn-icon-sm danger"
+                                                            t-if="line.isEditable"
                                                             t-on-click="() => removeAttendanceLine(line_index)">
                                                         <i class="fa fa-trash"/>
                                                     </button>
@@ -751,7 +765,8 @@
                                         </t>
                                         <t t-else="">
                                             <tr>
-                                                <td colspan="5" class="empty-state">
+                                                <td t-att-colspan="state.session.is_host ? 5 : 4"
+                                                    class="empty-state">
                                                     Aucun participant
                                                 </td>
                                             </tr>
