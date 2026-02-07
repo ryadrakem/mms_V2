@@ -1,0 +1,24 @@
+<smartdz>
+    <record id="view_dw_planification_meeting_form_inherit" model="ir.ui.view">
+        <field name="name">dw.planification.meeting.form.inherit.2</field>
+        <field name="model">dw.planification.meeting</field>
+        <field name="inherit_id" ref="meeting_management_base.view_dw_planification_meeting_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form/sheet/group/group[1]/field[@name='permanent_members_id']" position="replace">
+                <field name="permanent_members_id"
+                       domain="[('is_ca', '=', False), ('is_ag', '=', False), ('is_agex', '=', False)]"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="dw_participant_view_form_original_inherit" model="ir.ui.view">
+        <field name="name">dw.participant.view.original.form</field>
+        <field name="model">dw.participant</field>
+        <field name="inherit_id" ref="meeting_management_base.dw_participant_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form/sheet/group[1]/field[@name='role_id']" position="replace">
+                <field name="role_id" domain="[('is_member', '=', False), ('is_president', '=', False), ('is_board_secretariat', '=', False), ('is_summoned', '=', False), ('is_invited', '=', False)]"/>
+            </xpath>
+        </field>
+    </record>
+</smartdz>
