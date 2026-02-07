@@ -1,6 +1,6 @@
 /** @odoo-module **/
 import { registry } from "@web/core/registry";
-import { Component, useState, onWillStart, onMounted, onWillUnmount } from "@smartdz/owl";
+import { Component, useState, onWillStart, onMounted, onWillUnmount, useRef } from "@smartdz/owl";
 import { loadJS } from "@web/core/assets";
 import { useService } from "@web/core/utils/hooks";
 
@@ -20,6 +20,10 @@ export class MeetingView extends Component {
     this.orm = this.env.services.orm;
     this.actionService = this.env.services.action;
     this.notification = this.env.services.notification;
+
+    // Use useRef for proper OWL reference handling
+    this.pvEditorRef = useRef("pvEditor");
+
     this.state = useState({
       loading: true,
       error: null,
@@ -45,12 +49,18 @@ export class MeetingView extends Component {
         location_id: null,
         room_id: null,
         pv: "",
+        pv_status: "draft",
+        pv_can_edit: false,
+        pv_signed_document: null,
+        pv_signed_document_name: null,
       },
 
       activeMainTab: 'agenda',
       formattedDuration: '00:00',
       currentUserSessionId: null,
       isCurrentUserParticipant: false,
+      pvEditing: false,
+      selectedFile: null,
     });
 
     this.planificationId = null;
@@ -65,6 +75,18 @@ export class MeetingView extends Component {
     this.toggleAgenda = this.toggleAgenda.bind(this);
     this.leaveMeeting = this.leaveMeeting.bind(this);
 
+    // NEW PV-related methods
+    this.generatePvTemplate = this.generatePvTemplate.bind(this);
+    this.downloadPvWord = this.downloadPvWord.bind(this);
+    this.downloadPvPdf = this.downloadPvPdf.bind(this);
+    this.sendPvEmails = this.sendPvEmails.bind(this);
+    this.setPvFinal = this.setPvFinal.bind(this);
+    this.handleFileSelect = this.handleFileSelect.bind(this);
+    this.uploadSignedPv = this.uploadSignedPv.bind(this);
+    this.savePv = this.savePv.bind(this);
+    this.togglePvEdit = this.togglePvEdit.bind(this);
+    this.onPvInput = this.onPvInput.bind(this);
+
     onWillStart(async () => {
       const context = this.props.action?.context || {};
       this.meetingId = context.active_id;
@@ -77,9 +99,23 @@ export class MeetingView extends Component {
         return;
       }
       await this.loadMeetingData();
-
-
     });
+
+    onMounted(() => {
+      // Set innerHTML when component mounts if in edit mode
+      this.updatePvEditor();
+    });
+
+    onWillUnmount(() => {
+      // Cleanup if needed
+    });
+  }
+
+  updatePvEditor() {
+    // Update editor content when switching to edit mode
+    if (this.state.pvEditing && this.pvEditorRef.el) {
+      this.pvEditorRef.el.innerHTML = this.state.meeting.pv || '';
+    }
   }
 
   async loadMeetingData() {
@@ -107,6 +143,10 @@ export class MeetingView extends Component {
           "location_id",
           "room_id",
           "pv",
+          "pv_status",
+          "pv_can_edit",
+          "pv_signed_document",
+          "pv_signed_document_name",
         ]
       );
       console.log("Loaded meeting data:", meetings);
@@ -117,9 +157,7 @@ export class MeetingView extends Component {
 
       const meetingData = meetings[0];
 
-      this.meetingId = Array.isArray(meetingData.meeting_id)
-        ? meetingData.meeting_id[0]
-        : meetingData.meeting_id;
+this.meetingId = meetingData.id;
 
       this.planificationId = Array.isArray(meetingData.planification_id)
         ? meetingData.planification_id[0]
@@ -151,6 +189,10 @@ export class MeetingView extends Component {
           ? meetingData.room_id[1]
           : null,
         pv: meetingData.pv || "",
+        pv_status: meetingData.pv_status || "draft",
+        pv_can_edit: meetingData.pv_can_edit || false,
+        pv_signed_document: meetingData.pv_signed_document || null,
+        pv_signed_document_name: meetingData.pv_signed_document_name || null,
       };
 
       if (meetingData.participant_ids && meetingData.participant_ids.length > 0) {
@@ -228,6 +270,15 @@ export class MeetingView extends Component {
         return labels[status] || 'Unknown';
   }
 
+    getPvStatusLabel(status) {
+        const labels = {
+            'draft': 'Brouillon',
+            'final': 'Final',
+            'signed': 'Signé'
+        };
+        return labels[status] || 'Brouillon';
+    }
+
     toggleNotes() {
         this.state.activeMainTab = this.state.activeMainTab === 'notes' ? 'video' : 'notes';
     }
@@ -238,6 +289,222 @@ export class MeetingView extends Component {
 
     toggleAgenda() {
     this.state.activeMainTab = this.state.activeMainTab === 'actions' ? 'video' : 'actions';
+    }
+
+    togglePvEdit() {
+        if (this.state.meeting.pv_can_edit) {
+            this.state.pvEditing = !this.state.pvEditing;
+            // Update editor content after state change
+            setTimeout(() => this.updatePvEditor(), 50);
+        }
+    }
+
+    onPvInput(ev) {
+        // Get the inner HTML without HTML encoding issues
+        this.state.meeting.pv = ev.target.innerHTML;
+    }
+
+    // ================== PV MANAGEMENT METHODS ==================
+
+    async generatePvTemplate() {
+        try {
+            // FIXED: Pass meeting ID as array in second argument
+            const result = await this.orm.call(
+                'dw.meeting',
+                'action_generate_pv_template',
+                [[this.meetingId]]  // Pass as array of IDs
+            );
+
+            // Reload meeting data to get the generated PV
+            await this.loadMeetingData();
+
+            this.notification.add("PV template generated successfully", {
+                type: "success",
+            });
+        } catch (error) {
+            console.error("Failed to generate PV template:", error);
+            this.notification.add("Failed to generate PV template", {
+                type: "danger",
+            });
+        }
+    }
+
+    async savePv() {
+        try {
+            await this.orm.write("dw.meeting", [this.meetingId], {
+                pv: this.state.meeting.pv,
+            });
+
+            this.notification.add("PV saved successfully", {
+                type: "success",
+            });
+
+            this.state.pvEditing = false;
+        } catch (error) {
+            console.error("Failed to save PV:", error);
+            this.notification.add("Failed to save PV", {
+                type: "danger",
+            });
+        }
+    }
+
+    async downloadPvWord() {
+        try {
+            // FIXED: Pass meeting ID as array in second argument
+            const result = await this.orm.call(
+                'dw.meeting',
+                'action_download_pv_word',
+                [[this.meetingId]]  // Pass as array of IDs
+            );
+
+            if (result && result.url) {
+                window.open(result.url, '_blank');
+            }
+
+            this.notification.add("PV Word document generated", {
+                type: "success",
+            });
+        } catch (error) {
+            console.error("Failed to download Word PV:", error);
+            this.notification.add("Failed to download Word document", {
+                type: "danger",
+            });
+        }
+    }
+
+    async downloadPvPdf() {
+        try {
+            // FIXED: Pass meeting ID as array in second argument
+            const result = await this.orm.call(
+                'dw.meeting',
+                'action_download_pv_pdf',
+                [[this.meetingId]]  // Pass as array of IDs
+            );
+
+            if (result && result.url) {
+                window.open(result.url, '_blank');
+            }
+
+            this.notification.add("PV PDF generated", {
+                type: "success",
+            });
+        } catch (error) {
+            console.error("Failed to download PDF PV:", error);
+            this.notification.add("Failed to download PDF", {
+                type: "danger",
+            });
+        }
+    }
+
+    async sendPvEmails() {
+        const confirmed = confirm(
+            "Are you sure you want to send the PV to all participants via email?"
+        );
+
+        if (!confirmed) return;
+
+        try {
+            // FIXED: Pass meeting ID as array in second argument
+            await this.orm.call(
+                'dw.meeting',
+                'action_send_pv_emails',
+                [[this.meetingId]]  // Pass as array of IDs
+            );
+
+            this.notification.add("PV sent to all participants successfully", {
+                type: "success",
+            });
+        } catch (error) {
+            console.error("Failed to send PV emails:", error);
+            this.notification.add("Failed to send PV emails", {
+                type: "danger",
+            });
+        }
+    }
+
+    async setPvFinal() {
+        const confirmed = confirm(
+            "Are you sure you want to set the PV status to Final? This will lock the PV from further editing by non-hosts."
+        );
+
+        if (!confirmed) return;
+
+        try {
+            // FIXED: Pass meeting ID as array in second argument
+            await this.orm.call(
+                'dw.meeting',
+                'action_set_pv_final',
+                [[this.meetingId]]  // Pass as array of IDs
+            );
+
+            // Reload meeting data to get updated status
+            await this.loadMeetingData();
+
+            this.notification.add("PV status set to Final", {
+                type: "success",
+            });
+        } catch (error) {
+            console.error("Failed to set PV final:", error);
+            this.notification.add("Failed to set PV final", {
+                type: "danger",
+            });
+        }
+    }
+
+    handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (file) {
+            this.state.selectedFile = file;
+            this.state.meeting.pv_signed_document_name = file.name;
+        }
+    }
+
+    async uploadSignedPv() {
+        try {
+            if (!this.state.selectedFile) {
+                this.notification.add("Please select a file first", {
+                    type: "warning",
+                });
+                return;
+            }
+
+            // Convert file to base64
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64Data = e.target.result.split(',')[1];
+
+                try {
+                    // Upload the file
+                    await this.orm.write("dw.meeting", [this.meetingId], {
+                        pv_signed_document: base64Data,
+                        pv_signed_document_name: this.state.selectedFile.name,
+                        pv_status: 'signed',
+                        state: 'done',
+                    });
+
+                    // Reload meeting data
+                    await this.loadMeetingData();
+
+                    this.notification.add("Signed PV uploaded and meeting closed", {
+                        type: "success",
+                    });
+
+                    this.state.selectedFile = null;
+                } catch (error) {
+                    console.error("Failed to upload signed PV:", error);
+                    this.notification.add("Failed to upload signed PV", {
+                        type: "danger",
+                    });
+                }
+            };
+
+            reader.readAsDataURL(this.state.selectedFile);
+        } catch (error) {
+            console.error("Failed to upload signed PV:", error);
+            this.notification.add("Failed to upload signed PV", {
+                type: "danger",
+            });
+        }
     }
 
     async openMySession() {

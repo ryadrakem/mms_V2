@@ -1756,12 +1756,8 @@ export class MeetingSessionView extends Component {
 
   async loadPvTemplate() {
     try {
-      const template = this.generatePvTemplate();
-      this.state.pv = template;
-
-      this.notification.add("PV template loaded", {
-        type: "success",
-      });
+      // Generate template from backend
+      await this.generatePvTemplate();
     } catch (error) {
       console.error("Failed to load PV template:", error);
       this.notification.add("Failed to load PV template", {
@@ -1770,136 +1766,40 @@ export class MeetingSessionView extends Component {
     }
   }
 
-  generatePvTemplate() {
-    const meetingDate = this.state.session.actual_start_datetime
-      ? new Date(this.state.session.actual_start_datetime).toLocaleDateString('fr-FR', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
-      : new Date().toLocaleDateString('fr-FR', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
+  async generatePvTemplate() {
+    // Load PV template from backend instead of using prototype
+    try {
+      if (!this.meetingId) {
+        throw new Error("No meeting ID available");
+      }
+
+      // Call backend to generate template
+      await this.orm.call(
+        'dw.meeting',
+        'action_generate_pv_template',
+        [this.meetingId]
+      );
+
+      // Reload PV content
+      const meetings = await this.orm.read(
+        "dw.meeting",
+        [this.meetingId],
+        ["pv"]
+      );
+
+      if (meetings && meetings.length > 0) {
+        this.state.pv = meetings[0].pv || "";
+      }
+
+      this.notification.add("PV template generated successfully", {
+        type: "success",
       });
-
-    const meetingTime = this.state.session.actual_start_datetime
-      ? new Date(this.state.session.actual_start_datetime).toLocaleTimeString('fr-FR', {
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-      : new Date().toLocaleTimeString('fr-FR', {
-        hour: '2-digit',
-        minute: '2-digit'
+    } catch (error) {
+      console.error("Failed to generate PV template:", error);
+      this.notification.add("Failed to generate PV template", {
+        type: "danger",
       });
-
-    const participants = this.state.session.participants || [];
-    const participantsList = participants.map(p => `  - ${p.name}`).join('\n');
-
-    const agendaItems = this.state.session.subject_order || [];
-    const agendaList = agendaItems.map((item, index) =>
-      `${index + 1}. ${item.name}${item.description ? '\n   ' + item.description : ''}`
-    ).join('\n');
-
-    const actions = this.state.actions || [];
-    const actionsList = actions.map((action, index) => {
-      const assignee = this.state.availableAssignees.find(a => a.id === action.assignee_id);
-      const assigneeName = assignee ? assignee.name : 'Non assigné';
-      const deadline = action.dead_line ? ` (échéance: ${action.dead_line})` : '';
-      return `${index + 1}. ${action.name} - Assigné à : ${assigneeName}${deadline}`;
-    }).join('\n');
-
-    return `PROCÈS-VERBAL DE RÉUNION
-
-═══════════════════════════════════════════════════════════════
-
-INFORMATIONS GÉNÉRALES
-═══════════════════════════════════════════════════════════════
-
-Titre de la réunion : ${this.state.session.name || '[Titre de la réunion]'}
-Objet : ${this.state.session.objet || '[Objet de la réunion]'}
-Date : ${meetingDate}
-Heure de début : ${meetingTime}
-Durée prévue : ${this.state.sessionDuration || 0} heures
-Type de réunion : ${this.state.meetingTypeName || '[Type]'}
-
-
-PARTICIPANTS
-═══════════════════════════════════════════════════════════════
-
-Présents (${participants.length}) :
-${participantsList || '  [Liste des participants]'}
-
-Absents :
-  [À compléter]
-
-Invités :
-  [À compléter]
-
-
-ORDRE DU JOUR
-═══════════════════════════════════════════════════════════════
-
-${agendaList || '[Points à l\'ordre du jour]'}
-
-
-DÉROULEMENT DE LA RÉUNION
-═══════════════════════════════════════════════════════════════
-
-1. OUVERTURE DE LA SÉANCE
-   [À compléter]
-
-2. POINTS DISCUTÉS
-   ${agendaItems.length > 0 ? agendaItems.map(item => `
-   ${item.name}
-   ────────────────────────────────────────────────────────────
-   Discussion :
-   [À compléter]
-
-   `).join('') : '[À compléter]'}
-
-3. DÉCISIONS PRISES
-   [À compléter]
-
-
-ACTIONS À ENTREPRENDRE
-═══════════════════════════════════════════════════════════════
-
-${actionsList || '[Actions à entreprendre]'}
-
-
-PROCHAINES ÉTAPES
-═══════════════════════════════════════════════════════════════
-
-[À compléter]
-
-
-PROCHAINE RÉUNION
-═══════════════════════════════════════════════════════════════
-
-Date : [À définir]
-Lieu : [À définir]
-Ordre du jour : [À définir]
-
-
-CLÔTURE
-═══════════════════════════════════════════════════════════════
-
-Heure de clôture : ${this.state.meetingDuration || '[Heure de fin]'}
-
-Le présent procès-verbal a été rédigé par [Nom] et sera diffusé à l'ensemble des participants.
-
-
-Signatures :
-  Président de séance : ________________
-  Secrétaire de séance : ________________
-
-
-═══════════════════════════════════════════════════════════════
-Document généré le ${new Date().toLocaleString('fr-FR')}
-═══════════════════════════════════════════════════════════════`;
+    }
   }
 
   async startBlankPv() {
