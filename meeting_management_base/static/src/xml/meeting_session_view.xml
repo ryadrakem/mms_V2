@@ -244,8 +244,6 @@
                         </button>
                     </div>
 
-                    <!-- REPLACE this section in your meeting_session_view.xml -->
-                    <!-- Change from t-if to always render, visibility controlled by CSS -->
 
                     <div class="video-conference-container"
                          t-if="state.session.state !== 'done' and state.session.use_vc"
@@ -639,6 +637,7 @@
                         </div>
                     </div>
                     <!-- PV Section -->
+                    <!-- PV Section - FIXED VERSION with View/Edit Toggle -->
                     <div class="main-tab-content" t-if="state.activeMainTab === 'pv' and state.session.is_pv">
                         <div class="meeting-notes-section">
                             <div class="notes-header">
@@ -659,36 +658,64 @@
                                         <span>Ajouter Séparation</span>
                                     </button>
                                     <div class="voice-status" style="display:none;"></div>
-                                    <!-- Template Selection Buttons -->
+
+                                    <!-- Edit/View Toggle Button -->
+                                    <button class="btn-save-notes" t-on-click="togglePvEdit">
+                                        <i t-att-class="state.pvEditing ? 'fa fa-eye' : 'fa fa-edit'"/>
+                                        <span t-if="state.pvEditing">View</span>
+                                        <span t-else="">Edit</span>
+                                    </button>
+
+                                    <!-- Template Selection Buttons (only show when editing) -->
                                     <button class="btn-save-notes" t-on-click="startBlankPv"
+                                            t-if="state.pvEditing"
                                             title="Start with blank PV">
                                         <i class="fa fa-file-o"/>
                                         <span>PV Personnalisé</span>
                                     </button>
-                                    <button class="btn-save-notes" t-on-click="loadPvTemplate" title="Load PV template">
+                                    <button class="btn-save-notes" t-on-click="loadPvTemplate"
+                                            t-if="state.pvEditing"
+                                            title="Load PV template">
                                         <i class="fa fa-file-text"/>
                                         <span>Charger Modèle</span>
                                     </button>
-                                    <!-- Save Button -->
-                                    <button class="btn-save-notes" t-on-click="savePv">
+
+                                    <!-- Save Button (only show when editing) -->
+                                    <button class="btn-save-notes" t-on-click="savePv"
+                                            t-if="state.pvEditing">
                                         <i class="fa fa-save"/>
                                         Save
                                     </button>
                                 </div>
                             </div>
-                            <div class="notes-editor">
+
+                            <!-- EDITING MODE -->
+                            <div class="notes-editor" t-if="state.pvEditing">
                                 <textarea
                                         class="notes-textarea pv-textarea"
                                         placeholder="Rédigez votre procès-verbal ici...&#10;&#10;Utilisez 'Charger Modèle' pour un modèle pré-rempli ou 'PV Vierge' pour commencer de zéro."
                                         t-model="state.pv"
                                 />
                             </div>
+
+                            <!-- VIEW MODE -->
+                            <div class="pv-content-area" t-if="!state.pvEditing">
+                                <div class="pv-display" t-if="state.pv">
+                                    <div class="pv-content" t-out="state.pv"/>
+                                </div>
+                                <div class="pv-empty-state" t-else="">
+                                    <i class="fa fa-file-text-o"/>
+                                    <p>No PV content yet</p>
+                                    <p class="empty-help">Click "Edit" to start writing</p>
+                                </div>
+                            </div>
+
                             <!-- Character/Word Count -->
                             <div class="pv-footer">
                                 <div class="pv-stats">
                                     <span class="stat-item">
                                         <i class="fa fa-font"/>
-                                        <t t-esc="state.pv.length"/>
+                                        <t t-esc="state.pv.toString().length"/>
                                         caractères
                                     </span>
                                 </div>

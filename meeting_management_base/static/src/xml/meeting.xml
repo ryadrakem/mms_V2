@@ -24,11 +24,6 @@
                         </div>
                     </div>
                 </div>
-<!--                <button t-if="state.isCurrentUserParticipant and state.currentUserSessionId"-->
-<!--                        class="btn btn-primary"-->
-<!--                        t-on-click="openMySession">-->
-<!--                    Open My Session-->
-<!--                </button>-->
                 <div class="meeting-header-right">
                     <span class="status-chip" t-att-class="state.meeting.state">
                         <span class="status-dot"/>
@@ -81,7 +76,6 @@
                                                         <i class="fa fa-circle text-secondary"/> Awaiting
                                                     </t>
                                                 </div>
-
                                             </div>
                                         </div>
                                     </t>
@@ -95,39 +89,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <!-- Meeting Info -->
-<!--                    <div class="sidebar-card">-->
-<!--                        <div class="card-header">-->
-<!--                            <h3>-->
-<!--                                <i class="fa fa-info-circle"/>-->
-<!--                                Details-->
-<!--                            </h3>-->
-<!--                        </div>-->
-<!--                        <div class="card-body">-->
-<!--                            <div class="info-list">-->
-<!--                                <div class="info-item" t-if="state.meeting.objet">-->
-<!--                                    <label>Subject</label>-->
-<!--                                    <span t-esc="state.meeting.objet"/>-->
-<!--                                </div>-->
-<!--                                <div class="info-item" t-if="state.meeting.meeting_type_id">-->
-<!--                                    <label>Type</label>-->
-<!--                                    <span t-esc="state.meeting.meeting_type_id"/>-->
-<!--                                </div>-->
-<!--                                <div class="info-item">-->
-<!--                                    <label>Planned Duration</label>-->
-<!--                                    <span>-->
-<!--                                        <t t-esc="state.meeting.duration"/>-->
-<!--                                        hours-->
-<!--                                    </span>-->
-<!--                                </div>-->
-<!--                                <div class="info-item">-->
-<!--                                    <label>Actual duration</label>-->
-<!--                                    <span t-esc="state.formattedDuration"/>-->
-<!--                                </div>-->
-<!--                            </div>-->
-<!--                        </div>-->
-<!--                    </div>-->
                 </aside>
 
                 <!-- Main: Tabbed Content with Navigation -->
@@ -188,7 +149,8 @@
                             </div>
                         </div>
                     </div>
-                    <!-- details section -->
+
+                    <!--details section-->
                     <div class="main-tab-content" t-if="state.activeMainTab === 'details'">
                         <div class="meeting-actions-section">
 
@@ -215,12 +177,6 @@
                                         hours
                                     </span>
                                 </div>
-
-                                <!-- Planning -->
-<!--                                <div class="info-row" t-if="state.meeting.planification_id">-->
-<!--                                    <label>Planification</label>-->
-<!--                                    <span t-esc="state.meeting.planification_id"/>-->
-<!--                                </div>-->
 
                                 <!-- Subject -->
                                 <div class="info-row" t-if="state.meeting.objet">
@@ -284,20 +240,154 @@
                             </div>
                         </div>
                     </div>
-                    <!-- PV section-->
-                        <div class="main-tab-content" t-if="state.activeMainTab === 'pv' or state.meeting.pv">
-                            <div class="meeting-notes-section">
-                                <div class="notes-header">
+
+                    <!-- PV Tab Content -->
+                    <div class="main-tab-content" t-if="state.activeMainTab === 'pv'">
+                        <div class="meeting-notes-section">
+                            <!-- PV Header with Actions -->
+                            <div class="notes-header">
+                                <div class="pv-header-left">
                                     <h3>
                                         <i class="fa fa-file-text-o"/>
-                                        PV
+                                        Procès-Verbal (PV)
                                     </h3>
+                                    <span class="pv-status-badge" t-att-class="'status-' + state.meeting.pv_status">
+                                        <i class="fa fa-circle"/>
+                                        <t t-esc="getPvStatusLabel(state.meeting.pv_status)"/>
+                                    </span>
                                 </div>
-                                <div class="notes-editor">
-                                    <pre t-esc="state.meeting.pv"/>
+
+                                <!-- PV Actions Toolbar -->
+                                <div class="pv-actions">
+                                    <!-- Generate Template Button -->
+                                    <button class="btn-pv-action"
+                                            t-on-click="generatePvTemplate"
+                                            t-if="state.meeting.pv_can_edit and !state.meeting.pv"
+                                            title="Generate PV Template">
+                                        <i class="fa fa-magic"/>
+                                        <span>Generate Template</span>
+                                    </button>
+
+                                    <!-- Edit/Save Button -->
+                                    <button class="btn-pv-action"
+                                            t-on-click="togglePvEdit"
+                                            t-if="state.meeting.pv_can_edit and !state.pvEditing and state.meeting.pv_status !== 'signed'"
+                                            title="Edit PV">
+                                        <i class="fa fa-edit"/>
+                                        <span>Edit PV</span>
+                                    </button>
+                                    <button class="btn-pv-action btn-save"
+                                            t-on-click="savePv"
+                                            t-if="state.meeting.pv_can_edit and state.pvEditing"
+                                            title="Save PV">
+                                        <i class="fa fa-save"/>
+                                        <span>Save PV</span>
+                                    </button>
+
+                                    <!-- Download Buttons -->
+                                    <button class="btn-pv-action"
+                                            t-on-click="downloadPvWord"
+                                            t-if="state.meeting.pv"
+                                            title="Download as Word">
+                                        <i class="fa fa-file-word-o"/>
+                                        <span>Word</span>
+                                    </button>
+                                    <button class="btn-pv-action"
+                                            t-on-click="downloadPvPdf"
+                                            t-if="state.meeting.pv"
+                                            title="Download as PDF">
+                                        <i class="fa fa-file-pdf-o"/>
+                                        <span>PDF</span>
+                                    </button>
+
+                                    <!-- Upload Signed PV Button -->
+                                    <button class="btn-pv-action btn-upload"
+                                            t-on-click="() => document.getElementById('signed-pv-upload').click()"
+                                            t-if="state.meeting.pv_status === 'final' and state.meeting.pv_can_edit"
+                                            title="Upload signed PV">
+                                        <i class="fa fa-upload"/>
+                                        <span>Upload Signed</span>
+                                    </button>
+
+                                    <!-- Set Final Button -->
+                                    <button class="btn-pv-action btn-final"
+                                            t-on-click="setPvFinal"
+                                            t-if="state.meeting.pv_can_edit and state.meeting.pv_status === 'draft' and state.meeting.pv"
+                                            title="Set PV as Final">
+                                        <i class="fa fa-check-circle"/>
+                                        <span>Set Final</span>
+                                    </button>
+
+                                    <!-- Send PV Button -->
+                                    <button class="btn-pv-action btn-send"
+                                            t-on-click="sendPvEmails"
+                                            t-if="state.meeting.pv and state.meeting.pv_status !== 'draft'"
+                                            title="Send PV to participants">
+                                        <i class="fa fa-envelope"/>
+                                        <span>Send to Participants</span>
+                                    </button>
+
+                                    <!-- Finalize Button (only show when file is selected) -->
+                                    <button class="btn-pv-action btn-finalize"
+                                            t-on-click="uploadSignedPv"
+                                            t-if="state.meeting.pv_status === 'final' and state.meeting.pv_can_edit and state.selectedFile"
+                                            title="Finalize and close meeting">
+                                        <i class="fa fa-check-circle"/>
+                                        <span>Finalize</span>
+                                    </button>
+                                </div>
+
+                                <!-- Hidden file input -->
+                                <input type="file"
+                                       id="signed-pv-upload"
+                                       accept=".pdf,.doc,.docx"
+                                       t-on-change="handleFileSelect"
+                                       style="display:none;"/>
+                            </div>
+
+                            <!-- PV Content Area -->
+                            <div class="pv-content-area">
+                                <!-- Editable PV -->
+                                <div class="notes-editor" t-if="state.pvEditing and state.meeting.pv_can_edit">
+                                    <div class="pv-editor-wrapper">
+                                        <div
+                                            class="pv-html-editor"
+                                            contenteditable="true"
+                                            t-on-input="onPvInput"
+                                            t-ref="pvEditor"
+                                        />
+                                    </div>
+                                </div>
+
+                                <!-- Read-only PV Display -->
+                                <div class="pv-display" t-if="!state.pvEditing and state.meeting.pv">
+                                    <div class="pv-content" t-out="state.meeting.pv"/>
+                                </div>
+
+                                <!-- Empty State -->
+                                <div class="pv-empty-state" t-if="!state.meeting.pv">
+                                    <i class="fa fa-file-text-o"/>
+                                    <p>No PV content yet</p>
+                                    <button class="btn-generate-template"
+                                            t-on-click="generatePvTemplate"
+                                            t-if="state.meeting.pv_can_edit">
+                                        <i class="fa fa-magic"/>
+                                        Generate PV Template
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- PV Info Footer -->
+                            <div class="pv-footer">
+                                <div class="pv-info">
+                                    <span class="info-item" t-if="state.meeting.pv_signed_document_name">
+                                        <i class="fa fa-file"/>
+                                        Signed file: <strong><t t-esc="state.meeting.pv_signed_document_name"/></strong>
+                                    </span>
                                 </div>
                             </div>
                         </div>
+                    </div>
                 </main>
             </div>
         </div>
