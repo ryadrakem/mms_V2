@@ -201,6 +201,14 @@
                             <span>Agenda</span>
                         </button>
                         <button class="tab-nav-button"
+                                t-att-class="{ 'active': state.activeMainTab === 'documents' }"
+                                t-if="state.session.documents?.length"
+                                t-on-click="() => onTabChange('documents')">
+                            <i class="fa fa-folder-open-o"/>
+                            <span>Documents (<t t-esc="state.session.documents.length"/>)
+                            </span>
+                        </button>
+                        <button class="tab-nav-button"
                                 t-att-class="{ 'active': state.activeMainTab === 'actions' }"
                                 t-if="state.session.is_action_assigner"
                                 t-on-click="() => onTabChange('actions')">
@@ -443,33 +451,37 @@
                                     </div>
                                 </t>
                             </div>
-                            <!-- Documents Section -->
-                            <div class="documents-section" t-if="state.session.documents?.length">
-                                <div class="actions-header">
-                                    <h3>
-                                        <i class="fa fa-list"/>
-                                        Documents
-                                    </h3>
-                                </div>
-                                <div class="agenda-body">
-                                    <table style="width:100%;">
-                                        <t t-foreach="state.session.documents" t-as="doc" t-key="doc.id">
-                                            <tr class="agenda-item" style="width:100%; display: inline-block;">
-                                                <td class="agenda-title" style="width:300px;">
-                                                    <t t-esc="doc.name"/>
-                                                </td>
-                                                <td style="">
-                                                    <button class="btn btn-xs btn-primary"
-                                                            t-on-click="() => this.downloadDocument(doc)"
-                                                            t-if="doc.attachments"
-                                                            style="height:35px;">
-                                                        <i class="fa fa-download"/>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        </t>
-                                    </table>
+                        </div>
+                    </div>
+                    <div class="main-tab-content" t-if="state.activeMainTab === 'documents'">
+                        <div class="documents-view-section">
+                            <div class="documents-header">
+                                <h3>
+                                    <i class="fa fa-folder-open-o"/>
+                                    Documents de la réunion
+                                </h3>
+                            </div>
 
+                            <div class="documents-body">
+                                <div class="documents-grid">
+                                    <t t-foreach="state.session.documents" t-as="doc" t-key="doc.id">
+                                        <div class="document-card">
+                                            <div class="doc-icon">
+                                                <i class="fa fa-file-text-o"/>
+                                            </div>
+                                            <div class="doc-info">
+                                                <span class="doc-name" t-esc="doc.name"/>
+                                                <span class="doc-meta">Document joint</span>
+                                            </div>
+                                            <div class="doc-actions d-flex gap-1">
+                                                <button class="btn btn-primary btn-sm"
+                                                        t-on-click="() => this.downloadDocument(doc)"
+                                                        title="Télécharger">
+                                                    <i class="fa fa-download"/>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </t>
                                 </div>
                             </div>
                         </div>

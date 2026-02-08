@@ -27,6 +27,8 @@ export class MeetingSessionView extends Component {
     this.addAttendanceLine = this.addAttendanceLine.bind(this);
     this.removeAttendanceLine = this.removeAttendanceLine.bind(this);
     this.meetingChannel = `meeting_channel_${this.props.action.context.active_id || this.props.action.params.meeting_id}`;
+    this.downloadDocument = this.downloadDocument.bind(this);
+    this._getDocBlob = this._getDocBlob.bind(this);
 
     this.state = useState({
       loading: true,
@@ -196,6 +198,7 @@ export class MeetingSessionView extends Component {
 
       this.statusInterval = setInterval(async () => {
         await this.refreshParticipantStatus();
+        await this.loadAttendanceLines();
       }, 10000);
 
       await this.refreshParticipantStatus();
@@ -2092,44 +2095,9 @@ async leaveMeeting() {
   }
 }
 
-    // ADD THE downloadDocument METHOD HERE
     downloadDocument(doc) {
-      try {
-        if (!doc.attachments) {
-          console.warn("⚠️ No attachment data for:", doc.name);
-          return;
-        }
-
-        // Convert base64 to blob and download
-        const byteCharacters = atob(doc.attachments);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-
-        // Try to determine mimetype from file extension
-        const extension = doc.name.split('.').pop().toLowerCase();
-        const mimetypes = {
-          'pdf': 'application/pdf',
-          'doc': 'application/msword',
-          'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          'xls': 'application/vnd.ms-excel',
-          'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'ppt': 'application/vnd.ms-powerpoint',
-          'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-          'jpg': 'image/jpeg',
-          'jpeg': 'image/jpeg',
-          'png': 'image/png',
-          'gif': 'image/gif',
-          'txt': 'text/plain',
-          'zip': 'application/zip',
-        };
-
-        const mimetype = mimetypes[extension] || 'application/octet-stream';
-        const blob = new Blob([byteArray], { type: mimetype });
-
-        // Create download link
+        const blob = this._getDocBlob(doc);
+        if (!blob) return;
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -2138,13 +2106,7 @@ async leaveMeeting() {
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-
-        console.log("✅ Document downloaded:", doc.name);
-      } catch (error) {
-        console.error("❌ Error downloading document:", error);
       }
-    }
-
     async loadPlanificationDocuments() {
       if (this.planificationId) {
         try {
@@ -2172,6 +2134,28 @@ async leaveMeeting() {
         }
       }
     }
+
+    _getDocBlob(doc) {
+        if (!doc.attachments) return null;
+        try {
+          const byteCharacters = atob(doc.attachments);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const parts = doc.name.split('.');
+          const extension = parts.length > 1 ? parts.pop().toLowerCase() : '';
+          const mimetypes = {
+            'pdf': 'application/pdf',
+            'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+            'doc': 'application/msword', 'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls': 'application/vnd.ms-excel', 'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          };
+          const mimetype = mimetypes[extension] || 'application/octet-stream';
+          return new Blob([byteArray], { type: mimetype });
+        } catch (e) { return null; }
+      }
 
   async endMeeting() {
     if (!this.state.session.is_host) {
