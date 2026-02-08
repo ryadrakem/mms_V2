@@ -110,23 +110,25 @@
                             <field name="equipment_ids" widget="many2many_tags"
                                    invisible="not equipment_ids and state != 'draft'" readonly="state != 'draft'"/>
                             <field name="project_id" readonly="state != 'draft'"/>
-                            <field name="unique_participant_ids" invisible="0" widget="many2many_tags"/>
-                            <field name="participant_ids" invisible="0" widget="many2many_tags"/>
+                            <field name="unique_participant_ids" invisible="1" widget="many2many_tags"/>
+                            <field name="participant_ids" invisible="1" widget="many2many_tags"/>
                             <field name="pv_writer_id2" domain="[('id', 'in', participant_ids)]"
                                    invisible="not has_pv or not participant_ids"/>
                             <field name="host_id" string="host" domain="[('id', 'in', participant_ids)]"
                                    invisible="not participant_ids"/>
                             <field name="quorum" readonly="state != 'draft'"
-                                   invisible="'use_quorum_percentage', '=', False"/>
+                                   invisible="not use_quorum_percentage"/>
                             <field name="quorum_number" readonly="state != 'draft'"
-                                   invisible="'use_quorum_percentage', '=', True"/>
+                                   invisible="use_quorum_percentage"/>
                         </group>
                     </group>
 
                     <!-- Notebook -->
                     <notebook>
                         <page string="Participants">
-                            <field name="participant_ids" context="{'form_view_ref' : 'meeting_management_base.dw_participant_view_form'}" readonly="state != 'draft'"/>
+                            <field name="participant_ids"
+                                   context="{'form_view_ref' : 'meeting_management_base.dw_participant_view_form'}"
+                                   readonly="state != 'draft'"/>
                         </page>
 
                         <!-- AGENDA - SIMPLE LIST VIEW (NO TIMER BUTTONS) -->
