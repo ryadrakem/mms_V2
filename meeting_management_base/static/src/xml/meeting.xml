@@ -302,9 +302,8 @@
 
                                     <!-- Upload Signed PV Button -->
                                     <button class="btn-pv-action btn-upload"
-                                            t-on-click="() => document.getElementById('signed-pv-upload').click()"
-                                            t-if="state.meeting.pv_status === 'final' and state.meeting.pv_can_edit"
-                                            title="Upload signed PV">
+                                            t-on-click="onUploadClick"
+                                            t-if="state.meeting.pv_status === 'final' and state.meeting.pv_can_edit">
                                         <i class="fa fa-upload"/>
                                         <span>Upload Signed</span>
                                     </button>
@@ -379,7 +378,11 @@
 
                             <!-- PV Info Footer -->
                             <div class="pv-footer">
-                                <div class="pv-info">
+                                    <div class="pv-info pv-download"
+                                         t-on-click="onDownloadClick"
+                                         role="button"
+                                         title="Download signed PV"
+                                         style="cursor: pointer;">
                                     <span class="info-item" t-if="state.meeting.pv_signed_document_name">
                                         <i class="fa fa-file"/>
                                         Signed file: <strong><t t-esc="state.meeting.pv_signed_document_name"/></strong>
@@ -393,3 +396,10 @@
         </div>
     </t>
 </templates>
+
+<!--                                    <button class="btn-pv-action btn-download"-->
+<!--                                            t-on-click="onDownloadClick"-->
+<!--                                            t-if="state.meeting.pv_signed_document">-->
+<!--                                        <i class="fa fa-download"/>-->
+<!--                                        <span>Download Signed</span>-->
+<!--                                    </button>-->

@@ -237,7 +237,7 @@
                         </button>
                         <button class="tab-nav-button"
                                 t-att-class="{ 'active': state.activeMainTab === 'video' }"
-                                t-if="state.session.state !== 'done' and state.session.use_vc"
+                                t-if="state.session.state !== 'done' and state.session.use_vc and state.jitsiLoaded"
                                 t-on-click="() => onTabChange('video')">
                             <i class="fa fa-video-camera"/>
                             <span>Video Conference</span>
@@ -246,7 +246,7 @@
 
 
                     <div class="video-conference-container"
-                         t-if="state.session.state !== 'done' and state.session.use_vc"
+                         t-if="state.session.state !== 'done' and state.session.use_vc and state.jitsiLoaded"
                          t-att-class="{ 'hidden': !state.session.display_camera }">
                         <div id="jitsi-meet-container" class="jitsi-container"/>
 

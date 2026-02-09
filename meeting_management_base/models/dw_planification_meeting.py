@@ -225,6 +225,7 @@ class DwPlanificationMeeting(models.Model):
     _inherit = ['mail.thread', 'mail.activity.mixin']
 
     name = fields.Char(string='Title', tracking=True, required=True)
+    meeting_name = fields.Char(compute='_compute_meeting_name',store=False)
     objet = fields.Char(string='Objet')
     is_external = fields.Boolean(string='External', help="If the meeting implies external participants")
     is_off_site = fields.Boolean(string='Off Site', help="If the meeting location is outside the company")
@@ -287,6 +288,12 @@ class DwPlanificationMeeting(models.Model):
         store=True
     )
 
+    @api.depends('name')
+    def _compute_meeting_name(self):
+        for rec in self:
+            if rec.name:
+                rec.meeting_name = rec.name
+
     @api.onchange('participant_ids', 'permanent_members_id')
     @api.depends('participant_ids', 'participant_ids.user_id')
     def _compute_unique_participants(self):
@@ -343,6 +350,7 @@ class DwPlanificationMeeting(models.Model):
         'meeting_id',
         string='Documents'
     )
+
 
     @api.onchange('pv_writer_id2')
     def _compute_set_pv_writer(self):
@@ -672,7 +680,7 @@ class DwPlanificationMeeting(models.Model):
         # ═══════════════════════════════════════════════════════════════════
         self.actual_start_datetime = fields.Datetime.now()
         meeting = self.env['dw.meeting'].create({
-            'name': self.name,
+            'name': self.meeting_name,
             'planned_start_datetime': self.planned_start_datetime,
             'duration': self.duration,
             'subject_order': [(6, 0, meeting_agendas)],  # Utiliser les agendas copiés

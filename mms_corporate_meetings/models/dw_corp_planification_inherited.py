@@ -8,6 +8,7 @@ class DwCorpPlanification(models.Model):
     is_ca = fields.Boolean(related='meeting_type_id.is_ca', string='CA')
     is_ag = fields.Boolean(related='meeting_type_id.is_ag', string='Ag')
     is_age = fields.Boolean(related='meeting_type_id.is_age', string='Age')
+    meeting_number = fields.Integer(string="Meeting Number", compute="_compute_meeting_number", store=True)
 
     member_ids = fields.One2many(
         'dw.participant',
@@ -22,6 +23,54 @@ class DwCorpPlanification(models.Model):
         string="Guests",
         domain=[('is_member', '=', False)]
     )
+
+    @api.depends('actual_start_datetime', 'is_ca', 'is_ag', 'is_age')
+    def _compute_meeting_number(self):
+        for rec in self:
+            rec.meeting_number = 0
+
+            if not rec.planned_start_datetime:
+                continue
+
+            meeting_date = rec.planned_start_datetime.date()
+            year = meeting_date.year
+
+            domain = [
+                ('planned_start_datetime', '>=', f'{year}-01-01 00:00:00'),
+                ('planned_start_datetime', '<=', f'{year}-12-31 23:59:59'),
+            ]
+
+            if rec.is_ca:
+                domain.append(('meeting_type_id.is_ca', '=', True))
+            elif rec.is_ag:
+                domain.append(('meeting_type_id.is_ag', '=', True))
+            elif rec.is_age:
+                domain.append(('meeting_type_id.is_age', '=', True))
+
+            meeting_model = self.env['dw.meeting']
+            count = meeting_model.search_count(domain) + 1
+
+            rec.meeting_number = count
+
+    @api.depends('meeting_number', 'planned_start_datetime', 'is_ca', 'is_ag', 'is_age')
+    def _compute_meeting_name(self):
+        for rec in self:
+            if not rec.planned_start_datetime:
+                rec.meeting_name = False
+                continue
+
+            year = rec.planned_start_datetime.year
+
+            if rec.is_ca:
+                prefix = "CA"
+            elif rec.is_ag:
+                prefix = "AG"
+            elif rec.is_age:
+                prefix = "AGE"
+            else:
+                prefix = "MEETING"
+
+            rec.meeting_name = f"{prefix}/N°{rec.meeting_number}/{year}"
 
     def action_print_convocations(self):
         return self.env.ref('mms_corporate_meetings.report_convocation').report_action(self)

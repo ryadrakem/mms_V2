@@ -129,6 +129,19 @@ export class MeetingView extends Component {
     }
   }
 
+  onUploadClick() {
+    document.getElementById('signed-pv-upload').click();
+  }
+
+  onDownloadClick() {
+    const model = "dw.meeting";
+    const fieldName = "pv_signed_document";
+    const fileName = this.state.meeting.pv_signed_document_name;
+
+    const url = `/web/content/${model}/${this.meetingId}/${fieldName}?download=true&filename=${encodeURIComponent(fileName)}`;
+    window.open(url, "_blank");
+}
+
   async loadMeetingData() {
     try {
 

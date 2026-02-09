@@ -3,6 +3,7 @@
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="o">
                 <t t-foreach="o.participant_ids" t-as="p">
+                    <meta charset="utf-8"/>
                     <div style="width:100%; margin:0; padding:0;">
                         <table style="width:100%; table-layout:fixed; border-collapse:collapse;">
                             <tr>
@@ -20,11 +21,13 @@
                                 <td style="width:30%;">
                                     <span style="text-decoration: underline;">Ref.</span>
                                     <span>:</span>
-                                    <span>CA/MA/N08/2025</span>
+                                    <span t-raw="o.meeting_name"></span>
                                 </td>
                                 <td style="width:40%; text-align:center;"></td>
                                 <td style="width:30%; text-align:right;">
-                                    <span>Alger le, 27 avril 2025</span>
+                                    <span t-esc="o.company_id.state_id.name"/>
+                                    <span>le,</span>
+                                    <span t-esc="datetime.date.today().strftime('%d-%m-%Y')"/>
                                 </td>
                             </tr>
                         </table>
@@ -51,10 +54,10 @@
                                             <span>Membre du Conseil d'administration de</span>
                                         </t>
                                         <t t-elif="o.meeting_type_id.is_ag">
-                                            <span>Membre de l'Assemblé Générale</span>
+                                            <span>Membre de l'Assemblé Générale de</span>
                                         </t>
                                         <t t-elif="o.meeting_type_id.is_age">
-                                            <span>Membre de l'Assemblé Générale Exceptionnelle</span>
+                                            <span>Membre de l'Assemblé Générale Exceptionnelle de</span>
                                         </t>
                                         <br/>
                                         <span t-esc="o.company_id.name"/>
@@ -71,14 +74,39 @@
                                     <t t-if="p.employee_id.gender == 'male'">
                                         <span>Monsieur,</span>
                                     </t>
+                                    <t t-elif="p.employee_id.gender == 'female'">
+                                        <span>Madame,</span>
+                                    </t>
+                                    <t t-else="">
+                                        <span></span>
+                                    </t>
                                 </td>
                             </tr>
                             <td>
-                                <span style="white-space: nowrap;">J'ai l'honneur de vous informer de la prochaine
-                                    reunion du conseil d'administion de la
-                                </span>
+                                <t t-if="o.is_ca">
+                                    <span style="white-space: nowrap;">
+                                        J'ai l'honneur de vous informer de la prochaine réunion du conseil
+                                        d'administration de la
+                                    </span>
+                                </t>
+                                <t t-elif="o.is_ag">
+                                    <span style="white-space: nowrap;">
+                                        J'ai l'honneur de vous informer de la prochaine assemblée generale de la
+                                    </span>
+                                </t>
+                                <t t-elif="o.is_age">
+                                    <span style="white-space: nowrap;">
+                                        J'ai l'honneur de vous informer de la prochaine assemblee generale
+                                        extraordinaire de la
+                                    </span>
+                                </t>
+                                <t t-else="">
+                                    <span style="white-space: nowrap;">
+                                        J'ai l'honneur de vous informer de la prochaine reunion
+                                    </span>
+                                </t>
                                 <br/>
-                                <span>societe qui aura lieu</span>
+                                <span>société qui aura lieu</span>
                                 <span t-esc="o.planned_start_datetime or ''"/>
                                 <t t-if="p.is_remote">
                                     <span>,a distance,</span>
@@ -87,7 +115,8 @@
                                     <span>,en presentiel,</span>
                                 </t>
                                 <t t-if="o.is_off_site">
-                                    <span>A l'adresse suivante</span>
+                                    <span>A l'adresse suivante :</span>
+                                    <span t-esc="o.location_id.adresse"/>
                                 </t>
                                 <t t-else="">
                                     <span>au niveau du siege social de la societe.</span>
