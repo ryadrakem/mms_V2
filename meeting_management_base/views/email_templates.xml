@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<smartdz>
+        <!-- QWeb template for the PDF -->
+        <template id="meeting_pv_pdf_2">
+            <t t-call="web.html_container">
+                <t t-foreach="docs" t-as="m">
+                    <t t-call="web.external_layout">
+                        <div class="page" style="padding:20px;">
+                            <h2>PV: <span t-field="m.name"/></h2>
+                            <div t-field="m.pv"/>
+                        </div>
+                    </t>
+                </t>
+            </t>
+        </template>
+
+        <!-- Report definition -->
+        <record id="meeting_pv_report_2" model="ir.actions.report">
+            <field name="name">Meeting PV</field>
+            <field name="model">dw.meeting</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="report_name">meeting_management_base.meeting_pv_pdf_2</field>
+            <field name="report_file">meeting_management_base.meeting_pv_pdf_2</field>
+            <field name="binding_model_id" ref="model_dw_meeting"/>
+            <field name="binding_type">report</field>
+        </record>
+
+        <!-- Email template -->
+        <record id="email_template_meeting_pv" model="mail.template">
+            <field name="name">Meeting PV Notification</field>
+            <field name="model_id" ref="model_dw_participant"/>
+            <field name="subject">PV of Meeting: {{ object.meeting_id.name }}</field>
+            <field name="body_html" type="html">
+                <p>Hello <strong>${object.name}</strong>,</p>
+                <p>The meeting is finished. Please find the PV attached.</p>
+                <p>Regards,</p>
+            </field>
+        </record>
+    <!-- QWeb template for the PDF -->
+<!--    <template id="meeting_pv_pdf">-->
+<!--        <t t-call="web.html_container">-->
+<!--            <t t-foreach="docs" t-as="m">-->
+<!--                <t t-call="web.external_layout">-->
+<!--                    <div class="page" style="padding:20px;">-->
+<!--                        <h2>PV:-->
+<!--                            <span t-esc="m.name"/>-->
+<!--                        </h2>-->
+<!--                        <div t-raw="m.pv"/>-->
+<!--                    </div>-->
+<!--                </t>-->
+<!--            </t>-->
+<!--        </t>-->
+<!--    </template>-->
+
+<!--    &lt;!&ndash; Report definition &ndash;&gt;-->
+<!--    <record id="meeting_pv_report" model="ir.actions.report">-->
+<!--        <field name="name">Meeting PV</field>-->
+<!--        <field name="model">dw.meeting</field>-->
+<!--        <field name="report_type">qweb-pdf</field>-->
+<!--        <field name="report_name">meeting_management_base.meeting_pv_pdf</field>-->
+<!--        <field name="report_file">meeting_management_base.meeting_pv_pdf</field>-->
+<!--        <field name="binding_model_id" ref="model_dw_meeting"/>-->
+<!--        <field name="binding_type">report</field>-->
+<!--        <field name="paperformat_id" ref="base.paperformat_euro"/>-->
+<!--    </record>-->
+
+<!--    &lt;!&ndash; Email template &ndash;&gt;-->
+<!--    <record id="email_template_meeting_pv" model="mail.template">-->
+<!--        <field name="name">Meeting PV Notification</field>-->
+<!--        <field name="model_id" ref="model_dw_participant"/>-->
+<!--        <field name="subject">PV of Meeting: ${object.meeting_id.name}</field>-->
+<!--        <field name="email_from">${(object.meeting_id.create_uid.email_formatted or user.email_formatted) | safe}-->
+<!--        </field>-->
+<!--        <field name="body_html" type="html">-->
+<!--            <![CDATA[-->
+<!--            <div style="font-family: Arial, sans-serif; padding: 20px;">-->
+<!--                <p>Hello <strong>${object.name}</strong>,</p>-->
+<!--                <p>The meeting "<strong>${object.meeting_id.name}</strong>" has been completed.</p>-->
+<!--                <p>Please find the meeting minutes (PV) attached to this email.</p>-->
+<!--                <br/>-->
+<!--                <p>Best regards,<br/>-->
+<!--                ${object.meeting_id.create_uid.name}</p>-->
+<!--            </div>-->
+<!--            ]]>-->
+<!--        </field>-->
+<!--    </record>-->
+</smartdz>

@@ -2,7 +2,10 @@ import uuid
 from smartdz import models, fields, api, _
 from datetime import datetime, timedelta
 from smartdz.exceptions import ValidationError
+import logging
+import base64
 
+_logger = logging.getLogger(__name__)
 
 class DwMeeting(models.Model):
     _name = 'dw.meeting'
@@ -17,7 +20,7 @@ class DwMeeting(models.Model):
     meeting_type_id = fields.Many2one('dw.meeting.type', string='Meeting Type')
     client_ids = fields.Many2many('res.partner', string='Client', domain=[('is_company', '=', True)])
     # subject_order = fields.Html(string='Agenda')
-    subject_order = fields.One2many('dw.agenda', 'meeting_id', string='Agenda')
+    subject_order = fields.One2many('dw.agenda', 'meeting_id', string='Calendar')
     planned_start_datetime = fields.Datetime(string='Start Date & Time', required=True, tracking=True)
     planned_end_time = fields.Datetime(string='End Date & Time', related="planification_id.planned_end_time",store=True)
     location_id = fields.Many2one('dw.location', string='Location')
@@ -80,6 +83,58 @@ class DwMeeting(models.Model):
             },
         }
 
+    def action_join_meeting(self):
+        """Join the meeting - opens the user's session"""
+        self.ensure_one()
+
+        # Get current user
+        current_user = self.env.user
+
+        # Find the planification linked to this meeting
+        planification = self.env['dw.planification.meeting'].search([
+            ('meeting_id', '=', self.id)
+        ], limit=1)
+
+        if not planification:
+            raise ValidationError(_("No planification found for this meeting."))
+
+        # Find the session for the current user
+        user_session = self.env['dw.meeting.session'].search([
+            ('meeting_id', '=', self.id),
+            ('user_id', '=', current_user.id)
+        ], limit=1)
+
+        if user_session and not user_session.flag_attendance:
+            now = fields.Datetime.now()
+            user_session.join_time = now
+            if self.planification_id.actual_start_datetime and self.planification_id.tolerated_late:
+                tolerated_limit = self.planification_id.actual_start_datetime + timedelta(minutes=self.planification_id.tolerated_late)
+                if now <= tolerated_limit:
+                    user_session.participant_id.attendance_status = "present"
+                else:
+                    user_session.participant_id.attendance_status = "late"
+            user_session.flag_attendance = True
+
+
+        if not user_session:
+            raise ValidationError(_("You are not a participant in this meeting."))
+
+        # Return the action to open the session
+        return {
+            'type': 'ir.actions.client',
+            'name': f'Meeting: {self.name} - {current_user.name}',
+            'tag': 'meeting_session_view_action',
+            'params': {
+                'planification_id': planification.id,
+            },
+            'context': {
+                'active_id': user_session.id,
+                'default_session_id': user_session.id,
+                'default_planification_id': planification.id,
+                'default_pv': self.pv,
+            },
+        }
+
     # def action_open_session(self):
     #     self.ensure_one()
     #     Session = self.env['dw.meeting.session']
@@ -134,7 +189,7 @@ class DwMeeting(models.Model):
             raise ValidationError(_("A Jitsi room has already been created for this meeting."))
 
         # Generate unique room ID
-        room_id = f"odoo-meeting-{self.id}-{uuid.uuid4().hex[:8]}"
+        room_id = f"smartdz-meeting-{self.id}-{uuid.uuid4().hex[:8]}"
 
         self.write({
             'jitsi_room_id': room_id,
@@ -200,6 +255,108 @@ class DwMeeting(models.Model):
             'views': [[False, 'form']],
             'target': 'current'
         }
+
+    def _generate_pv_pdf(self):
+        """Render the PV PDF using a QWeb report template."""
+        self.ensure_one()
+
+        try:
+            # Get the report using the standard pattern
+            report = self.env['ir.actions.report']._get_report_from_name(
+                'meeting_management_base.meeting_pv_pdf_2'
+            )
+
+            if not report:
+                raise ValueError("Report 'meeting_pv_pdf_2' not found")
+
+            # Render the report
+            pdf_content, _ = self.env['ir.actions.report']._render_qweb_pdf('meeting_management_base.meeting_pv_pdf_2', self.id)
+
+            if not pdf_content:
+                raise ValueError("PDF generation returned empty content")
+
+            return pdf_content
+
+        except Exception as e:
+            _logger.error(f"Error generating PDF for meeting {self.name}: {e}", exc_info=True)
+            raise ValidationError(
+                _("Failed to generate the PV PDF. Please ensure the report is properly configured.")
+            )
+    def _send_pv_emails(self, pdf_b64):
+        """Send PV emails to all participants with the PDF attachment."""
+        self.ensure_one()
+
+        template = self.env.ref(
+            'meeting_management_base.email_template_meeting_pv',
+            raise_if_not_found=False
+        )
+
+        if not template:
+            _logger.error("Email template 'meeting_management_base.email_template_meeting_pv' not found")
+            return
+
+        for participant in self.participant_ids:
+            participant_email = None
+            if participant.partner_id and participant.partner_id.email:
+                participant_email = participant.partner_id.email
+            elif participant.employee_id and participant.employee_id.work_email:
+                participant_email = participant.employee_id.work_email
+
+            if not participant_email:
+                _logger.warning(
+                    f"No email address found for participant {participant.name}"
+                )
+                continue
+
+            # Build attachment - create unique attachment for each participant
+            attachment_name = f"PV_{self.name}_{participant.name}.pdf"
+            attachment = self.env['ir.attachment'].create({
+                'name': attachment_name,
+                'type': 'binary',
+                'datas': pdf_b64,
+                'res_model': 'dw.meeting',
+                'res_id': self.id,
+                'mimetype': 'application/pdf',
+            })
+
+            # Send email
+            try:
+                template.send_mail(
+                    participant.id,
+                    email_values={
+                        'email_to': participant_email,
+                        'recipient_ids': [],
+                        'attachment_ids': [attachment.id],
+                    },
+                    force_send=True,
+                )
+                _logger.info(f"PV sent to {participant.name} ({participant_email})")
+
+            except Exception as e:
+                _logger.error(f"Failed to send PV to {participant.name}: {e}", exc_info=True)
+                # Clean up attachment if email fails
+                attachment.unlink()
+
+    def write(self, vals):
+        """Override write to send PV emails when meeting is marked as done."""
+        res = super(DwMeeting, self).write(vals)
+
+        if 'state' in vals and vals['state'] == 'done':
+            for rec in self:
+                if rec.pv:
+                    try:
+                        _logger.info(f"Generating and sending PV for meeting: {rec.name}")
+                        pdf_bytes = rec._generate_pv_pdf()
+                        pdf_b64 = base64.b64encode(pdf_bytes)
+                        # Send email to every participant
+                        rec._send_pv_emails(pdf_b64)
+                        _logger.info(f"PV successfully sent for meeting: {rec.name}")
+                    except Exception as e:
+                        _logger.error(f"Failed to generate or send PV for meeting {rec.name}: {e}", exc_info=True)
+                        # Optionally, you can notify the user about the failure
+                        # but don't block the state change
+
+        return res
 
 class DwMeetingNote(models.Model):
     """Meeting Notes - real-time collaborative notes"""

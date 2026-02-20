@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from smartdz import models, fields, api
+from smartdz import models, fields, api, _
 from smartdz.exceptions import ValidationError
 import json
 
@@ -163,8 +163,10 @@ class DwMeetingSummary(models.Model):
             'meeting': {
                 'name': meeting.name,
                 'objet': meeting.objet,
-                'start_time': meeting.planned_start_datetime.strftime('%Y-%m-%d %H:%M') if meeting.planned_start_datetime else '',
-                'planned_end_time': meeting.actual_end_time.strftime('%Y-%m-%d %H:%M') if meeting.actual_end_time else '',
+                'start_time': meeting.planned_start_datetime.strftime(
+                    '%Y-%m-%d %H:%M') if meeting.planned_start_datetime else '',
+                'planned_end_time': meeting.actual_end_datetime.strftime(
+                    '%Y-%m-%d %H:%M') if meeting.actual_end_datetime else '',
                 'duration': meeting.actual_duration,
                 'agenda': meeting.subject_order,
                 'participants': [p.name for p in meeting.participant_ids]
@@ -172,4 +174,40 @@ class DwMeetingSummary(models.Model):
             'notes': all_notes,
             'actions': actions_data,
             'decisions': decisions
+        }
+
+    def action_generate_summary(self):
+        """Generate AI-powered meeting summary"""
+        self.ensure_one()
+
+        if self.meeting_id.state != 'done':
+            raise ValidationError(_("Only completed meetings can have summaries generated."))
+
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'generate_meeting_summary',
+            'params': {
+                'summary_id': self.id,
+                'meeting_id': self.meeting_id.id,
+                'meeting_name': self.meeting_id.name
+            }
+        }
+
+    def action_view_summary(self):
+        """View existing meeting summary"""
+        self.ensure_one()
+
+        summary = self.env['dw.meeting.summary'].search([
+            ('meeting_id', '=', self.id)
+        ], limit=1, order='create_date desc')
+
+        if not summary:
+            raise ValidationError(_("No summary found for this meeting."))
+
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'dw.meeting.summary',
+            'res_id': summary.id,
+            'views': [[False, 'form']],
+            'target': 'current'
         }

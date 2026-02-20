@@ -1,5 +1,5 @@
 <smartdz>
-    <data>
+    <data noupdate="1">
         <record id="participant_role_presentateur" model="dw.participant.role">
             <field name="name">presentateur</field>
             <field name="description">A formal meeting for discussion or presentation.</field>
@@ -8,16 +8,26 @@
         <record id="participant_role_tech_support" model="dw.participant.role">
             <field name="name">technical support</field>
             <field name="description">An interactive meeting focused on skill development.</field>
+            <field name="is_system" eval="False"/>
         </record>
 
         <record id="participant_role_host" model="dw.participant.role">
             <field name="name">host</field>
             <field name="description">A user that can create, manage and cancel meetings.</field>
+            <field name="is_system" eval="True"/>
+        </record>
+
+        <!-- PV Writer Role -->
+        <record id="participant_role_pv" model="dw.participant.role">
+            <field name="name">PV Writer</field>
+            <field name="description">Responsible for writing meeting minutes</field>
+            <field name="is_system" eval="False"/>
         </record>
 
         <record id="participant_role_stakeholder" model="dw.participant.role">
             <field name="name">Stakeholder</field>
             <field name="description">A person of intrest in the project.</field>
+            <field name="is_system" eval="False"/>
         </record>
     </data>
 </smartdz>

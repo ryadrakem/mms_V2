@@ -5,7 +5,7 @@
         <field name="name">dw.meeting.view.list</field>
         <field name="model">dw.meeting</field>
         <field name="arch" type="xml">
-            <list duplicate="false" create="false" delete="false" edit="false">
+            <list duplicate="false" create="false" delete="true" edit="false">
                 <field name="name"/>
                 <field name="objet"/>
                 <field name="planned_start_datetime"/>
@@ -13,7 +13,18 @@
                 <button name="open_meeting"
                         string="Open Meeting"
                         type="object"
-                        class="btn-primary"/>
+                        class="btn-primary"
+                        invisible="state != 'done'"/>
+                <button name="action_join_meeting"
+                        string="Join Meeting"
+                        type="object"
+                        class="btn-success"
+                        invisible="state != 'in_progress'"/>
+                <button name="action_join_meeting"
+                        string="Open session"
+                        type="object"
+                        class="btn-success"
+                        invisible="state != 'done'"/>
             </list>
         </field>
     </record>
@@ -38,54 +49,127 @@
     <!-- Success Template -->
     <template id="meeting_response_success" name="Meeting Response Success">
         <t t-call="web.layout">
-            <div class="container mt-5">
-                <div class="row justify-content-center">
-                    <div class="col-md-8">
-                        <div class="card shadow-sm">
-                            <div class="card-body text-center p-5">
-                                <t t-if="response == 'accept'">
-                                    <i class="fa fa-check-circle fa-5x text-success mb-4"></i>
-                                    <h2 class="text-success mb-3">Invitation Accepted!</h2>
-                                    <p class="lead mb-4">
-                                        Thank you for accepting the invitation to:
-                                    </p>
-                                </t>
-                                <t t-else="">
-                                    <i class="fa fa-times-circle fa-5x text-danger mb-4"></i>
-                                    <h2 class="text-danger mb-3">Invitation Declined</h2>
-                                    <p class="lead mb-4">
-                                        You have declined the invitation to:
-                                    </p>
-                                </t>
 
-                                <div class="alert alert-info">
-                                    <h4>
-                                        <t t-esc="meeting.name"/>
-                                    </h4>
-                                    <p class="mb-1">
-                                        <strong>Date:</strong>
-                                        <t t-esc="meeting.planned_start_datetime"/>
-                                    </p>
-                                    <p class="mb-1" t-if="meeting.room_id">
-                                        <strong>Room:</strong>
-                                        <t t-esc="meeting.room_id.name"/>
-                                    </p>
-                                    <p class="mb-0" t-if="meeting.location_id">
-                                        <strong>Location:</strong>
-                                        <t t-esc="meeting.location_id.name"/>
-                                    </p>
-                                </div>
+            <!-- Custom Styling -->
+            <style>
+                body {
+                background: linear-gradient(135deg, #eef2f3, #d9e4ec);
+                font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                }
 
-                                <p class="text-muted mt-4">
-                                    Your response has been recorded. You can close this window.
-                                </p>
-                            </div>
+                .page-center-wrapper {
+                min-height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding: 20px;
+                }
+
+                .meeting-card {
+                border-radius: 16px;
+                overflow: hidden;
+                max-width: 600px;
+                margin: auto;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+                background: #fffffffa;
+                backdrop-filter: blur(4px);
+                }
+
+                .success-hero {
+                padding: 45px 20px;
+                color: white;
+                text-align: center;
+                }
+
+                .success-icon {
+                font-size: 90px;
+                animation: pop 0.4s ease-out;
+                }
+
+                @keyframes pop {
+                0% { transform: scale(0.5); opacity: 0; }
+                100% { transform: scale(1); opacity: 1; }
+                }
+
+                .info-box {
+                background: #f8fafc;
+                border-radius: 10px;
+                padding: 15px 20px;
+                border: 1px solid #e3e6ea;
+                margin-top: 10px;
+                text-align: center;
+                }
+
+                .meeting-title {
+                text-align: center;
+                font-size: 1.6rem;
+                font-weight: 600;
+                color: #333;
+                }
+            </style>
+
+            <!-- Page Content -->
+            <div class="page-center-wrapper">
+
+                <div class="meeting-card shadow">
+
+                    <!-- HEADER / STATUS -->
+                    <t t-if="response == 'accept'">
+                        <div class="success-hero"
+                             style="background: linear-gradient(135deg, #4CAF50, #2E7D32);">
+                            <i class="fa fa-check-circle success-icon mb-3"></i>
+                            <h2 class="fw-bold mt-2">Invitation Accepted!</h2>
+                            <p class="mt-2 mb-0" style="font-size: 1.1rem;">
+                                Thank you for confirming your attendance.
+                            </p>
                         </div>
+                    </t>
+                    <t t-else="">
+                        <div class="success-hero"
+                             style="background: linear-gradient(135deg, #B2BEB5, #36454F);">
+                            <i class="fa fa-times-circle success-icon mb-3"></i>
+                            <h2 class="fw-bold mt-2">Invitation Declined</h2>
+                            <p class="mt-2 mb-0" style="font-size: 1.1rem;">
+                                Your decision has been recorded.
+                            </p>
+                        </div>
+                    </t>
+
+                    <!-- CONTENT -->
+                    <div class="card-body p-5 text-center">
+
+                        <h3 class="meeting-title mb-3">
+                            <t t-esc="meeting.name"/>
+                        </h3>
+
+                        <div class="info-box text-start mx-auto" style="max-width: 420px;">
+                            <p class="mb-2">
+                                <strong>Date:</strong>
+                                <t t-esc="meeting.planned_start_datetime"/>
+                            </p>
+                            <p class="mb-2" t-if="meeting.room_id">
+                                <strong>Room:</strong>
+                                <t t-esc="meeting.room_id.name"/>
+                            </p>
+                            <p class="mb-0" t-if="meeting.location_id">
+                                <strong>Location:</strong>
+                                <t t-esc="meeting.location_id.name"/>
+                            </p>
+                        </div>
+
+                        <p class="text-muted mt-4" style="font-size: 1rem; text-align: center;">
+                            You may now close this window.
+                            <br/>
+                            <t t-if="response == 'accept'">
+                                We look forward to seeing you!
+                            </t>
+                        </p>
                     </div>
                 </div>
             </div>
         </t>
     </template>
+
 
     <!-- Error Template -->
     <template id="meeting_response_error" name="Meeting Response Error">
@@ -116,42 +200,117 @@
     <!-- Already Responded Template -->
     <template id="meeting_response_already" name="Meeting Response Already Submitted">
         <t t-call="web.layout">
-            <div class="container mt-5">
-                <div class="row justify-content-center">
-                    <div class="col-md-8">
-                        <div class="card shadow-sm">
-                            <div class="card-body text-center p-5">
-                                <i class="fa fa-info-circle fa-5x text-info mb-4"></i>
-                                <h2 class="text-info mb-3">Already Responded</h2>
-                                <div class="alert alert-info">
-                                    <p class="mb-0">
-                                        You have already responded to this invitation.
-                                    </p>
-                                    <p class="mt-2 mb-0">
-                                        <strong>Your response:</strong>
-                                        <span t-if="previous_status == 'accepted'" class="text-success">Accepted</span>
-                                        <span t-if="previous_status == 'declined'" class="text-danger">Declined</span>
-                                    </p>
-                                </div>
-                                <div class="alert alert-secondary mt-3">
-                                    <h4>
-                                        <t t-esc="meeting.name"/>
-                                    </h4>
-                                    <p class="mb-1">
-                                        <strong>Date:</strong>
-                                        <t t-esc="meeting.planned_start_datetime"/>
-                                    </p>
-                                </div>
-                                <p class="text-muted mt-4">
-                                    If you need to change your response, please contact the meeting organizer.
-                                </p>
-                            </div>
+
+            <style>
+                body {
+                background: linear-gradient(135deg, #eef2f3, #d9e4ec);
+                font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                }
+
+                .page-center-wrapper {
+                min-height: 100vh;
+                padding: 20px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                }
+
+                .meeting-card {
+                border-radius: 16px;
+                overflow: hidden;
+                max-width: 600px;
+                margin: auto;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+                background: #fffffffa;
+                backdrop-filter: blur(4px);
+                text-align: center;
+                }
+
+                .info-hero {
+                padding: 45px 20px;
+                color: white;
+                text-align: center;
+                background: linear-gradient(135deg, #0288D1, #01579B);
+                }
+
+                .info-icon {
+                font-size: 90px;
+                animation: pop 0.4s ease-out;
+                }
+
+                @keyframes pop {
+                0% { transform: scale(0.5); opacity: 0; }
+                100% { transform: scale(1); opacity: 1; }
+                }
+
+                .info-box {
+                background: #f8fafc;
+                border-radius: 10px;
+                padding: 20px;
+                border: 1px solid #e3e6ea;
+                margin-top: 20px;
+                text-align: center;
+                }
+
+                .meeting-title {
+                font-size: 1.6rem;
+                font-weight: 600;
+                color: #333;
+                }
+            </style>
+
+            <div class="page-center-wrapper">
+
+                <div class="meeting-card">
+
+                    <!-- HEADER -->
+                    <div class="info-hero">
+                        <i class="fa fa-info-circle info-icon mb-3"></i>
+                        <h2 class="fw-bold mt-2">Already Responded</h2>
+                        <p class="mt-2 mb-0" style="font-size: 1.1rem;">
+                            You have already submitted your response to this invitation.
+                        </p>
+                    </div>
+
+                    <!-- CONTENT -->
+                    <div class="card-body p-5">
+
+                        <div class="info-box mx-auto" style="">
+                            <p class="mb-1">
+                                <strong>Your Response:</strong>
+                            </p>
+                            <p class="mb-3">
+                                <span t-if="previous_status == 'accepted'" class="text-success fw-bold">
+                                    Accepted
+                                </span>
+                                <span t-if="previous_status == 'declined'" class="text-danger fw-bold">
+                                    Declined
+                                </span>
+                            </p>
                         </div>
+
+                        <h3 class="meeting-title mt-4 mb-3">
+                            <t t-esc="meeting.name"/>
+                        </h3>
+
+                        <div class="info-box mx-auto" style="">
+                            <p class="mb-1">
+                                <strong>Date:</strong>
+                                <t t-esc="meeting.planned_start_datetime"/>
+                            </p>
+                        </div>
+
+                        <p class="text-muted mt-4" style="font-size: 1rem;">
+                            If you need to change your response, please contact the meeting organizer.
+                        </p>
+
                     </div>
                 </div>
+
             </div>
         </t>
     </template>
+
     <record id="email_template_meeting_invitation_secure" model="mail.template">
         <field name="name">Meeting Invitation (Secure)</field>
         <field name="model_id" ref="model_dw_participant"/>
@@ -162,7 +321,6 @@
             <t t-set="participant" t-value="object"/>
             <t t-set="meeting_title" t-value="meeting.name or ''"/>
             <t t-set="meeting_objet" t-value="meeting.objet or ''"/>
-            <t t-set="meeting_agenda" t-value="meeting.subject_order or ''"/>
             <t t-set="meeting_start" t-value="meeting.planned_start_datetime"/>
             <t t-set="meeting_end" t-value="meeting.planned_end_time"/>
             <t t-set="meeting_room" t-value="meeting.room_id.name if meeting.room_id else ''"/>
@@ -215,7 +373,13 @@
                                                 <td style="padding:8px 0;">
                                                     <strong style="color:#2c3e50;">📋 Agenda:</strong>
                                                     <div style="margin-top:4px; color:#555;">
-                                                        <t t-raw="meeting_agenda"/>
+                                                        <ul>
+                                                            <t t-foreach="meeting.subject_order" t-as="line">
+                                                                <li>
+                                                                    <t t-esc="line.name"/>
+                                                                </li>
+                                                            </t>
+                                                        </ul>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -282,8 +446,8 @@
                                         </p>
                                         <p style="margin:8px 0 0 0;">
                                             Powered by
-                                            <a href="https://www.odoo.com" style="color:#3498db; text-decoration:none;">
-                                                Odoo
+                                            <a href="#" style="color:#3498db; text-decoration:none;">
+                                                Smartdz
                                             </a>
                                         </p>
                                     </td>
@@ -297,90 +461,135 @@
         <field name="auto_delete" eval="True"/>
     </record>
 
-    <record id="email_template_meeting_invitation_5" model="mail.template">
-        <field name="name">Meeting Invitation 5</field>
-        <field name="model_id" ref="model_dw_planification_meeting"/>
-        <field name="subject">Invitation: {{ object.name }}</field>
-        <field name="description">Invitation email for scheduled meetings</field>
+    <record id="email_template_imminent_meeting_invitation_secure" model="mail.template">
+        <field name="name">Imminent Meeting Invitation</field>
+        <field name="model_id" ref="model_dw_participant"/>
+        <field name="subject">Invitation: {{ object.meeting_planification_id.name }}</field>
+        <field name="description">Secure invitation email for scheduled meetings</field>
         <field name="body_html" type="html">
-            <t t-set="meeting_title" t-value="object.name or ''"/>
-            <t t-set="meeting_objet" t-value="object.objet or ''"/>
-            <t t-set="meeting_agenda" t-value="object.subject_order or ''"/>
-            <t t-set="meeting_start" t-value="object.planned_start_datetime"/>
-            <t t-set="meeting_end" t-value="object.planned_end_time"/>
-            <t t-set="meeting_room" t-value="object.room_id.name if object.room_id else ''"/>
-            <t t-set="meeting_location" t-value="object.location_id.name if object.location_id else ''"/>
-
-            <!-- Generate token for the recipient -->
-            <t t-set="base_url" t-value="object.get_base_url()"/>
+            <t t-set="meeting" t-value="object.meeting_planification_id"/>
+            <t t-set="participant" t-value="object"/>
+            <t t-set="meeting_title" t-value="meeting.name or ''"/>
+            <t t-set="meeting_objet" t-value="meeting.objet or ''"/>
+            <t t-set="meeting_start" t-value="meeting.planned_start_datetime"/>
+            <t t-set="meeting_end" t-value="meeting.planned_end_time"/>
+            <t t-set="meeting_room" t-value="meeting.room_id.name if meeting.room_id else ''"/>
+            <t t-set="meeting_location" t-value="meeting.location_id.name if meeting.location_id else ''"/>
+            <t t-set="base_url" t-value="meeting.get_base_url()"/>
+            <t t-set="accept_url"
+               t-value="'%s/meeting/respond/%s/%s/%s/accept' % (base_url, meeting.id, participant.id, participant.access_token)"/>
+            <t t-set="decline_url"
+               t-value="'%s/meeting/respond/%s/%s/%s/decline' % (base_url, meeting.id, participant.id, participant.access_token)"/>
 
             <table border="0" cellpadding="0" cellspacing="0"
                    style="padding:16px; background-color:#f5f5f5; font-family:Verdana, Arial,sans-serif; color:#333; width:100%; border-collapse:separate;">
                 <tr>
                     <td align="center">
                         <table border="0" cellpadding="16" cellspacing="0" width="600"
-                               style="background-color:white; border-collapse:separate;">
+                               style="background-color:white; border-collapse:separate; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
                             <tbody>
                                 <!-- HEADER -->
                                 <tr>
-                                    <td style="font-size:20px; font-weight:bold; text-align:center;">
+                                    <td style="font-size:20px; font-weight:bold; text-align:center; color:#2c3e50; padding-top:24px;">
                                         <t t-esc="meeting_title"/>
                                     </td>
                                 </tr>
-                                <tr>
-                                    <td style="font-size:14px; text-align:center; color:#666;">
+                                <tr t-if="meeting_objet">
+                                    <td style="font-size:14px; text-align:center; color:#7f8c8d; padding-bottom:8px;">
                                         <t t-esc="meeting_objet"/>
+                                    </td>
+                                </tr>
+
+                                <!-- DIVIDER -->
+                                <tr>
+                                    <td style="padding:16px 0;">
+                                        <div style="height:2px; background-color:#ecf0f1;"></div>
                                     </td>
                                 </tr>
 
                                 <!-- CONTENT -->
                                 <tr>
-                                    <td style="font-size:13px; padding-top:16px;">
-                                        <p>Dear participant,</p>
-                                        <p>You are invited to the following meeting:</p>
-                                        <ul>
-                                            <li>
-                                                <strong>Agenda:</strong>
-                                                <t t-esc="meeting_agenda"/>
-                                            </li>
-                                            <li>
-                                                <strong>Date and Time:</strong>
-                                                <t t-esc="meeting_start"/>
-                                                -
-                                                <t t-esc="meeting_end"/>
-                                            </li>
-                                            <li>
-                                                <strong>Room:</strong>
-                                                <t t-esc="meeting_room"/>
-                                            </li>
-                                            <li>
-                                                <strong>Location:</strong>
-                                                <t t-esc="meeting_location"/>
-                                            </li>
-                                        </ul>
-                                        <p>Please confirm your attendance.</p>
+                                    <td style="font-size:13px; line-height:1.6; color:#34495e;">
+                                        <p style="margin-top:0;">Dear
+                                            <strong>
+                                                <t t-esc="participant.name"/>
+                                            </strong>
+                                            ,
+                                        </p>
+                                        <p>The meeting started:</p>
+
+                                        <table style="width:100%; margin:20px 0;">
+                                            <tr>
+                                                <td style="padding:8px 0;">
+                                                    <strong style="color:#2c3e50;">📋 Agenda:</strong>
+                                                    <div style="margin-top:4px; color:#555;">
+                                                        <ul>
+                                                            <t t-foreach="meeting.subject_order" t-as="line">
+                                                                <li>
+                                                                    <t t-esc="line.name"/>
+                                                                </li>
+                                                            </t>
+                                                        </ul>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr t-if="meeting_room">
+                                                <td style="padding:8px 0;">
+                                                    <strong style="color:#2c3e50;">🚪 Room:</strong>
+                                                    <span style="margin-left:8px; color:#555;">
+                                                        <t t-esc="meeting_room"/>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <tr t-if="meeting_location">
+                                                <td style="padding:8px 0;">
+                                                    <strong style="color:#2c3e50;">📍 Location:</strong>
+                                                    <span style="margin-left:8px; color:#555;">
+                                                        <t t-esc="meeting_location"/>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <p style="margin-bottom:24px;">Please confirm your attendance by clicking one of
+                                            the buttons below:
+                                        </p>
                                     </td>
                                 </tr>
 
                                 <!-- ACTION BUTTONS -->
                                 <tr>
-                                    <td style="margin: 16px 0; text-align: center;">
-                                        <a t-attf-href="#{base_url}/meeting/respond/#{object.id}/accept"
-                                           style="display:inline-block; padding:10px 20px; margin:0 5px; font-size:13px; background-color:#28a745; color:#fff; text-decoration:none; border-radius:5px;">
-                                            ✓ Accept
+                                    <td style="text-align:center; padding:20px 0;">
+                                        <a t-att-href="accept_url"
+                                           style="display:inline-block; padding:12px 32px; margin:0 8px; font-size:14px; font-weight:bold; background-color:#27ae60; color:#ffffff; text-decoration:none; border-radius:5px; box-shadow:0 2px 4px rgba(0,0,0,0.2);">
+                                            ✓ Accept Invitation
                                         </a>
-                                        <a t-attf-href="#{base_url}/meeting/respond/#{object.id}/decline"
-                                           style="display:inline-block; padding:10px 20px; margin:0 5px; font-size:13px; background-color:#dc3545; color:#fff; text-decoration:none; border-radius:5px;">
-                                            ✗ Decline
+                                        <a t-att-href="decline_url"
+                                           style="display:inline-block; padding:12px 32px; margin:0 8px; font-size:14px; font-weight:bold; background-color:#e74c3c; color:#ffffff; text-decoration:none; border-radius:5px; box-shadow:0 2px 4px rgba(0,0,0,0.2);">
+                                            ✗ Decline Invitation
                                         </a>
+                                    </td>
+                                </tr>
+
+                                <!-- DIVIDER -->
+                                <tr>
+                                    <td style="padding:16px 0;">
+                                        <div style="height:1px; background-color:#ecf0f1;"></div>
                                     </td>
                                 </tr>
 
                                 <!-- FOOTER -->
                                 <tr>
-                                    <td style="font-size:11px; color:#999; padding-top:16px; text-align:center;">
-                                        Powered by
-                                        <a href="https://www.odoo.com" style="color:#555;">Odoo</a>
+                                    <td style="font-size:11px; color:#95a5a6; padding:16px 0; text-align:center;">
+                                        <p style="margin:0;">
+                                            This is an automated message. Please do not reply to this email.
+                                        </p>
+                                        <p style="margin:8px 0 0 0;">
+                                            Powered by
+                                            <a href="#" style="color:#3498db; text-decoration:none;">
+                                                Smartdz
+                                            </a>
+                                        </p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -392,24 +601,13 @@
         <field name="auto_delete" eval="True"/>
     </record>
 
-
     <record id="dw_meeting_view_form" model="ir.ui.view">
         <field name="name">dw.meeting.view.form</field>
         <field name="model">dw.meeting</field>
         <field name="arch" type="xml">
-            <form string="Meeting" duplicate="false" create="false" delete="false" edit="false">
+            <form string="Meeting" duplicate="false" create="false" delete="true" edit="false">
                 <!-- Header avec statusbar et boutons -->
                 <header>
-                    <button name="action_generate_summary" string="Generate AI Summary"
-                            type="object"
-                            invisible="state != 'done'"
-                            class="btn-primary"
-                            icon="fa-magic"/>
-                    <button name="action_view_summary" string="View Summary"
-                            type="object"
-                            invisible="state != 'done'"
-                            class="btn-secondary"
-                            icon="fa-file-text"/>
                     <field name="state" widget="statusbar" statusbar_visible="in_progress,done,cancelled"/>
                 </header>
 
@@ -490,3 +688,4 @@
         </field>
     </record>
 </smartdz>
+

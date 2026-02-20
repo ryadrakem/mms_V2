@@ -24,11 +24,11 @@
                         </div>
                     </div>
                 </div>
-                <button t-if="state.isCurrentUserParticipant and state.currentUserSessionId"
-                        class="btn btn-primary"
-                        t-on-click="openMySession">
-                    Open My Session
-                </button>
+<!--                <button t-if="state.isCurrentUserParticipant and state.currentUserSessionId"-->
+<!--                        class="btn btn-primary"-->
+<!--                        t-on-click="openMySession">-->
+<!--                    Open My Session-->
+<!--                </button>-->
                 <div class="meeting-header-right">
                     <span class="status-chip" t-att-class="state.meeting.state">
                         <span class="status-dot"/>
@@ -55,11 +55,31 @@
                                         <div class="participant-item">
                                             <div class="participant-avatar">
                                                 <t t-esc="p.name.slice(0, 2).toUpperCase()"/>
+                                                <span t-att-class="'status-badge status-' + (p.attendance_status || 'default')"
+                                                t-att-title="getStatusLabel(p.attendance_status)"/>
                                             </div>
                                             <div class="participant-info">
                                                 <div class="participant-name">
                                                     <t t-esc="p.name"/>
                                                 </div>
+                                                <div class="participant-status">
+                                                    <t t-if="p.attendance_status === 'present'">
+                                                        <i class="fa fa-circle text-success"/> Present
+                                                    </t>
+                                                    <t t-elif="p.attendance_status === 'late'">
+                                                        <i class="fa fa-circle text-warning"/> Late
+                                                    </t>
+                                                    <t t-elif="p.attendance_status === 'absent'">
+                                                        <i class="fa fa-circle text-danger"/> Absent
+                                                    </t>
+                                                    <t t-elif="p.attendance_status === 'excused'">
+                                                        <i class="fa fa-circle text-muted"/> Excused
+                                                    </t>
+                                                    <t t-else="">
+                                                        <i class="fa fa-circle text-secondary"/> Awaiting
+                                                    </t>
+                                                </div>
+
                                             </div>
                                         </div>
                                     </t>

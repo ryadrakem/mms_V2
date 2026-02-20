@@ -151,7 +151,7 @@ export class MeetingView extends Component {
         const participantRecords = await this.orm.read(
           'dw.participant',
           meetingData.participant_ids,
-          ['id', 'name', 'user_id']
+          ['id', 'name', 'user_id', 'attendance_status']
         );
         this.state.meeting.participants = participantRecords;
         this.state.meeting.participant_ids = participantRecords.map(p => p.id);
@@ -209,6 +209,17 @@ export class MeetingView extends Component {
         type: "danger",
       });
     }
+  }
+
+    getStatusLabel(status) {
+        const labels = {
+            'present': 'Present',
+            'late': 'Late',
+            'absent': 'Absent',
+            'excused': 'Excused',
+            'default': 'Awaiting'
+        };
+        return labels[status] || 'Unknown';
   }
 
     toggleNotes() {

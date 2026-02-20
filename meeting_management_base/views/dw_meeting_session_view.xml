@@ -5,7 +5,7 @@
         <field name="name">dw.meeting.session.form</field>
         <field name="model">dw.meeting.session</field>
         <field name="arch" type="xml">
-            <form string="Meeting Session" create="false" duplicate="false" delete="false">
+            <form string="Meeting Session" create="false" duplicate="false" delete="true">
                 <header>
 <!--                    <button name="action_open_session_view"-->
 <!--                            string="Join Meeting"-->
@@ -74,7 +74,7 @@
         <field name="name">dw.meeting.session.tree</field>
         <field name="model">dw.meeting.session</field>
         <field name="arch" type="xml">
-            <list string="Meeting Sessions" duplicate="false" create="false" delete="false">
+            <list string="Meeting Sessions" duplicate="false" create="false" delete="true">
                 <field name="user_id"/>
                 <field name="participant_id"/>
                 <field name="meeting_id"/>

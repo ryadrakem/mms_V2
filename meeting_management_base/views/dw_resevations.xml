@@ -3,7 +3,7 @@
         <field name="name">dw.reservations.view.list</field>
         <field name="model">dw.reservations</field>
         <field name="arch" type="xml">
-            <list duplicate="false" create="false" delete="false" edit="false" export_xlsx="0">
+            <list duplicate="false" create="false" delete="true" edit="false" export_xlsx="0">
                 <field name="name"/>
                 <field name="meeting_plannification_id"/>
                 <field name="room_id"/>
@@ -18,7 +18,7 @@
         <field name="name">dw.reservations.view.form</field>
         <field name="model">dw.reservations</field>
         <field name="arch" type="xml">
-            <form duplicate="false" create="false" delete="false">
+            <form duplicate="false" create="false" delete="true">
                 <sheet>
                     <group>
                         <field name="name"/>
@@ -32,17 +32,25 @@
             </form>
         </field>
     </record>
+
     <record id="view_dw_reservations_calendar" model="ir.ui.view">
         <field name="name">dw.reservations.calendar</field>
         <field name="model">dw.reservations</field>
         <field name="arch" type="xml">
-            <calendar string="Reservations" date_start="start_time" date_stop="planned_end_time">
+            <calendar string="Reservations"
+                      date_start="start_time"
+                      date_stop="planned_end_time"
+                      color="room_id"
+                      create="false"
+                      delete="true"
+                      edit="false">
                 <field name="name"/>
                 <field name="room_id"/>
                 <field name="equipment_ids"/>
             </calendar>
         </field>
     </record>
+
     <record id="dw_reservations_action" model="ir.actions.act_window">
         <field name="name">Reservations</field>
         <field name="res_model">dw.reservations</field>

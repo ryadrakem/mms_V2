@@ -6,13 +6,18 @@
         <field name="arch" type="xml">
             <list duplicate="false">
                 <field name="name"/>
-                <field name="is_external" widget="boolean_toggle"/>
+                <field name="is_external"/>
                 <field name="is_remote"/>
                 <field name="department"/>
                 <field name="job"/>
                 <field name="role_id"/>
                 <field name="attachments"/>
-                <field name="invitation_status" decoration-info="invitation_status == 'pending'" decoration-success="invitation_status == 'accepted'" decoration-danger="invitation_status == 'declined'" widget="badge"/>
+                <field name="attendance_status" decoration-warning="attendance_status == 'late'"
+                       decoration-success="attendance_status == 'present'"
+                       decoration-danger="attendance_status == 'absent'" widget="badge"/>
+                <field name="invitation_status" decoration-info="invitation_status == 'pending'"
+                       decoration-success="invitation_status == 'accepted'"
+                       decoration-danger="invitation_status == 'declined'" widget="badge"/>
             </list>
         </field>
     </record>
@@ -21,11 +26,14 @@
         <field name="name">dw.participant.view.form</field>
         <field name="model">dw.participant</field>
         <field name="arch" type="xml">
-            <form duplicate="false" create="false" delete="false">
+            <form duplicate="false" create="true" delete="true" edit="true">
                 <sheet>
                     <div class="oe_title">
                         <h1>
-                            <field name="partner_id" invisible="not is_external" placeholder="select external participant"/>
+                            <field name="available_partner_ids" invisible="1"/>
+                            <field name="partner_id" invisible="not is_external"
+                                   placeholder="select external participant"
+                                   domain="[('id', 'in', available_partner_ids)]"/>
                             <field name="employee_id" invisible="is_external" placeholder="select employee"/>
                         </h1>
                     </div>
@@ -38,13 +46,120 @@
                         <field name="role_id"/>
                         <field name="is_pv"/>
                         <field name="is_remote"/>
-                        <field name="attachments"/>
+                    </group>
+                    <group>
+                        <group>
+                            <group>
+                                <div class="o_row">
+                                    <label string="Attachment" for="attachments"/>
+                                    <field name="attachments"/>
+                                </div>
+                            </group>
+                            <group>
+                                <button name="set_attachment_2_visible"
+                                        type="object"
+                                        icon="fa-plus"
+                                        invisible="is_attachments_2_visible"
+                                        class="btn btn-secondary"/>
+                                <button name="set_attachment_2_invisible"
+                                        type="object"
+                                        icon="fa-minus"
+                                        invisible="not is_attachments_2_visible or is_attachments_3_visible"
+                                        class="btn btn-secondary"/>
+                            </group>
+                        </group>
+                        <group>
+                            <group>
+
+                            </group>
+                            <group>
+                            </group>
+                        </group>
+                    </group>
+                    <group invisible="not is_attachments_2_visible">
+                        <group>
+                            <group>
+                                <div class="o_row">
+                                    <label string="Attachment 2" for="attachments_2"/>
+                                    <field name="attachments_2"/>
+                                </div>
+                            </group>
+                            <group>
+                                <button name="set_attachment_3_visible"
+                                        type="object"
+                                        icon="fa-plus"
+                                        invisible="is_attachments_3_visible"
+                                        class="btn btn-secondary"/>
+                                <button name="set_attachment_3_invisible"
+                                        type="object"
+                                        icon="fa-minus"
+                                        invisible="not is_attachments_3_visible or is_attachments_4_visible"
+                                        class="btn btn-secondary"/>
+                            </group>
+                        </group>
+                        <group>
+                            <group>
+
+                            </group>
+                            <group>
+                            </group>
+                        </group>
+                    </group>
+                    <group invisible="not is_attachments_3_visible">
+                        <group>
+                            <group>
+                                <div class="o_row">
+                                    <label string="Attachment 3" for="attachments_3"/>
+                                    <field name="attachments_3"/>
+                                </div>
+                            </group>
+                            <group>
+                                <button name="set_attachment_4_visible"
+                                        type="object"
+                                        icon="fa-plus"
+                                        invisible="is_attachments_4_visible"
+                                        class="btn btn-secondary"/>
+                                <button name="set_attachment_4_invisible"
+                                        type="object"
+                                        icon="fa-minus"
+                                        invisible="not is_attachments_4_visible"
+                                        class="btn btn-secondary"/>
+                            </group>
+                        </group>
+                        <group>
+                            <group>
+
+                            </group>
+                            <group>
+                            </group>
+                        </group>
+                    </group>
+                    <group invisible="not is_attachments_4_visible">
+                        <group>
+                            <group>
+                                <div class="o_row">
+                                    <label string="Attachment 4" for="attachments_4"/>
+                                    <field name="attachments_4"/>
+                                </div>
+                            </group>
+                            <group>
+
+                            </group>
+                        </group>
+                        <group>
+                            <group>
+
+                            </group>
+                            <group>
+                            </group>
+                        </group>
                     </group>
                 </sheet>
             </form>
         </field>
     </record>
-
+    <!--    <field name="attachments_3"/>-->
+    <!--    <field name="attachments_4"/>-->
     <record id="dw_participant_view_search" model="ir.ui.view">
         <field name="name">dw.participant.view.search</field>
         <field name="model">dw.participant</field>

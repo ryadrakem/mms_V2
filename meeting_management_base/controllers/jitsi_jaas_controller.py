@@ -187,7 +187,7 @@ class JitsiJaaSController(http.Controller):
 
             # Generate room name
             config = self._get_jitsi_config()
-            room_name = f"odoo-meeting-{meeting.id}".lower()
+            room_name = f"smartdz-meeting-{meeting.id}".lower()
             full_room_name = f"{config['app_id']}/{room_name}"
 
             # Generate JWT token
